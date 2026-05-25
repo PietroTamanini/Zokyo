@@ -1,0 +1,22 @@
+﻿.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; }
+.badge .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.b-blue { background: var(--blue-glow); color: var(--blue-lt); }
+[data-theme="light"] .b-blue { color: var(--blue-dk); }
+.b-blue .dot { background: var(--blue); }
+.b-green { background: var(--green-g); color: var(--green); }
+.b-green .dot { background: var(--green); }
+.b-red { background: var(--red-g); color: var(--red); }
+.b-red .dot { background: var(--red); }
+.b-amber { background: var(--amber-g); color: var(--amber); }
+.b-amber .dot { background: var(--amber); }
+.b-gray { background: rgba(78,101,137,0.15); color: var(--text-3); }
+.b-gray .dot { background: var(--text-3); }
+.b-sky { background: rgba(14,165,233,0.12); color: var(--sky); }
+.b-sky .dot { background: var(--sky); }
+.b-indigo { background: rgba(99,102,241,0.12); color: var(--indigo); }
+.b-indigo .dot { background: var(--indigo); }
+
+/* ═══════════════════════════════════════
+   PIPELINE
+═══════════════════════════════════════ */
+

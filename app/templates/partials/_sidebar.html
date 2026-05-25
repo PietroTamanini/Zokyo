@@ -1,0 +1,85 @@
+<aside id="sidebar">
+  <div class="logo-area">
+    <div class="logo-content">
+      <div class="logo-brand">{{ cfg.nome_empresa if cfg else APP_NAME }}</div>
+      <div class="logo-tag">⚙ Assistência Técnica</div>
+    </div>
+    <button class="sidebar-close" data-action="close-sidebar">✕</button>
+  </div>
+
+  <nav>
+    <div class="nav-group">Principal</div>
+
+    <a class="nav-item {{ 'active' if active == 'pages.dashboard' }}" href="{{ url_for('pages.dashboard') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+      Dashboard
+    </a>
+
+    <a class="nav-item {{ 'active' if active and 'os' in active and 'os_' in active }}" href="{{ url_for('pages.os_lista') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
+      Ordens de Serviço
+    </a>
+
+    <a class="nav-item {{ 'active' if active and 'clientes' in active }}" href="{{ url_for('pages.clientes') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>
+      Clientes
+    </a>
+
+    <div class="nav-group">Operação</div>
+
+    <a class="nav-item {{ 'active' if active and 'estoque' in active }}" href="{{ url_for('pages.estoque') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></span>
+      Estoque
+    </a>
+
+    <a class="nav-item {{ 'active' if active and 'fornecedores' in active }}" href="{{ url_for('pages.fornecedores') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
+      Fornecedores
+    </a>
+
+    {# Financeiro: visível para admin e financeiro — SEMPRE mostrado se perfil correto #}
+    {% if is_financeiro %}
+    <div class="nav-group">Financeiro</div>
+    <a class="nav-item {{ 'active' if active and 'financeiro' in active }}" href="{{ url_for('pages.financeiro') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
+      Financeiro
+    </a>
+    {% endif %}
+
+    {# Administração: visível apenas para admin — SEMPRE mostrado se admin #}
+    {% if is_admin %}
+    <div class="nav-group">Administração</div>
+
+    <a class="nav-item {{ 'active' if active and 'usuarios' in active }}" href="{{ url_for('usuarios.usuarios_page') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-1a6 6 0 0112 0v1"/></svg></span>
+      Usuários
+    </a>
+
+    <a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
+      Configurações
+    </a>
+
+    <a class="nav-item {{ 'active' if active and 'logs' in active }}" href="{{ url_for('logs.index') }}">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      Logs do Sistema
+    </a>
+    {% endif %}
+
+  </nav>
+
+  <div class="sidebar-bottom">
+    <form method="POST" action="{{ url_for('auth.logout') }}" data-confirm="Sair do sistema?">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="user-row-btn">
+        <div class="user-row">
+          <div class="user-avatar">{{ current_user.nome[0].upper() if current_user else 'U' }}</div>
+          <div>
+            <div class="user-name">{{ current_user.nome if current_user else '—' }}</div>
+            <div class="user-sub">{{ current_user.nivel if current_user else '' }}</div>
+          </div>
+        </div>
+      </button>
+    </form>
+  </div>
+</aside>

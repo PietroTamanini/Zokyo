@@ -1,0 +1,69 @@
+﻿/* ═══════════════════════════════════════════════════════════
+   Zokyo Informática — Design System v2.0
+   Tema escuro/claro + Mobile First + Sidebar Drawer
+═══════════════════════════════════════════════════════════ */
+
+/* ── Variáveis Tema Escuro (padrão) ── */
+[data-theme="dark"] {
+  --bg: #080c14;
+  --bg2: #0d1320;
+  --surface: #111827;
+  --surface2: #172035;
+  --surface3: #1e2d47;
+  --border: #1f3154;
+  --border2: #243b63;
+  --blue: #3b82f6;
+  --blue-dk: #2563eb;
+  --blue-lt: #60a5fa;
+  --blue-glow: rgba(59,130,246,0.14);
+  --blue-ring: rgba(59,130,246,0.3);
+  --sky: #0ea5e9;
+  --indigo: #6366f1;
+  --green: #22c55e;
+  --green-g: rgba(34,197,94,0.12);
+  --red: #ef4444;
+  --red-g: rgba(239,68,68,0.12);
+  --amber: #f59e0b;
+  --amber-g: rgba(245,158,11,0.12);
+  --text: #e2eaf6;
+  --text-2: #94a8c8;
+  --text-3: #4e6589;
+  --text-inv: #0d1320;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.4);
+  --sidebar-overlay: rgba(0,0,0,0.65);
+}
+
+/* ── Variáveis Tema Claro ── */
+[data-theme="light"] {
+  --bg: #f0f4fb;
+  --bg2: #e8eef9;
+  --surface: #ffffff;
+  --surface2: #f4f7fd;
+  --surface3: #eaf0fb;
+  --border: #d0dcf0;
+  --border2: #b8ccec;
+  --blue: #2563eb;
+  --blue-dk: #1d4ed8;
+  --blue-lt: #3b82f6;
+  --blue-glow: rgba(37,99,235,0.08);
+  --blue-ring: rgba(37,99,235,0.25);
+  --sky: #0284c7;
+  --indigo: #4f46e5;
+  --green: #16a34a;
+  --green-g: rgba(22,163,74,0.1);
+  --red: #dc2626;
+  --red-g: rgba(220,38,38,0.1);
+  --amber: #d97706;
+  --amber-g: rgba(217,119,6,0.1);
+  --text: #0f1e38;
+  --text-2: #3d5478;
+  --text-3: #8099bf;
+  --text-inv: #ffffff;
+  --shadow: 0 4px 24px rgba(37,99,235,0.1);
+  --shadow-sm: 0 2px 10px rgba(37,99,235,0.08);
+  --sidebar-overlay: rgba(0,0,0,0.45);
+}
+
+/* ── Reset ── */
+

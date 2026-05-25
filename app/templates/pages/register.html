@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
+  <title>Primeiro Acesso — {{ APP_NAME }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
+</head>
+<body class="auth-page">
+<div class="auth-shell">
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in msgs %}
+      <div class="alert a-{{ 'red' if cat == 'error' else 'green' if cat == 'success' else 'blue' }} mb16">
+        <span>{{ '❌' if cat == 'error' else '✅' if cat == 'success' else 'ℹ️' }}</span>
+        <div>{{ msg }}</div>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  <div class="card auth-card">
+    <div class="auth-head">
+      <div class="auth-brand">{{ APP_NAME }}</div>
+      <div class="auth-subtitle">Configuração inicial — crie o administrador</div>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.primeiro_acesso_post') }}" id="reg-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group mb16">
+        <label>Nome da Empresa <span class="req">*</span></label>
+        <input type="text" name="empresa_nome" placeholder="Ex: Minha Assistência Técnica"
+               value="{{ empresa_nome or '' }}" required autofocus>
+      </div>
+
+      <div class="form-group mb16">
+        <label>Nome do Administrador <span class="req">*</span></label>
+        <input type="text" name="nome" placeholder="Seu nome completo"
+               value="{{ nome or '' }}" required>
+      </div>
+
+      <div class="form-group mb16">
+        <label>E-mail <span class="req">*</span></label>
+        <input type="email" name="email" placeholder="seu@email.com"
+               value="{{ email or '' }}" required>
+      </div>
+
+      <div class="form-group mb16">
+        <label>Senha <span class="req">*</span></label>
+        <input type="password" name="senha" id="senha"
+               placeholder="Mínimo 8 caracteres" minlength="8" required>
+      </div>
+
+      <div class="form-group mb24">
+        <label>Confirmar Senha <span class="req">*</span></label>
+        <input type="password" name="confirmar_senha" id="confirmar_senha"
+               placeholder="Repita a senha" minlength="8" required>
+        <div id="senha-erro" style="color:var(--red);font-size:12px;margin-top:4px;display:none">
+          As senhas não coincidem.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="reg-btn">
+        🚀 Criar conta
+      </button>
+    </form>
+  </div>
+
+  <div class="auth-footer">{{ APP_COPYRIGHT }}</div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function(){
+  const t = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+
+  const form  = document.getElementById('reg-form');
+  const s1    = document.getElementById('senha');
+  const s2    = document.getElementById('confirmar_senha');
+  const erro  = document.getElementById('senha-erro');
+
+  function checar() {
+    const ok = s1.value === s2.value || s2.value === '';
+    erro.style.display = ok ? 'none' : 'block';
+    s2.setCustomValidity(ok ? '' : 'As senhas não coincidem.');
+  }
+
+  s1.addEventListener('input', checar);
+  s2.addEventListener('input', checar);
+
+  form.addEventListener('submit', function(e) {
+    if (s1.value !== s2.value) {
+      e.preventDefault();
+      erro.style.display = 'block';
+      s2.focus();
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+﻿#sidebar {
+  width: 248px;
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 300;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.25s, border-color 0.25s, transform 0.28s cubic-bezier(.4,0,.2,1);
+}
+
+/* Overlay escuro para mobile */
+#sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--sidebar-overlay);
+  z-index: 299;
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+#sidebar-overlay.show {
+  display: block;
+  opacity: 1;
+}
+
+.logo-area {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--blue) 0%, var(--indigo) 100%);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.logo-content { flex: 1; }
+.logo-city {
+  font-size: 10px; font-weight: 600; letter-spacing: 3px;
+  text-transform: uppercase; color: rgba(255,255,255,0.65);
+  margin-bottom: 3px; font-family: "JetBrains Mono", monospace;
+}
+.logo-brand {
+  font-size: 22px; font-weight: 900; color: #fff;
+  letter-spacing: -0.5px; line-height: 1.1;
+}
+.logo-brand span { color: rgba(255,255,255,0.55); font-weight: 400; }
+.logo-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 7px; background: rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 2px 10px; font-size: 10px;
+  color: rgba(255,255,255,0.85); font-family: "JetBrains Mono", monospace;
+}
+
+/* Botão fechar sidebar (mobile) */
+.sidebar-close {
+  display: none;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 7px;
+  color: #fff;
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 16px;
+  line-height: 1;
+  align-self: flex-start;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.sidebar-close:hover { background: rgba(255,255,255,0.25); }
+
+nav { flex: 1; padding: 10px 0; overflow-y: auto; }
+.nav-group {
+  padding: 14px 18px 4px; font-size: 10px; font-weight: 700;
+  letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-3);
+  font-family: "JetBrains Mono", monospace;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 18px 10px 16px; margin: 2px 8px;
+  border-radius: 8px; cursor: pointer; font-size: 14px;
+  font-weight: 500; color: var(--text-2); text-decoration: none;
+  transition: all 0.15s; border-left: 3px solid transparent; user-select: none;
+}
+.nav-item:hover { background: var(--blue-glow); color: var(--blue-lt); }
+.nav-item.active {
+  background: var(--blue-glow); color: var(--blue);
+  border-left-color: var(--blue); font-weight: 600;
+}
+[data-theme="light"] .nav-item.active {
+  background: rgba(37,99,235,0.08); color: var(--blue-dk);
+  border-left-color: var(--blue-dk);
+}
+.nav-icon {
+  width: 20px; height: 20px; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.nav-icon svg { width: 18px; height: 18px; }
+.notif-dot {
+  display: inline-block; width: 7px; height: 7px;
+  background: var(--red); border-radius: 50%; margin-left: 6px;
+  vertical-align: middle; animation: blink 1.5s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.sidebar-bottom { border-top: 1px solid var(--border); padding: 14px 18px; }
+.logout-form { margin: 0; }
+.user-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  transition: background 0.15s;
+}
+.user-row-btn {
+  width: 100%; background: transparent; border: none;
+  text-align: left; cursor: pointer; border-radius: 8px;
+}
+.user-row-btn:hover .user-row,
+.user-row:hover { background: var(--blue-glow); }
+.user-avatar {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--indigo) 100%);
+  border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 13px; font-weight: 700;
+  color: #fff; flex-shrink: 0;
+}
+/* FIX: nome visível em qualquer tema */
+.user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.user-sub { font-size: 11px; color: var(--text-3); font-family: "JetBrains Mono", monospace; }
+
+/* ═══════════════════════════════════════
+   MAIN / TOPBAR
+═══════════════════════════════════════ */
+

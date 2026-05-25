@@ -1,0 +1,45 @@
+﻿.chip { display: inline-block; background: var(--surface3); border: 1px solid var(--border2); border-radius: 6px; padding: 2px 8px; font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--text-2); }
+.flex { display: flex; }
+.items-c { align-items: center; }
+.jbet { justify-content: space-between; }
+.flex-gap { display: flex; gap: 8px; flex-wrap: wrap; }
+.stack-sm { display: flex; flex-direction: column; gap: 8px; }
+.stack-md { display: flex; flex-direction: column; gap: 16px; }
+.action-row { display: flex; gap: 4px; flex-wrap: nowrap; }
+.action-wrap { display: flex; gap: 5px; flex-wrap: wrap; }
+.inline-form { display: inline; }
+.input-search { max-width: 280px; }
+.input-search-sm { max-width: 260px; }
+.input-date { width: 160px; }
+.select-auto { width: auto; }
+.select-sm { width: 130px; }
+.select-md { width: 140px; }
+.form-group-compact { margin-bottom: 0; }
+.hidden { display: none; }
+.soft-hidden { display: none; }
+.link-blue { color: var(--blue-lt); }
+.muted-sm { color: var(--text-3); font-size: 12px; }
+.muted-xs { color: var(--text-3); font-size: 11px; }
+.mono-xs { font-family: "JetBrains Mono", monospace; font-size: 10px; }
+.mono-sm { font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.chip-spaced { margin-left: 6px; }
+.badge-compact { margin-left: 6px; font-size: 9px; }
+.btn-full { width: 100%; justify-content: center; }
+.btn-full-start { width: 100%; justify-content: flex-start; }
+.mt4{margin-top:4px} .mt8{margin-top:8px} .mt16{margin-top:16px} .mt20{margin-top:20px}
+.mb16{margin-bottom:16px} .mb20{margin-bottom:20px} .mb24{margin-bottom:24px}
+.fw6{font-weight:600} .fw7{font-weight:700} .fw8{font-weight:800}
+.txt-c{text-align:center} .txt-r{text-align:right}
+.txt-blue{color:var(--blue)} .txt-green{color:var(--green)} .txt-red{color:var(--red)}
+.txt-amber{color:var(--amber)} .txt-dim{color:var(--text-2)} .txt-faint{color:var(--text-3)}
+.div-line { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ═══════════════════════════════════════
+   RESPONSIVO — 1200px
+═══════════════════════════════════════ */
+

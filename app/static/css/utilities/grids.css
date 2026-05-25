@@ -1,0 +1,10 @@
+﻿.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.g84 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+.g64 { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+.items-end { align-items: end; }
+
+/* ═══════════════════════════════════════
+   FORMULÁRIO
+═══════════════════════════════════════ */
+

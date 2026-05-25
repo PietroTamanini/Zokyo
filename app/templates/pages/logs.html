@@ -1,0 +1,90 @@
+﻿{% extends "base.html" %}
+{% block title %}Logs — Zokyo{% endblock %}
+{% block breadcrumb %}Logs do Sistema{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">📋 Logs do Sistema</div><div class="page-sub">Registro de eventos e auditoria</div></div>
+</div>
+
+<div class="card filter-card mb20">
+  <div class="card-header"><span class="card-title">🔍 Filtros</span></div>
+  <div class="card-body">
+    <form method="GET">
+      <div class="form-row fr3 items-end">
+        <div class="form-group"><label>Data Inicial</label>
+          <input type="date" name="data_ini" value="{{ filtros.data_ini }}"></div>
+        <div class="form-group"><label>Data Final</label>
+          <input type="date" name="data_fim" value="{{ filtros.data_fim }}"></div>
+        <div class="form-group"><label>Usuário</label>
+          <select name="usuario_id">
+            <option value="">Todos</option>
+            {% for u in usuarios %}<option value="{{ u.id }}" {% if filtros.usuario_id|string == u.id|string %}selected{% endif %}>{{ u.nome }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <div class="form-row fr3 items-end">
+        <div class="form-group"><label>Tipo</label>
+          <select name="tipo">
+            <option value="">Todos</option>
+            {% for t in ['criacao','edicao','exclusao','login','logout','status','pagamento','sistema'] %}
+            <option value="{{ t }}" {% if filtros.tipo == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="form-group"><label>Módulo</label>
+          <select name="modulo">
+            <option value="">Todos</option>
+            {% for m in modulos %}<option value="{{ m }}" {% if filtros.modulo == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select></div>
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-primary">Filtrar</button>
+          <a href="{{ url_for('logs.index') }}" class="btn btn-ghost">Limpar</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Eventos ({{ paginacao.total }})</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Data/Hora</th>
+        <th>Usuário</th>
+        <th>Tipo</th>
+        <th>Módulo</th>
+        <th>Operação</th>
+        <th>Descrição</th>
+      </tr></thead>
+      <tbody>
+        {% for ev in eventos %}
+        {% set tipo_cls = {'criacao':'b-green','edicao':'b-blue','exclusao':'b-red','login':'b-sky','logout':'b-gray','status':'b-amber','pagamento':'b-green','sistema':'b-indigo'}[ev.tipo] if ev.tipo in ['criacao','edicao','exclusao','login','logout','status','pagamento','sistema'] else 'b-gray' %}
+        <tr class="tr-static">
+          <td class="td-mono">{{ ev.criado_em | fmtdata }}<br><span class="td-note">{{ ev.criado_em.strftime('%H:%M:%S') if ev.criado_em else '' }}</span></td>
+          <td class="td-strong">{{ ev.usuario_nome or '—' }}</td>
+          <td><span class="badge {{ tipo_cls }}"><span class="dot"></span>{{ ev.tipo }}</span></td>
+          <td><span class="chip">{{ ev.modulo or '—' }}</span></td>
+          <td>{{ ev.operacao or '—' }}</td>
+          <td class="td-muted">{{ ev.descricao or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="td-empty">Nenhum evento encontrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if paginacao.pages > 1 %}
+  <div class="card-body pagination">
+    {% if paginacao.has_prev %}
+      <a href="?page={{ paginacao.prev_num }}" class="btn btn-ghost btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+    {% if paginacao.has_next %}
+      <a href="?page={{ paginacao.next_num }}" class="btn btn-ghost btn-sm">Próximo →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+

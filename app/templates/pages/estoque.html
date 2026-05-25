@@ -1,0 +1,136 @@
+﻿{% extends 'base.html' %}
+{% block title %}Estoque — Zokyo{% endblock %}
+{% block breadcrumb %}Estoque{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">📦 Estoque de Peças</div>
+    <div class="page-sub">{{ paginacao.total if paginacao is defined else (pecas|length) }} itens · valor total {{ valor_total | moeda }}</div>
+  </div>
+  <button class="btn btn-primary" data-action="peca-nova">+ Nova Peça</button>
+</div>
+
+{% if criticos %}
+<div class="alert a-red mb20">
+  <span>⚠️</span>
+  <div><strong>{{ criticos|length }} peça(s) com estoque crítico:</strong> {{ criticos|map(attribute='nome')|join(', ') }}</div>
+</div>
+{% endif %}
+
+<div class="g3 mb20">
+  <div class="stat-card c-blue stat-card-static">
+    <div class="stat-label">Total de Itens</div>
+    <div class="stat-value stat-value-lg">{{ paginacao.total if paginacao is defined else (pecas|length) }}</div>
+  </div>
+  <div class="stat-card c-red stat-card-static">
+    <div class="stat-label">Estoque Crítico</div>
+    <div class="stat-value stat-value-lg">{{ criticos|length }}</div>
+  </div>
+  <div class="stat-card c-green stat-card-static">
+    <div class="stat-label">Valor em Estoque</div>
+    <div class="stat-value stat-value-money">{{ valor_total | moeda }}</div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="filter-bar">
+  <input type="text" name="q" value="{{ q or '' }}"
+         placeholder="Buscar nome ou código..." class="input-search-sm">
+  <select name="cat" class="select-auto" data-auto-submit>
+    <option value="">Todas categorias</option>
+    {% for cat in categorias %}
+    <option {{ 'selected' if cat_filtro == cat }}>{{ cat }}</option>
+    {% endfor %}
+  </select>
+  <label class="check-inline">
+        <input type="checkbox" name="critico" value="1" class="input-check"
+          {{ 'checked' if critico_filtro }} data-auto-submit> Somente crítico
+  </label>
+  <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
+  {% if q or cat_filtro or critico_filtro %}
+  <a href="{{ url_for('pages.estoque') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>
+  {% endif %}
+</form>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Nome</th>
+          <th class="th-hide-sm">Categoria</th>
+          <th>Estoque</th>
+          <th class="th-hide-sm">Localização</th>
+          <th class="th-hide-sm">Custo</th>
+          <th>Venda</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pecas %}
+        {% set critico = p.quantidade <= p.estoque_minimo %}
+        {% set pct = [100, (((p.quantidade / p.estoque_minimo * 100)|int) if p.estoque_minimo else 100)]|min %}
+        <tr class="tr-static">
+          <td class="td-blue td-mono">{{ p.codigo or '—' }}</td>
+          <td class="td-strong">
+            {{ p.nome }}
+            {% if critico %}<span class="badge b-red badge-compact">Crítico</span>{% endif %}
+          </td>
+          <td class="th-hide-sm"><span class="chip">{{ p.categoria or '—' }}</span></td>
+          <td>
+            <div class="flex items-c flex-gap">
+              <span class="fw7 {{ 'txt-red' if critico else 'txt-green' }}">{{ p.quantidade }}</span>
+              <span class="muted-xs">/ {{ p.estoque_minimo }}</span>
+            </div>
+            <div class="prog-wrap prog-stock">
+              <div class="prog-fill prog-fill-dynamic" style="--progress:{{ pct }}%;--progress-color:{{ 'var(--red)' if critico else 'var(--green)' }}"></div>
+            </div>
+          </td>
+          <td class="th-hide-sm td-muted">{{ p.localizacao or '—' }}</td>
+          <td class="td-mono th-hide-sm">{{ p.custo | moeda }}</td>
+          <td class="td-mono txt-blue fw7">{{ p.preco_venda | moeda }}</td>
+          <td data-stop>
+            <div class="action-row">
+              <button class="btn btn-outline btn-xs" data-action="peca-movimentar" data-id="{{ p.id }}">↕</button>
+              <form method="POST" action="{{ url_for('pages.peca_deletar', id=p.id) }}"
+                    data-confirm="Excluir esta peça?" class="inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">
+          <div class="empty">
+            <div class="empty-icon">📦</div>
+            <div class="empty-title">Nenhuma peça cadastrada</div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if paginacao is defined and paginacao.pages > 1 %}
+  <div class="card-body pagination">
+    {% if paginacao.has_prev %}
+    <a href="?page={{ paginacao.prev_num }}&q={{ q or '' }}&cat={{ cat_filtro or '' }}{{ '&critico=1' if critico_filtro }}" class="btn btn-ghost btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+    {% if paginacao.has_next %}
+    <a href="?page={{ paginacao.next_num }}&q={{ q or '' }}&cat={{ cat_filtro or '' }}{{ '&critico=1' if critico_filtro }}" class="btn btn-ghost btn-sm">Próximo →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script nonce="{{ csp_nonce }}">const PECAS_DATA = {{ pecas_json | safe }};</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/estoque.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}
+

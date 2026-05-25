@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Ordens de Serviço — Zokyo{% endblock %}
+{% block breadcrumb %}Ordens de Serviço{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Ordens de Serviço</div>
+    <div class="page-sub">{{ paginacao.total }} OS · Página {{ paginacao.page }}/{{ paginacao.pages }}</div>
+  </div>
+</div>
+
+<!-- Pipeline -->
+<div class="pipeline mb20">
+  {% for key, label in status_map.items() %}
+  <a href="{{ url_for('pages.os_lista', status=key) }}" class="pipe-step {{ 'pi' if status_filtro == key }}">
+    <div class="pipe-num">
+      {{ pipeline_os.get(key, 0) if pipeline_os is defined else '—' }}
+    </div>
+    <div class="pipe-label">{{ label }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="filter-bar">
+  <input type="text" name="q" value="{{ q or '' }}"
+         placeholder="Buscar cliente, marca, modelo..." class="input-search-sm">
+  <select name="status" class="select-auto" data-auto-submit>
+    <option value="">Todos status</option>
+    {% for key, label in status_map.items() %}
+    <option value="{{ key }}" {{ 'selected' if status_filtro == key }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <select name="prio" class="select-auto" data-auto-submit>
+    <option value="">Toda prioridade</option>
+    <option value="alta"   {{ 'selected' if prio_filtro == 'alta' }}>Alta</option>
+    <option value="normal" {{ 'selected' if prio_filtro == 'normal' }}>Normal</option>
+    <option value="baixa"  {{ 'selected' if prio_filtro == 'baixa' }}>Baixa</option>
+  </select>
+  <button type="submit" class="btn btn-ghost btn-sm">Filtrar</button>
+  {% if q or status_filtro or prio_filtro %}
+  <a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>
+  {% endif %}
+</form>
+
+<!-- Tabela -->
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#OS</th>
+          <th>Cliente</th>
+          <th>Equipamento</th>
+          <th class="th-hide-sm">Defeito</th>
+          <th>Status</th>
+          <th class="th-hide-sm">Prio.</th>
+          <th class="th-hide-sm">Entrada</th>
+          <th class="th-hide-sm">Previsão</th>
+          <th>Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for os in os_list %}
+        {% set atrasada = os.data_prev and os.data_prev < hoje_dt and os.status not in ['entregue','cancelado','pronto'] %}
+        {% set prio_c = {'alta':'b-red','normal':'b-blue','baixa':'b-gray'} %}
+        {% set sc = {'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red','em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'}.get(os.status,'b-gray') %}
+        {% set tel = ((os.cliente.telefone or '') if os.cliente else '') | replace(' ','') | replace('(','') | replace(')','') | replace('-','') %}
+        {% set msg_wpp = ('Olá *' ~ (os.cliente.nome if os.cliente else '') ~ '*! 👋\n\nSua OS *#' ~ ('%04d' % os.id) ~ '* está com status: *' ~ status_map.get(os.status, os.status) ~ '*\n\n📱 ' ~ (os.marca or '') ~ ' ' ~ (os.modelo or '') ~ '\n💰 Total: ' ~ (os.valor_total | moeda) ~ '\n\nZokyo Platform — Joinville SC') | urlencode %}
+        <tr data-href="{{ url_for('pages.os_detalhe', id=os.id) }}">
+          <td class="td-blue fw7">#{{ '%04d' % os.id }}</td>
+          <td class="td-strong">{{ os.cliente.nome if os.cliente else '—' }}</td>
+          <td>
+            <span class="chip">{{ os.tipo_aparelho or '—' }}</span>
+            <div class="muted-xs mt4">{{ os.marca or '' }} {{ os.modelo or '' }}</div>
+          </td>
+          <td class="th-hide-sm td-narrow-copy">
+            {{ (os.defeito_alegado or '')[:50] }}{{ '…' if (os.defeito_alegado or '')|length > 50 else '' }}
+          </td>
+          <td><span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span></td>
+          <td class="th-hide-sm"><span class="badge {{ prio_c.get(os.prio,'b-gray') }}"><span class="dot"></span>{{ (os.prio or 'normal')|capitalize }}</span></td>
+          <td class="td-mono txt-faint th-hide-sm">{{ os.data_entrada | fmtdata }}</td>
+          <td class="td-mono th-hide-sm" style="color:{{ 'var(--red)' if atrasada else 'var(--text-3)' }}">
+            {{ os.data_prev | fmtdata if os.data_prev else '—' }}{{ ' ⚠' if atrasada else '' }}
+          </td>
+          <td class="txt-blue fw7">{{ os.valor_total | moeda }}</td>
+          <td data-stop>
+            <div class="action-row">
+              <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs">✏</a>
+              <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank">🖨</a>
+              {% if tel %}
+              <a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank">💬</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10">
+          <div class="empty">
+            <div class="empty-icon">📋</div>
+            <div class="empty-title">Nenhuma OS encontrada</div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if paginacao.pages > 1 %}
+  <div class="card-body pagination">
+    {% if paginacao.has_prev %}
+    <a href="{{ url_for('pages.os_lista', page=paginacao.prev_num, q=q, status=status_filtro, prio=prio_filtro) }}" class="btn btn-ghost btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+    {% if paginacao.has_next %}
+    <a href="{{ url_for('pages.os_lista', page=paginacao.next_num, q=q, status=status_filtro, prio=prio_filtro) }}" class="btn btn-ghost btn-sm">Próximo →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

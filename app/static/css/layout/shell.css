@@ -1,0 +1,59 @@
+﻿#main {
+  margin-left: 248px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-width: 0;
+}
+.topbar {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  gap: 12px;
+  transition: background 0.25s, border-color 0.25s;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+
+/* Botão hamburguer (oculto no desktop) */
+.hamburger {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 7px 10px;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.hamburger:hover { border-color: var(--blue); color: var(--blue); }
+
+.breadcrumb { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--text-3); }
+.breadcrumb .ca { color: var(--blue); font-weight: 700; }
+.topbar-date { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--text-3); }
+.theme-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 5px 12px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-2);
+  white-space: nowrap; transition: all 0.15s;
+}
+.theme-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+#content { padding: 28px; flex: 1; transition: opacity 0.15s; }
+
+/* ═══════════════════════════════════════
+   PAGE
+═══════════════════════════════════════ */
+

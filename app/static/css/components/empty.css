@@ -1,0 +1,8 @@
+﻿.empty { text-align: center; padding: 56px 20px; color: var(--text-3); }
+.empty-icon { font-size: 42px; margin-bottom: 14px; opacity: 0.4; }
+.empty-title { font-size: 18px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+
+/* ═══════════════════════════════════════
+   UTILITÁRIOS
+═══════════════════════════════════════ */
+

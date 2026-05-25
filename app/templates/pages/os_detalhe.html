@@ -1,0 +1,348 @@
+﻿{% extends 'base.html' %}
+{% block title %}OS #{{ '%04d' % os.id }} — Zokyo{% endblock %}
+{% block breadcrumb %}OS #{{ '%04d' % os.id }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">← Voltar</a>{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">OS #{{ '%04d' % os.id }}</div>
+    <div class="page-sub">{{ os.tipo_aparelho }} {{ os.marca }} {{ os.modelo }} · {{ os.cliente.nome if os.cliente else '—' }}</div>
+  </div>
+  <div class="flex-gap">
+    <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank">🖨 PDF</a>
+    <button id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">💬 WhatsApp</button>
+    <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-primary btn-sm">✏ Editar</a>
+  </div>
+</div>
+
+<div class="g64">
+
+  <!-- COLUNA PRINCIPAL -->
+  <div class="os-column">
+
+    <!-- Equipamento -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💻 Equipamento</div>
+        <div class="flex-gap">
+          {% set sc = {'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red','em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'}[os.status] if os.status else 'b-gray' %}
+          <span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span>
+          {% set prio_cls = {'alta':'b-red','normal':'b-blue','baixa':'b-gray'}[os.prio] if os.prio else 'b-gray' %}
+          <span class="badge {{ prio_cls }}"><span class="dot"></span>{{ os.prio | capitalize }}</span>
+          {% if os.em_garantia %}<span class="badge b-green"><span class="dot"></span>Em Garantia</span>{% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="d-row"><div class="d-label">Tipo</div><div class="d-value">{{ os.tipo_aparelho or '—' }}</div></div>
+        <div class="d-row"><div class="d-label">Marca/Modelo</div><div class="d-value fw6">{{ os.marca or '' }} {{ os.modelo or '' }}</div></div>
+        <div class="d-row"><div class="d-label">Nº Série</div><div class="d-value td-mono">{{ os.numero_serie or '—' }}</div></div>
+        <div class="d-row"><div class="d-label">Técnico</div><div class="d-value">{{ os.tecnico_nome or 'Não atribuído' }}</div></div>
+        <div class="d-row"><div class="d-label">Entrada</div><div class="d-value">{{ os.data_entrada | fmtdata }}</div></div>
+        <div class="d-row"><div class="d-label">Previsão</div><div class="d-value">{{ os.data_prev | fmtdata if os.data_prev else '—' }}</div></div>
+        <div class="d-row"><div class="d-label">Saída</div><div class="d-value">{{ os.data_saida | fmtdata if os.data_saida else '—' }}</div></div>
+        <div class="d-row"><div class="d-label">Garantia</div><div class="d-value">{{ os.garantia_dias or 90 }} dias</div></div>
+        {% if os.observacoes %}
+        <div class="d-row"><div class="d-label">Observações</div><div class="d-value muted-sm">{{ os.observacoes }}</div></div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Diagnóstico -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔬 Diagnóstico Técnico</div></div>
+      <div class="card-body parts-body">
+        <div>
+          <div class="fs-title label-amber">① Defeito Alegado pelo Cliente</div>
+          <div class="note-block note-amber">
+            {{ os.defeito_alegado or '—' }}
+          </div>
+        </div>
+        <div>
+          <div class="fs-title label-sky">② Defeito Encontrado</div>
+          <div class="note-block note-sky">
+            {{ os.defeito_encontrado or '—' }}
+          </div>
+        </div>
+        <div>
+          <div class="fs-title label-green">③ Solução Aplicada</div>
+          <div class="note-block note-green">
+            {{ os.solucao or '—' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Peças — usando pecas_dict com quantidade/valor corretos da tabela os_pecas -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🧩 Peças Utilizadas</div>
+        <button class="btn btn-ghost btn-sm" data-action="os-peca-adicionar">+ Adicionar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Peça</th><th>Qtd</th><th>Vlr Unit.</th><th class="txt-r">Subtotal</th><th></th></tr></thead>
+          <tbody>
+            {% if pecas_dict %}
+              {% for p in pecas_dict %}
+              <tr class="tr-static">
+                <td class="td-strong">{{ p.nome }}</td>
+                <td class="td-mono">{{ p.quantidade }}</td>
+                <td class="td-mono">{{ p.valor_unitario | moeda }}</td>
+                <td class="td-mono txt-blue txt-r">{{ p.subtotal | moeda }}</td>
+                <td data-stop>
+                  <button class="btn btn-ghost btn-xs danger-text"
+                          data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">✕</button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5" class="td-empty">Nenhuma peça registrada</td></tr>
+            {% endif %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="table-total-label">TOTAL PEÇAS</td>
+              <td class="td-mono txt-r fw7 table-total-value">{{ os.valor_pecas | moeda }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">⏱ Histórico de Status</div></div>
+      <div class="card-body">
+        <div class="timeline">
+          {% if historico %}
+            {% for h in historico %}
+            <div class="tl-item">
+              <div class="tl-date">{{ h.criado_em | fmtdata }}
+                <span class="mono-xs txt-faint">
+                  {{ h.criado_em.strftime('%H:%M') if h.criado_em else '' }}
+                </span>
+              </div>
+              <div class="tl-text">
+                {% if h.status_anterior %}
+                  <span class="txt-faint">{{ status_map.get(h.status_anterior, h.status_anterior) }}</span>
+                  → <strong>{{ status_map.get(h.status_novo, h.status_novo) }}</strong>
+                {% else %}
+                  OS criada · <strong>{{ status_map.get(h.status_novo, h.status_novo) }}</strong>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="tl-item">
+              <div class="tl-date">{{ os.data_entrada | fmtdata }}</div>
+              <div class="tl-text">Equipamento recebido</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLUNA LATERAL -->
+  <div class="os-column">
+
+    <!-- Financeiro -->
+    <div class="card card-accent-green">
+      <div class="card-header card-header-soft-green">
+        <div class="card-title txt-green">💰 Financeiro</div>
+      </div>
+      <div class="card-body">
+        <div class="d-row"><div class="d-label">Mão de Obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
+        <div class="d-row"><div class="d-label">Peças</div><div class="d-value txt-r">{{ os.valor_pecas | moeda }}</div></div>
+        {% if os.desconto and os.desconto > 0 %}
+        <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">− {{ os.desconto | moeda }}</div></div>
+        {% endif %}
+        <div class="total-row">
+          <div class="total-row-label">Total</div>
+          <div class="total-row-value">{{ os.valor_total | moeda }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cliente -->
+    <div class="card">
+      <div class="card-header card-header-gradient">
+        <div class="card-title">👤 Cliente</div>
+        {% if os.cliente %}
+        <a href="{{ url_for('pages.clientes') }}" class="btn btn-sm btn-header-light">Ver todos</a>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if os.cliente %}
+          <div class="customer-name">{{ os.cliente.nome }}</div>
+          {% if os.cliente.telefone %}<div class="d-row d-row-compact"><div class="d-label">Fone</div><div class="d-value">{{ os.cliente.telefone }}</div></div>{% endif %}
+          {% if os.cliente.email %}<div class="d-row d-row-compact"><div class="d-label">Email</div><div class="d-value muted-sm">{{ os.cliente.email }}</div></div>{% endif %}
+          {% if os.cliente.cidade %}<div class="d-row d-row-compact"><div class="d-label">Cidade</div><div class="d-value">{{ os.cliente.cidade }}{% if os.cliente.uf %}/{{ os.cliente.uf }}{% endif %}</div></div>{% endif %}
+        {% else %}
+          <span class="txt-faint">Cliente não encontrado</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Alterar Status -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔄 Alterar Status</div></div>
+      <div class="card-body status-actions">
+        {% for key, label in status_map.items() %}
+          {% if key != os.status %}
+            {% if key == 'entregue' %}
+                <button type="button" class="btn btn-success btn-sm btn-full-start"
+                  data-action="os-pagamento-abrir">✓ {{ label }}</button>
+            {% elif key == 'cancelado' %}
+            <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}" data-confirm="Cancelar esta OS?">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="status" value="{{ key }}">
+              <button type="submit" class="btn btn-danger btn-sm btn-full-start">✕ {{ label }}</button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="status" value="{{ key }}">
+              <button type="submit" class="btn btn-ghost btn-sm btn-full-start">→ {{ label }}</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Deletar OS (só admin) -->
+    {% if nivel_usuario == 'admin' %}
+        <form method="POST" action="{{ url_for('pages.os_deletar', id=os.id) }}"
+          data-confirm="Excluir esta OS permanentemente?">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-sm btn-full">
+        🗑 Excluir OS
+      </button>
+    </form>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Form oculto para "Entregue" com forma de pagamento -->
+<form id="form-entregue" method="POST" action="{{ url_for('pages.os_status', id=os.id) }}" class="hidden">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="status" value="entregue">
+  <input type="hidden" name="forma_pagamento" id="forma_pgto_hidden">
+</form>
+
+<script nonce="{{ csp_nonce }}">
+const STATUS_LABELS = {
+  recepcao:'Recepção', em_analise:'Em Análise', aguardando_aprovacao:'Aprovação',
+  em_reparo:'Em Reparo', pronto:'Pronto', entregue:'Entregue', cancelado:'Cancelado'
+};
+const OS_STATUS = {{ os.status | tojson }};
+const OS_DATA = {
+  id:       {{ os.id }},
+  cliente:  {{ (os.cliente.nome if os.cliente else '—') | tojson }},
+  status:   OS_STATUS,
+  statusLabel: STATUS_LABELS[OS_STATUS] || OS_STATUS,
+  total:    {{ os.valor_total | moeda | tojson }},
+  solucao:  {{ (os.solucao or '') | tojson }},
+  telefone: {{ ((os.cliente.telefone or '') | replace(' ','') | replace('(','') | replace(')','') | replace('-','')) | tojson if os.cliente else '' | tojson }}
+};
+
+// Peças disponíveis no estoque para adicionar
+const PECAS_ESTOQUE = {{ pecas_estoque_json | safe if pecas_estoque_json is defined else '[]' }};
+
+function abrirModalAdicionarPeca() {
+  openModal('➕ Adicionar Peça à OS', `
+    <div class="form-row fr3">
+      <div class="form-group"><label>Peça *</label>
+        <select id="ap-id">
+          <option value="">Selecione</option>
+          ${(window.PECAS_ESTOQUE_LISTA||[]).map(p=>`<option value="${p.id}" data-preco="${p.preco_venda}">${p.nome}${p.codigo?' ('+p.codigo+')':''} — est.${p.quantidade}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label>Quantidade</label><input type="number" id="ap-qtd" min="1" value="1"></div>
+      <div class="form-group"><label>Valor Unit. (R$)</label><input type="number" id="ap-vlr" step="0.01" min="0" value="0.00"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="os-peca-confirmar">Adicionar</button>
+    </div>`);
+}
+function autoPreco() {
+  const sel = document.getElementById('ap-id');
+  const opt = sel.options[sel.selectedIndex];
+  const preco = opt?.getAttribute('data-preco') || 0;
+  document.getElementById('ap-vlr').value = parseFloat(preco).toFixed(2);
+}
+async function confirmarAdicionarPeca() {
+  const pid = parseInt(document.getElementById('ap-id')?.value);
+  const qtd = parseInt(document.getElementById('ap-qtd')?.value || 1);
+  const vlr = parseFloat(document.getElementById('ap-vlr')?.value || 0);
+  if (!pid) { showToast('Selecione uma peça','amber'); return; }
+  const r = await apiFetch('POST', `/api/os/{{ os.id }}/pecas`, {peca_id:pid, quantidade:qtd, valor_unitario:vlr});
+  if (r) { closeModal(); location.reload(); }
+}
+async function removerPeca(osId, pecaId) {
+  if (!confirm('Remover esta peça da OS?')) return;
+  const r = await apiFetch('DELETE', `/api/os/${osId}/pecas/${pecaId}`);
+  if (r) location.reload();
+}
+
+function abrirModalPagamento() {
+  openModal('💰 Registrar Recebimento', `
+    <div class="payment-preview">
+      <div class="payment-preview-label">Valor Total da OS</div>
+      <div class="payment-preview-value">{{ os.valor_total | moeda }}</div>
+    </div>
+    <div class="form-group mb20">
+      <label>Forma de Pagamento *</label>
+      <select id="sel-forma-pgto">
+        <option value="Dinheiro">💵 Dinheiro</option>
+        <option value="PIX">📲 PIX</option>
+        <option value="Cartão Débito">💳 Cartão Débito</option>
+        <option value="Cartão Crédito">💳 Cartão Crédito</option>
+        <option value="Transferência">🏦 Transferência</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" data-action="close-modal">Cancelar</button>
+      <button class="btn btn-primary" data-action="os-pagamento-confirmar">✓ Confirmar Recebimento</button>
+    </div>`);
+}
+function confirmarPagamento() {
+  const forma = document.getElementById('sel-forma-pgto')?.value || 'Não informado';
+  document.getElementById('forma_pgto_hidden').value = forma;
+  closeModal();
+  document.getElementById('form-entregue').submit();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.getAttribute('data-action');
+  if (action === 'os-whatsapp') return enviarWhatsApp();
+  if (action === 'os-peca-adicionar') return abrirModalAdicionarPeca();
+  if (action === 'os-peca-confirmar') return confirmarAdicionarPeca();
+  if (action === 'os-pagamento-abrir') return abrirModalPagamento();
+  if (action === 'os-pagamento-confirmar') return confirmarPagamento();
+  if (action === 'os-peca-remover') {
+    const osId = parseInt(el.getAttribute('data-os-id'));
+    const pecaId = parseInt(el.getAttribute('data-peca-id'));
+    if (osId && pecaId) return removerPeca(osId, pecaId);
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'ap-id') autoPreco();
+});
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/os_detalhe.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}
+

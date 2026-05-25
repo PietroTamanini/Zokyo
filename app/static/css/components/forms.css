@@ -1,0 +1,41 @@
+﻿.form-row { display: grid; gap: 16px; margin-bottom: 16px; }
+.fr2 { grid-template-columns: 1fr 1fr; }
+.fr3 { grid-template-columns: 1fr 1fr 1fr; }
+.fr4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
+.form-group label .req { color: var(--blue); margin-left: 2px; }
+input[type="text"], input[type="number"], input[type="email"],
+input[type="date"], input[type="password"], select, textarea {
+  width: 100%; background: var(--surface2); border: 1.5px solid var(--border2);
+  border-radius: 8px; color: var(--text); font-family: "Outfit", sans-serif;
+  font-size: 14px; padding: 9px 13px;
+  transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-ring);
+}
+select option { background: var(--surface2); }
+textarea { resize: vertical; min-height: 80px; }
+input.input-error, select.input-error, textarea.input-error {
+  border-color: var(--red) !important; box-shadow: 0 0 0 3px var(--red-g) !important;
+}
+.input-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; font-family: "JetBrains Mono", monospace; }
+.input-hint.error { color: var(--red); }
+
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.input-check {
+  width: auto;
+}
+
+/* ═══════════════════════════════════════
+   MISC COMPONENTS
+═══════════════════════════════════════ */
+

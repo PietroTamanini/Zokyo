@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <!-- Z icon mark -->
+  <rect x="2" y="4" width="32" height="32" rx="8" fill="url(#lg1)"/>
+  <path d="M10 13h16l-16 14h16" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Wordmark -->
+  <text x="44" y="28" font-family="Outfit, sans-serif" font-weight="800" font-size="22"
+        letter-spacing="-0.5" fill="currentColor">Zokyo</text>
+  <defs>
+    <linearGradient id="lg1" x1="2" y1="4" x2="34" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4f6ef7"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+</svg>

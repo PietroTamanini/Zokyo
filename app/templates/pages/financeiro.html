@@ -1,0 +1,181 @@
+﻿{% extends 'base.html' %}
+{% block title %}Financeiro — Zokyo{% endblock %}
+{% block breadcrumb %}Financeiro{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">💰 Financeiro</div>
+    <div class="page-sub">Receitas, despesas e fluxo de caixa · {{ periodo_label }}</div>
+  </div>
+  <button class="btn btn-primary" data-action="transacao-nova">+ Nova Transação</button>
+</div>
+
+<!-- Seletor de período -->
+<div class="card filter-card mb20">
+  <div class="card-body">
+    <form method="GET" class="filter-form">
+      <div class="form-group form-group-compact">
+        <label>Data Inicial</label>
+        <input type="date" name="data_ini" value="{{ filtros.data_ini }}" class="input-date">
+      </div>
+      <div class="form-group form-group-compact">
+        <label>Data Final</label>
+        <input type="date" name="data_fim" value="{{ filtros.data_fim }}" class="input-date">
+      </div>
+      <div class="form-group form-group-compact">
+        <label>Tipo</label>
+        <select name="tipo" class="select-md">
+          <option value="">Todos</option>
+          <option value="receita" {{ 'selected' if filtros.tipo == 'receita' }}>Receitas</option>
+          <option value="despesa" {{ 'selected' if filtros.tipo == 'despesa' }}>Despesas</option>
+        </select>
+      </div>
+      <div class="form-group form-group-compact">
+        <label>Status</label>
+        <select name="status" class="select-sm">
+          <option value="">Todos</option>
+          <option value="pago"     {{ 'selected' if filtros.status == 'pago' }}>Pago</option>
+          <option value="pendente" {{ 'selected' if filtros.status == 'pendente' }}>Pendente</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
+        <a href="{{ url_for('pages.financeiro') }}" class="btn btn-ghost btn-sm">Mês Atual</a>
+        <!-- Atalhos rápidos -->
+        <a href="{{ url_for('pages.financeiro', preset='mes') }}" class="btn btn-ghost btn-sm">Este Mês</a>
+        <a href="{{ url_for('pages.financeiro', preset='ano') }}" class="btn btn-ghost btn-sm">Este Ano</a>
+        <a href="{{ url_for('pages.financeiro', preset='semana') }}" class="btn btn-ghost btn-sm">Esta Semana</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Resumo do período -->
+<div class="fin-trio mb20">
+  <div class="fin-block">
+    <div class="fin-label">Receitas</div>
+    <div class="fin-val txt-green">{{ receitas_pagas | moeda }}</div>
+    <div class="fin-meta">recebidas no período</div>
+  </div>
+  <div class="fin-block">
+    <div class="fin-label">Despesas</div>
+    <div class="fin-val txt-red">{{ despesas_pagas | moeda }}</div>
+    <div class="fin-meta">pagas no período</div>
+  </div>
+  <div class="fin-block">
+    <div class="fin-label">Lucro Líquido</div>
+    <div class="fin-val {{ 'txt-green' if lucro >= 0 else 'txt-red' }}">{{ lucro | moeda }}</div>
+    <div class="fin-meta">receitas − despesas</div>
+  </div>
+</div>
+
+<!-- A receber / A pagar -->
+<div class="g2 mb24">
+  <div class="card card-accent-green">
+    <div class="card-body txt-c">
+      <div class="fin-label">A Receber</div>
+      <div class="fin-val fin-val-lg txt-green">{{ a_receber | moeda }}</div>
+      <div class="fin-meta">receitas pendentes</div>
+    </div>
+  </div>
+  <div class="card card-accent-red">
+    <div class="card-body txt-c">
+      <div class="fin-label">A Pagar</div>
+      <div class="fin-val fin-val-lg txt-red">{{ a_pagar | moeda }}</div>
+      <div class="fin-meta">despesas pendentes</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabela de transações -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Transações ({{ paginacao.total }})</span>
+    <span class="muted-sm">{{ periodo_label }}</span>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Vencimento</th>
+          <th>Descrição</th>
+          <th class="th-hide-sm">Categoria</th>
+          <th>Tipo</th>
+          <th>Valor</th>
+          <th>Status</th>
+          <th class="th-hide-sm">Pagamento</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transacoes %}
+        <tr class="tr-static">
+          <td class="td-mono txt-faint">{{ t.data_vencimento | fmtdata if t.data_vencimento else '—' }}</td>
+          <td class="td-strong muted-sm">
+            {{ t.descricao }}
+            {% if t.os_id %}<span class="chip chip-spaced">OS #{{ '%04d'|format(t.os_id) }}</span>{% endif %}
+          </td>
+          <td class="td-hide-sm"><span class="chip">{{ t.categoria or '—' }}</span></td>
+          <td>
+            {% if t.tipo == 'receita' %}
+              <span class="badge b-green"><span class="dot"></span>Receita</span>
+            {% else %}
+              <span class="badge b-red"><span class="dot"></span>Despesa</span>
+            {% endif %}
+          </td>
+          <td class="fw7 {{ 'txt-green' if t.tipo == 'receita' else 'txt-red' }}">{{ t.valor | moeda }}</td>
+          <td>
+            {% if t.status == 'pago' %}
+              <span class="badge b-green"><span class="dot"></span>Pago</span>
+            {% elif t.status == 'cancelado' %}
+              <span class="badge b-gray"><span class="dot"></span>Cancelado</span>
+            {% else %}
+              <span class="badge b-amber"><span class="dot"></span>Pendente</span>
+            {% endif %}
+          </td>
+          <td class="td-mono txt-faint td-hide-sm">{{ t.data_pagamento | fmtdata if t.data_pagamento else '—' }}</td>
+          <td data-stop>
+            <div class="action-row">
+              {% if t.status == 'pendente' %}
+              <form method="POST" action="{{ url_for('pages.transacao_pagar', id=t.id) }}"
+                    data-confirm="Confirmar pagamento de {{ t.valor | moeda }}?">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success btn-xs">✓</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="{{ url_for('pages.transacao_deletar', id=t.id) }}"
+                    data-confirm="Cancelar/excluir esta transação?">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="td-empty">Nenhuma transação no período.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if paginacao.pages > 1 %}
+  <div class="card-body pagination">
+    {% if paginacao.has_prev %}
+      <a href="?page={{ paginacao.prev_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">← Anterior</a>
+    {% endif %}
+    <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+    {% if paginacao.has_next %}
+      <a href="?page={{ paginacao.next_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">Próximo →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/financeiro.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}
+

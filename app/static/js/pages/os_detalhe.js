@@ -1,0 +1,87 @@
+/**
+ * pages/os_detalhe.js
+ * Lógica do detalhe da OS: envio de WhatsApp via Evolution API ou simulação.
+ */
+
+async function enviarWhatsApp() {
+  if (!OS_DATA || !OS_DATA.id) return;
+
+  const btn = document.getElementById('btn-whatsapp');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Enviando...';
+  }
+
+  try {
+    const resp = await fetch(`/api/os/${OS_DATA.id}/whatsapp`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+      }
+    });
+
+    const data = await resp.json();
+
+    if (resp.status === 401) {
+      showToast('Sessão expirada. Faça login novamente.', 'amber');
+      if (location.pathname !== '/login') location.href = '/login';
+      return;
+    }
+    if (resp.status === 403) {
+      showToast('Acesso negado.', 'red');
+      return;
+    }
+
+    if (data.erro) {
+      alert('Erro: ' + data.erro);
+      return;
+    }
+
+    // ── Modo real: Evolution API enviou com sucesso ──
+    if (data.modo === 'evolution' && data.sucesso) {
+      showToast('✅ Mensagem enviada via WhatsApp!', 'green');
+      return;
+    }
+
+    // ── Modo simulação ou falha na Evolution API ──
+    // Abre wa.me com mensagem pré-preenchida
+    if (data.link) {
+      window.open(data.link, '_blank');
+      if (data.modo === 'simulacao') {
+        showToast('💬 WhatsApp aberto. Clique em Enviar no app.', 'blue');
+      } else {
+        showToast('⚠ Evolution API offline. Abrindo wa.me.', 'amber');
+      }
+    }
+
+  } catch (err) {
+    alert('Erro de conexão: ' + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '💬 WhatsApp';
+    }
+  }
+}
+
+function showToast(msg, color = 'blue') {
+  const colors = {
+    green: { bg: 'var(--green-g)', border: 'var(--green)', text: 'var(--green)' },
+    blue:  { bg: 'var(--blue-glow)', border: 'var(--blue)', text: 'var(--blue-lt)' },
+    amber: { bg: 'var(--amber-g)', border: 'var(--amber)', text: 'var(--amber)' },
+  };
+  const c = colors[color] || colors.blue;
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position:fixed; bottom:24px; right:24px; z-index:9999;
+    background:${c.bg}; border:1.5px solid ${c.border}; color:${c.text};
+    padding:12px 20px; border-radius:10px; font-weight:600; font-size:13px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.3); animation:fadeIn .2s ease;
+  `;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}

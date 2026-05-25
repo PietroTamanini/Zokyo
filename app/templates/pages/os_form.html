@@ -1,0 +1,271 @@
+﻿{% extends 'base.html' %}
+{% block title %}{{ 'Editar OS #%04d' % os.id if os else 'Nova OS' }} — Zokyo{% endblock %}
+{% block breadcrumb %}{{ 'Editar OS #%04d' % os.id if os else 'Nova OS' }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">← Cancelar</a>{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ 'Editar OS #%04d' % os.id if os else 'Nova Ordem de Serviço' }}</div>
+    <div class="page-sub">Preencha todos os campos obrigatórios</div>
+  </div>
+</div>
+
+<form method="POST" action="{{ url_for('pages.os_atualizar', id=os.id) if os else url_for('pages.os_criar') }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+<div class="g84">
+
+  <!-- COLUNA PRINCIPAL -->
+  <div class="os-column">
+
+    <!-- Cliente -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">👤 Cliente</div></div>
+      <div class="card-body os-client-body">
+        <div class="form-group">
+          <label>Cliente <span class="req">*</span></label>
+          <input type="text" id="cliente-busca" autocomplete="off"
+                 placeholder="Buscar por nome ou CPF..."
+                 value="{{ os.cliente.nome if os and os.cliente else '' }}">
+          <div id="cliente-dropdown" class="client-dropdown"></div>
+        </div>
+        <div id="cliente-card" class="client-card {{ '' if os and os.cliente else 'is-hidden' }}">
+          <div class="alert a-blue alert-flat">
+            <span>👤</span>
+            <div id="cliente-info" class="flex-fill">
+              {% if os and os.cliente %}
+                <strong>{{ os.cliente.nome }}</strong> · {{ os.cliente.telefone or '—' }}
+                <span class="mono-sm chip-spaced">{{ os.cliente.cpf or '' }}</span>
+              {% endif %}
+            </div>
+            <button type="button" data-action="os-cliente-trocar" class="btn btn-ghost btn-xs">Trocar</button>
+          </div>
+        </div>
+        <input type="hidden" name="cliente_id" id="cliente_id"
+               value="{{ os.cliente_id if os else '' }}" required>
+      </div>
+    </div>
+
+    <!-- Equipamento -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">💻 Equipamento</div></div>
+      <div class="card-body">
+        <div class="form-row fr4">
+          <div class="form-group">
+            <label>Tipo <span class="req">*</span></label>
+            <select name="tipo_aparelho" required>
+              {% for t in ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
+              <option {{ 'selected' if os and os.tipo_aparelho == t }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Marca <span class="req">*</span></label>
+            <input type="text" name="marca" value="{{ os.marca if os else '' }}" placeholder="Ex: Samsung" required>
+          </div>
+          <div class="form-group">
+            <label>Modelo <span class="req">*</span></label>
+            <input type="text" name="modelo" value="{{ os.modelo if os else '' }}" placeholder="Ex: Galaxy A54" required>
+          </div>
+          <div class="form-group">
+            <label>Nº Série</label>
+            <input type="text" name="numero_serie" value="{{ os.numero_serie if os else '' }}" placeholder="Opcional">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnóstico -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔧 Diagnóstico</div></div>
+      <div class="card-body">
+        <div class="defect-grid">
+          <div class="form-group form-group-compact">
+            <label class="label-amber">① Defeito Alegado pelo Cliente <span class="req">*</span></label>
+            <textarea name="defeito_alegado" rows="4" required placeholder="O que o cliente relatou...">{{ os.defeito_alegado if os else '' }}</textarea>
+          </div>
+          <div class="form-group form-group-compact">
+            <label class="label-sky">② Defeito Encontrado</label>
+            <textarea name="defeito_encontrado" rows="4" placeholder="O que o técnico encontrou...">{{ os.defeito_encontrado if os else '' }}</textarea>
+          </div>
+          <div class="form-group form-group-compact">
+            <label class="label-green">③ Solução Aplicada</label>
+            <textarea name="solucao" rows="4" placeholder="O que foi feito...">{{ os.solucao if os else '' }}</textarea>
+          </div>
+        </div>
+        <div class="form-group mb16">
+          <label>Observações / Acessórios</label>
+          <textarea name="observacoes" rows="2" placeholder="Ex: Sem carregador. Tela rachada no canto...">{{ os.observacoes if os else '' }}</textarea>
+        </div>
+        <div class="form-row fr4">
+          <div class="form-group">
+            <label>Status <span class="req">*</span></label>
+            <select name="status">
+              {% for key, label in status_map.items() %}
+              <option value="{{ key }}" {{ 'selected' if (os and os.status == key) or (not os and key == 'recepcao') }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prioridade</label>
+            <select name="prio">
+              <option value="normal" {{ 'selected' if not os or os.prio == 'normal' }}>Normal</option>
+              <option value="alta"   {{ 'selected' if os and os.prio == 'alta' }}>Alta</option>
+              <option value="baixa"  {{ 'selected' if os and os.prio == 'baixa' }}>Baixa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Técnico</label>
+            <select name="tecnico_nome">
+              <option value="">— Não atribuído —</option>
+              {% for u in tecnicos %}
+              <option {{ 'selected' if os and os.tecnico_nome == u.nome }}>{{ u.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Garantia (dias)</label>
+            <input type="number" name="garantia_dias" value="{{ os.garantia_dias if os else 90 }}" min="0">
+          </div>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group">
+            <label>Data de Entrada</label>
+            <input type="date" name="data_entrada"
+                   value="{{ os.data_entrada.date().isoformat() if os and os.data_entrada else hoje_iso }}">
+          </div>
+          <div class="form-group">
+            <label>Previsão de Entrega</label>
+            <input type="date" name="data_prev"
+                   value="{{ os.data_prev.date().isoformat() if os and os.data_prev else '' }}">
+          </div>
+          <div class="form-group">
+            <label>Data de Saída</label>
+            <input type="date" name="data_saida"
+                   value="{{ os.data_saida.date().isoformat() if os and os.data_saida else '' }}">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COLUNA LATERAL (Financeiro + Peças) -->
+  <div class="os-column">
+
+    <!-- Financeiro -->
+    <div class="card">
+      <div class="card-header card-header-gradient">
+        <div class="card-title">💰 Financeiro</div>
+      </div>
+      <div class="card-body">
+        <div class="form-group mb16">
+          <label>Mão de Obra (R$)</label>
+             <input type="number" name="valor_servico" id="f-mo" step="0.01" min="0"
+               value="{{ '%.2f' % (os.valor_servico or 0) if os else '0.00' }}" data-action="os-total-recalc">
+        </div>
+        <div class="form-group mb16">
+          <label>Valor das Peças (R$)</label>
+          <input type="number" name="valor_pecas" id="f-vp" step="0.01" min="0"
+                 value="{{ '%.2f' % (os.valor_pecas or 0) if os else '0.00' }}"
+                 readonly class="readonly-field"
+                 title="Calculado automaticamente ao vincular peças">
+        </div>
+        <div class="form-group mb20">
+          <label>Desconto (R$)</label>
+             <input type="number" name="desconto" id="f-dc" step="0.01" min="0"
+               value="{{ '%.2f' % (os.desconto or 0) if os else '0.00' }}" data-action="os-total-recalc">
+        </div>
+        <div class="total-box">
+          <div class="total-label">Total da OS</div>
+          <div id="total-display" class="total-value">
+            R$ {{ '%.2f'|format(os.valor_total) if os else '0,00' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Peças vinculadas -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">🧩 Peças</div></div>
+      <div class="card-body parts-body">
+
+        {% if os and pecas_usadas %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Peça</th><th>Qtd</th><th>Unit.</th><th class="txt-r">Sub</th><th></th></tr></thead>
+            <tbody>
+              {% for p in pecas_usadas %}
+              <tr class="tr-static">
+                <td class="td-strong td-muted">{{ p.nome }}</td>
+                <td class="td-mono">{{ p.quantidade }}</td>
+                <td class="td-mono">{{ p.valor_unitario | moeda }}</td>
+                <td class="td-mono txt-r txt-blue">{{ p.subtotal | moeda }}</td>
+                <td><button type="button" class="btn btn-ghost btn-xs danger-text"
+                            data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">✕</button></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="empty-inline">
+          {% if os %}Nenhuma peça vinculada{% else %}Salve a OS primeiro para vincular peças{% endif %}
+        </div>
+        {% endif %}
+
+        {% if os %}
+        <div class="form-row fr3 items-end">
+          <div class="form-group form-group-compact">
+            <label>Peça</label>
+            <select id="os-peca-id">
+              <option value="">Selecione</option>
+              {% for p in pecas_estoque or [] %}
+              <option value="{{ p.id }}" data-preco="{{ p.preco_venda }}">
+                {{ p.nome }}{% if p.codigo %} ({{ p.codigo }}){% endif %} — est.{{ p.quantidade }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group form-group-compact">
+            <label>Qtd</label>
+            <input type="number" id="os-peca-qtd" min="1" value="1">
+          </div>
+          <div class="form-group form-group-compact">
+            <label>Valor (R$)</label>
+            <input type="number" id="os-peca-vlr" step="0.01" min="0" value="0.00">
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" data-action="os-peca-adicionar" data-os-id="{{ os.id }}">
+          + Adicionar Peça
+        </button>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Botão Salvar -->
+    <button type="submit" class="btn btn-primary submit-wide">
+      {{ '✓ SALVAR ALTERAÇÕES' if os else '✓ CRIAR ORDEM DE SERVIÇO' }}
+    </button>
+
+  </div>
+</div>
+</form>
+
+<script nonce="{{ csp_nonce }}">
+const CLIENTES_DATA = {{ clientes_json | safe }};
+function autoPrecoPeca() {
+  const sel = document.getElementById('os-peca-id');
+  const preco = sel.options[sel.selectedIndex]?.getAttribute('data-preco') || 0;
+  document.getElementById('os-peca-vlr').value = parseFloat(preco).toFixed(2);
+}
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/os_form.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}
+

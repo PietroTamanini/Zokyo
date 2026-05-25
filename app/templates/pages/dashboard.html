@@ -1,0 +1,125 @@
+﻿{% extends "base.html" %}
+{% block title %}Dashboard — Zokyo{% endblock %}
+{% block breadcrumb %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">📊 Dashboard Operacional</div>
+  </div>
+</div>
+
+<!-- ALERTAS INTELIGENTES -->
+{% if alertas %}
+<div class="page-alerts">
+  {% for a in alertas %}
+  <div class="alert a-{{ a.tipo }}">{{ a.icone }} {{ a.msg }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- META DO MÊS -->
+{% if meta_receita_mensal and meta_receita_mensal > 0 %}
+<div class="card mb20">
+  <div class="card-body card-body-compact">
+    <div class="flex jbet items-c mb16">
+      <span class="fw7 muted-sm">🎯 Meta de Receita Mensal</span>
+      <span class="fw8 txt-blue">{{ pct_meta }}% — {{ receitas_mes | moeda }} / {{ meta_receita_mensal | moeda }}</span>
+    </div>
+    <div class="prog-wrap"><div class="prog-fill prog-fill-dynamic" style="--progress:{{ pct_meta }}%;--progress-color:{{ 'var(--green)' if pct_meta >= 100 else 'var(--blue)' }}"></div></div>
+  </div>
+</div>
+{% endif %}
+
+<!-- CAIXA + VENDAS DIA -->
+<div class="stats-grid stats-grid-2">
+  <div class="stat-card c-blue">
+    <div class="stat-icon">💰</div>
+    <div class="stat-label">Caixa Acumulado</div>
+    <div class="stat-value stat-value-md">{{ caixa | moeda }}</div>
+    <div class="stat-meta">Receitas pagas − Despesas pagas (total)</div>
+  </div>
+  <div class="stat-card c-green">
+    <div class="stat-icon">🛒</div>
+    <div class="stat-label">Vendas Hoje</div>
+    <div class="stat-value stat-value-md">{{ vendas_dia | moeda }}</div>
+    <div class="stat-meta">Receitas pagas no dia</div>
+  </div>
+</div>
+
+<!-- FINANCEIRO MÊS -->
+<div class="fin-trio mb20">
+  <div class="fin-block">
+    <div class="fin-label">Receitas do Mês</div>
+    <div class="fin-val txt-green">{{ receitas_mes | moeda }}</div>
+    <div class="fin-meta">A receber: {{ a_receber | moeda }}</div>
+  </div>
+  <div class="fin-block">
+    <div class="fin-label">Despesas do Mês</div>
+    <div class="fin-val txt-red">{{ despesas_mes | moeda }}</div>
+    <div class="fin-meta">A pagar: {{ a_pagar | moeda }}</div>
+  </div>
+  <div class="fin-block">
+    <div class="fin-label">Saldo do Mês</div>
+    <div class="fin-val {{ 'txt-green' if saldo_mes >= 0 else 'txt-red' }}">{{ saldo_mes | moeda }}</div>
+    <div class="fin-meta">Receitas − Despesas pagas</div>
+  </div>
+</div>
+
+<!-- STATS OPERACIONAIS -->
+<div class="stats-grid mb24">
+  <div class="stat-card c-blue" data-href="/os">
+    <div class="stat-icon">📋</div>
+    <div class="stat-label">OS em Aberto</div>
+    <div class="stat-value">{{ os_abertas }}</div>
+    <div class="stat-meta">{{ os_atrasadas }} atrasada(s)</div>
+  </div>
+  <div class="stat-card c-green" data-href="/os?status=pronto">
+    <div class="stat-icon">✅</div>
+    <div class="stat-label">Prontos p/ Retirada</div>
+    <div class="stat-value">{{ os_prontas }}</div>
+    <div class="stat-meta">{{ os_aprovacao }} aguardando aprovação</div>
+  </div>
+  <div class="stat-card c-amber" data-href="/estoque?critico=1">
+    <div class="stat-icon">📦</div>
+    <div class="stat-label">Estoque Crítico</div>
+    <div class="stat-value">{{ estoque_critico }}</div>
+    <div class="stat-meta">{{ total_pecas }} peças no total · {{ valor_estoque | moeda }}</div>
+  </div>
+  <div class="stat-card c-blue" data-href="/clientes">
+    <div class="stat-icon">👥</div>
+    <div class="stat-label">Clientes Ativos</div>
+    <div class="stat-value">{{ total_clientes }}</div>
+    <div class="stat-meta">{{ total_fornecedores }} fornecedores · {{ total_usuarios }} usuários</div>
+  </div>
+</div>
+
+<!-- PIPELINE DE STATUS -->
+<div class="pipeline mb24">
+  <div class="pipe-step {% if pipeline_counts.recepcao > 0 %}pi{% endif %}" data-href="/os?status=recepcao">
+    <div class="pipe-num">{{ pipeline_counts.recepcao }}</div>
+    <div class="pipe-label">Recepção</div>
+  </div>
+  <div class="pipe-step {% if pipeline_counts.em_analise > 0 %}pi{% endif %}" data-href="/os?status=em_analise">
+    <div class="pipe-num">{{ pipeline_counts.em_analise }}</div>
+    <div class="pipe-label">Análise</div>
+  </div>
+  <div class="pipe-step {% if pipeline_counts.aguardando_aprovacao > 0 %}pa{% endif %}" data-href="/os?status=aguardando_aprovacao">
+    <div class="pipe-num">{{ pipeline_counts.aguardando_aprovacao }}</div>
+    <div class="pipe-label">Aprovação</div>
+  </div>
+  <div class="pipe-step {% if pipeline_counts.em_reparo > 0 %}pi{% endif %}" data-href="/os?status=em_reparo">
+    <div class="pipe-num">{{ pipeline_counts.em_reparo }}</div>
+    <div class="pipe-label">Reparo</div>
+  </div>
+  <div class="pipe-step {% if pipeline_counts.pronto > 0 %}pr{% endif %}" data-href="/os?status=pronto">
+    <div class="pipe-num">{{ pipeline_counts.pronto }}</div>
+    <div class="pipe-label">Pronto</div>
+  </div>
+  <div class="pipe-step" data-href="/os?status=entregue">
+    <div class="pipe-num">{{ pipeline_counts.entregue }}</div>
+    <div class="pipe-label">Entregue</div>
+  </div>
+</div>
+{% endblock %}
+

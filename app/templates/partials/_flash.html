@@ -1,0 +1,13 @@
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div id="flash-container" class="flash-container">
+      {% for category, message in messages %}
+        <div class="alert flash-message a-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}">
+          <span>{{ '✅' if category == 'success' else '❌' if category == 'error' else 'ℹ️' }}</span>
+          <div>{{ message }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    <script nonce="{{ csp_nonce }}">setTimeout(()=>{const el=document.getElementById('flash-container');if(el){el.style.transition='opacity .4s';el.style.opacity='0';setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},450);}},3000);</script>
+  {% endif %}
+{% endwith %}

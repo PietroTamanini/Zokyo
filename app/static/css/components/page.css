@@ -1,0 +1,73 @@
+﻿.page-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 26px;
+  flex-wrap: wrap; gap: 14px;
+}
+.page-title { font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.page-sub { font-size: 12px; color: var(--text-3); margin-top: 3px; font-family: "JetBrains Mono", monospace; }
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-section {
+  margin-bottom: 20px;
+}
+
+.page-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.filter-card .card-body {
+  padding: 14px 20px;
+}
+
+.filter-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 1px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.card .pagination {
+  margin-top: 0;
+}
+
+.pagination-label {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* ═══════════════════════════════════════
+   BOTÕES
+═══════════════════════════════════════ */
+

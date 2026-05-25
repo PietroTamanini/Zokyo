@@ -1,0 +1,29 @@
+﻿.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 18px; border: none; border-radius: 8px;
+  font-family: "Outfit", sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  text-decoration: none !important;
+}
+.btn-primary { background: var(--blue); color: #fff; box-shadow: 0 2px 8px var(--blue-ring); }
+.btn-primary:hover { background: var(--blue-dk); transform: translateY(-1px); box-shadow: 0 4px 14px var(--blue-ring); }
+.btn-outline { background: transparent; color: var(--blue); border: 1.5px solid var(--blue); }
+.btn-outline:hover { background: var(--blue-glow); }
+.btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border2); }
+.btn-ghost:hover { border-color: var(--text-2); color: var(--text); background: var(--surface2); }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { filter: brightness(1.1); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { filter: brightness(1.1); }
+.btn-sm { padding: 6px 13px; font-size: 12px; border-radius: 6px; }
+.btn-xs { padding: 3px 9px; font-size: 11px; border-radius: 5px; }
+.btn-header-light {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 11px;
+}
+
+/* ═══════════════════════════════════════
+   CARD
+═══════════════════════════════════════ */
+

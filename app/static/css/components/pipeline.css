@@ -1,0 +1,17 @@
+﻿.pipeline { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 24px; }
+.pipe-step { flex: 1; padding: 14px 8px; text-align: center; background: var(--surface); border-right: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+.pipe-step:last-child { border-right: none; }
+.pipe-step:hover { background: var(--blue-glow); }
+.pipe-num { font-size: 28px; font-weight: 800; color: var(--text-3); line-height: 1; letter-spacing: -1px; }
+.pipe-step.pi { color: var(--blue); }
+.pipe-step.pi .pipe-num { color: var(--blue); }
+.pipe-step.pr { color: var(--green); }
+.pipe-step.pr .pipe-num { color: var(--green); }
+.pipe-step.pa { color: var(--red); }
+.pipe-step.pa .pipe-num { color: var(--red); }
+.pipe-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); margin-top: 4px; }
+
+/* ═══════════════════════════════════════
+   GRIDS
+═══════════════════════════════════════ */
+

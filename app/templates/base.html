@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
+  <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<div id="sidebar-overlay" data-action="close-sidebar"></div>
+{% include 'partials/_sidebar.html' %}
+
+<div id="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" data-action="open-sidebar" aria-label="Menu">&#9776;</button>
+      <div class="breadcrumb">{{ APP_SHORT_NAME }} / <span class="ca">{% block breadcrumb %}—{% endblock %}</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="td-date"></div>
+      <button class="theme-btn" data-action="toggle-theme" id="theme-btn-el">☀️ Claro</button>
+      {% block topbar_action %}{% endblock %}
+    </div>
+  </div>
+
+  <div id="content">
+    {% include 'partials/_flash.html' %}
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+{% include 'partials/_modal.html' %}
+
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/masks.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validators.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/viacep.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/ui.js') }}"></script>
+<script src="{{ url_for('static', filename='js/api.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}">
+// ── Sidebar drawer ──────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  const ov = document.getElementById('sidebar-overlay');
+  ov.style.display = 'block';
+  requestAnimationFrame(() => ov.classList.add('show'));
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  const ov = document.getElementById('sidebar-overlay');
+  ov.classList.remove('show');
+  setTimeout(() => { ov.style.display = 'none'; }, 250);
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSidebar(); closeModal(); } });
+document.querySelectorAll && document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => { if (window.innerWidth <= 900) closeSidebar(); });
+});
+
+// ── Theme ───────────────────────────────────────────────────
+function toggleTheme() {
+  const html = document.documentElement;
+  const cur = html.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  document.getElementById('theme-btn-el').textContent = next === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+}
+(function(){
+  const t = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('theme-btn-el');
+  if (btn) btn.textContent = t === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+})();
+
+// ── Date + Clock ─────────────────────────────────────────────
+(function(){
+  const el = document.getElementById('td-date');
+  if (!el) return;
+  const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  function atualizar() {
+    const d = new Date();
+    const data = dias[d.getDay()] + ' ' + d.toLocaleDateString('pt-BR');
+    const h = String(d.getHours()).padStart(2,'0');
+    const m = String(d.getMinutes()).padStart(2,'0');
+    const s = String(d.getSeconds()).padStart(2,'0');
+    el.textContent = data + ' · ' + h + ':' + m + ':' + s;
+  }
+  atualizar();
+  setInterval(atualizar, 1000);
+})();
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

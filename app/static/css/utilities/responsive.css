@@ -1,0 +1,72 @@
+﻿@media (max-width: 1200px) {
+  #sidebar { width: 220px; }
+  #main { margin-left: 220px; }
+  .stats-grid { grid-template-columns: repeat(2,1fr); }
+  .g64, .g84 { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVO — 900px (TABLET/MOBILE)
+═══════════════════════════════════════ */
+@media (max-width: 900px) {
+  body { display: block; }
+
+  /* Sidebar vira drawer deslizante */
+  #sidebar {
+    transform: translateX(-100%);
+    width: 280px;
+    position: fixed;
+    height: 100%;
+    overflow-y: auto;
+    top: 0;
+    left: 0;
+  }
+  #sidebar.open { transform: translateX(0); }
+  .sidebar-close { display: flex; }
+
+  /* Main ocupa 100% */
+  #main { margin-left: 0; min-height: 100vh; }
+
+  /* Topbar */
+  .topbar { padding: 0 16px; height: 54px; }
+  .hamburger { display: flex; }
+  .topbar-date { display: none; } /* esconde no mobile */
+  .breadcrumb { font-size: 10px; }
+
+  /* Content */
+  #content { padding: 16px; }
+  .page-title { font-size: 22px; }
+
+  /* Grids colapsam */
+  .stats-grid, .g2, .g3, .fr2, .fr3, .fr4, .fin-trio, .g64, .g84 {
+    grid-template-columns: 1fr;
+  }
+  .pipeline { flex-wrap: wrap; }
+  .pipe-step { min-width: 33.33%; border-bottom: 1px solid var(--border); }
+  .d-row { grid-template-columns: 1fr; gap: 4px; }
+  .card-body, .card-header { padding-left: 16px; padding-right: 16px; }
+}
+
+/* ═══════════════════════════════════════
+   RESPONSIVO — 600px (MOBILE PEQUENO)
+═══════════════════════════════════════ */
+@media (max-width: 600px) {
+  .topbar-right { gap: 8px; }
+  .theme-btn { padding: 5px 9px; font-size: 11px; }
+  .modal-box { padding: 20px 16px; border-radius: 14px 14px 0 0; max-height: 92vh; position: fixed; bottom: 0; left: 0; right: 0; width: 100%; max-width: 100%; margin: 0; animation: mInMobile 0.25s ease; }
+  .modal-overlay { align-items: flex-end; padding: 0; }
+  @keyframes mInMobile { from{transform:translateY(30px);opacity:0} to{transform:none;opacity:1} }
+
+  .btn { padding: 8px 14px; font-size: 12px; }
+  .btn-sm { padding: 6px 11px; font-size: 11px; }
+  th { padding: 8px 10px; font-size: 10px; }
+  td { padding: 10px 10px; font-size: 13px; }
+
+  /* Esconde colunas secundárias em tabelas */
+  .td-hide-sm { display: none; }
+  .th-hide-sm { display: none; }
+
+  .stat-value { font-size: 28px; }
+  .page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+}
+

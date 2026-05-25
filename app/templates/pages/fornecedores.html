@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Fornecedores — Zokyo{% endblock %}
+{% block breadcrumb %}Fornecedores{% endblock %}
+{% block topbar_action %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Fornecedores</div>
+    <div class="page-sub">{{ paginacao.total }} fornecedores cadastrados</div>
+  </div>
+  <button class="btn btn-primary" data-action="fornecedor-novo">+ Novo Fornecedor</button>
+</div>
+
+<form method="GET" class="filter-bar">
+  <input type="text" name="q" value="{{ q or '' }}" placeholder="Buscar nome ou CNPJ..." class="input-search">
+  <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
+  {% if q %}<a href="{{ url_for('pages.fornecedores') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>{% endif %}
+</form>
+
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Razão Social / Fantasia</th><th>CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ações</th></tr>
+      </thead>
+      <tbody>
+        {% for f in fornecedores %}
+        <tr>
+          <td>
+            <div class="td-strong">{{ f.nome }}</div>
+          </td>
+          <td class="td-mono muted-xs">{{ f.cnpj }}</td>
+          <td>{{ f.telefone }}</td>
+          <td class="td-muted">{{ f.email }}</td>
+          <td>{{ f.cidade }}</td>
+          <td>
+            {% if f.ativo %}
+              <span class="badge b-green"><span class="dot"></span>Ativo</span>
+            {% else %}
+              <span class="badge b-gray"><span class="dot"></span>Inativo</span>
+            {% endif %}
+          </td>
+          <td data-stop>
+            <div class="action-wrap">
+              <button class="btn btn-outline btn-xs" data-action="fornecedor-editar" data-id="{{ f.id }}">✏ Editar</button>
+              <form method="POST" action="{{ url_for('pages.fornecedor_deletar', id=f.id) }}"
+                    data-confirm="Excluir este fornecedor?" class="inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7"><div class="empty"><div class="empty-title">Nenhum fornecedor cadastrado</div></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if paginacao.pages > 1 %}
+<div class="pagination">
+  {% if paginacao.has_prev %}<a href="?page={{ paginacao.prev_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+  <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+  {% if paginacao.has_next %}<a href="?page={{ paginacao.next_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">Próximo →</a>{% endif %}
+</div>
+{% endif %}
+
+
+<script nonce="{{ csp_nonce }}">const FORNECEDORES_DATA = {{ fornecedores_json | safe }};</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/fornecedores.js') }}" nonce="{{ csp_nonce }}"></script>
+{% endblock %}

@@ -1,0 +1,266 @@
+﻿{% extends "base.html" %}
+{% block title %}Configurações — Zokyo{% endblock %}
+{% block breadcrumb %}Configurações{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">⚙️ Configurações</div><div class="page-sub">Sistema, Dashboard e WhatsApp</div></div>
+</div>
+
+{% with msgs = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in msgs %}
+    <div class="alert a-{{ 'green' if cat == 'success' else 'red' }} mb16">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab-btn active" data-action="cfg-tab" data-tab="geral">🏢 Empresa</button>
+  <button class="tab-btn" data-action="cfg-tab" data-tab="dashboard">📊 Dashboard & Alertas</button>
+  <button class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">💬 WhatsApp</button>
+</div>
+
+<!-- TAB: GERAL -->
+<div id="tab-geral" class="tab-content">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Dados da Empresa</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('configuracoes.salvar') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row fr2">
+          <div class="form-group"><label>Nome da Empresa <span class="req">*</span></label>
+            <input type="text" name="nome_empresa" value="{{ cfg.nome_empresa or '' }}" required></div>
+          <div class="form-group"><label>CNPJ</label>
+            <input type="text" name="cnpj" value="{{ cfg.cnpj or '' }}" class="mask-cnpj"></div>
+        </div>
+        <div class="form-row fr2">
+          <div class="form-group"><label>Telefone</label>
+            <input type="text" name="telefone" value="{{ cfg.telefone or '' }}" class="mask-phone"></div>
+          <div class="form-group"><label>E-mail</label>
+            <input type="email" name="email" value="{{ cfg.email or '' }}"></div>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group form-span-2"><label>Endereço</label>
+            <input type="text" name="endereco" value="{{ cfg.endereco or '' }}"></div>
+          <div class="form-group"><label>Cidade</label>
+            <input type="text" name="cidade" value="{{ cfg.cidade or '' }}"></div>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group"><label>UF</label>
+            <input type="text" name="uf" value="{{ cfg.uf or '' }}" maxlength="2"></div>
+          <div class="form-group"><label>Dias de Vencimento Padrão</label>
+            <input type="number" name="dias_vencimento" value="{{ cfg.dias_vencimento or 30 }}" min="1"></div>
+          <div class="form-group"><label>Chave PIX</label>
+            <input type="text" name="pix_chave" value="{{ cfg.pix_chave or '' }}"></div>
+        </div>
+        <div class="form-group"><label>Caminho do wkhtmltopdf</label>
+          <input type="text" name="wkhtmltopdf_path" value="{{ cfg.wkhtmltopdf_path or '' }}" placeholder="Ex: C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe">
+          <div class="input-hint">Deixe vazio para usar o caminho detectado automaticamente. Necessário para gerar PDF.</div>
+        </div>
+        <div class="hidden"><!-- dummy div closed above -->
+        </div>
+        <div class="form-group"><label>Dados de Pagamento / Observações</label>
+          <textarea name="dados_pagamento" rows="3">{{ cfg.dados_pagamento or '' }}</textarea></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: DASHBOARD -->
+<div id="tab-dashboard" class="tab-content hidden">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Metas e Alertas Inteligentes</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('configuracoes.salvar_dashboard') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row fr2">
+          <div class="form-group"><label>Meta de Receita Mensal (R$)</label>
+            <input type="number" name="meta_receita_mensal" step="0.01" value="{{ cfg.meta_receita_mensal or 0 }}">
+            <div class="input-hint">Exibe barra de progresso no dashboard</div></div>
+          <div class="form-group"><label>Alerta: Caixa Mínimo (R$)</label>
+            <input type="number" name="alerta_caixa_minimo" step="0.01" value="{{ cfg.alerta_caixa_minimo or 0 }}">
+            <div class="input-hint">Alerta quando caixa ficar abaixo deste valor</div></div>
+        </div>
+        <div class="form-row fr2">
+          <div class="form-group"><label>Alerta: Estoque Mínimo (unidades)</label>
+            <input type="number" name="alerta_estoque_minimo" value="{{ cfg.alerta_estoque_minimo or 5 }}">
+            <div class="input-hint">Destaca peças com estoque abaixo deste nível</div></div>
+          <div class="form-group"><label>Alerta: Vencimentos (dias)</label>
+            <input type="number" name="alerta_vencimento_dias" value="{{ cfg.alerta_vencimento_dias or 5 }}">
+            <div class="input-hint">Avisa com X dias de antecedência</div></div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: WHATSAPP -->
+<div id="tab-whatsapp" class="tab-content hidden">
+
+  <div class="alert a-blue mb20">
+    <div>
+      <strong>Sem Docker, sem Meta API, sem custo.</strong><br>
+      Instale o Node.js, rode <code>node wpp-server.js</code> na pasta do projeto, escaneie o QR e pronto.<br>
+      <a href="WPP_SETUP.md" class="link-blue">Ver instruções completas → WPP_SETUP.md</a>
+    </div>
+  </div>
+
+  <div class="g2 mb20">
+    <!-- Status -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📡 Status da Conexão</span>
+        <div id="wpp-badge" class="badge b-gray"><span class="dot"></span> Verificando...</div>
+      </div>
+      <div class="card-body txt-c wpp-panel">
+        <div id="wpp-qr-area" class="hidden">
+          <div id="wpp-qr-img" class="wpp-qr"></div>
+          <div class="muted-sm">Abra o WhatsApp → Dispositivos conectados → Escanear QR</div>
+        </div>
+        <div id="wpp-status-msg" class="wpp-status">Verificando...</div>
+        <div class="wpp-actions">
+          <button class="btn btn-ghost btn-sm" data-action="wpp-status">🔍 Verificar Status</button>
+          <button class="btn btn-ghost btn-sm" data-action="wpp-qr">📷 Mostrar QR</button>
+          <button class="btn btn-danger btn-sm" data-action="wpp-reconnect">🔄 Reconectar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuração -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">⚙️ Configuração</span></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('configuracoes.salvar_whatsapp') }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group mb16">
+            <label>URL do wpp-server</label>
+            <input type="url" name="wpp_server_url"
+                   value="{{ cfg.wpp_server_url or '' }}"
+                   placeholder="http://localhost:3333">
+            <div class="input-hint">Padrão: http://localhost:3333 · Deixe vazio para modo simulação (wa.me)</div>
+          </div>
+          <div class="alert a-amber mb16 muted-sm">
+            <div>
+              Modo simulação (URL vazia): botão WhatsApp abre o wa.me com mensagem pré-preenchida.<br>
+              Modo automático (URL preenchida): mensagem enviada direto sem clicar em nada.
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instruções rápidas -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">🚀 Como configurar em 3 passos</span></div>
+    <div class="card-body">
+      <div class="setup-steps">
+        <div class="setup-step step-blue">
+          <div class="setup-num">1</div>
+          <div class="fw7 setup-title">Instalar Node.js</div>
+          <div class="setup-copy">Baixe em <strong>nodejs.org</strong> e instale. Depois rode na pasta do projeto:<br><br>
+          <code class="code-pill">npm install</code></div>
+        </div>
+        <div class="setup-step step-sky">
+          <div class="setup-num">2</div>
+          <div class="fw7 setup-title">Iniciar o servidor</div>
+          <div class="setup-copy">No terminal, na pasta do projeto:<br><br>
+          <code class="code-pill">node wpp-server.js</code><br><br>
+          Abra <strong>http://localhost:3333</strong> no navegador</div>
+        </div>
+        <div class="setup-step step-green">
+          <div class="setup-num">3</div>
+          <div class="fw7 setup-title">Escanear o QR</div>
+          <div class="muted-sm">Abra o WhatsApp no celular →<br>Dispositivos conectados →<br>Escanear QR Code<br><br>Pronto! ✅ Mensagens automáticas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script nonce="{{ csp_nonce }}">
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.remove('hidden');
+  btn.classList.add('active');
+}
+
+
+async function verificarWpp() {
+  const badge = document.getElementById('wpp-badge');
+  const msg   = document.getElementById('wpp-status-msg');
+  badge.innerHTML = '<span class="dot"></span> Verificando...';
+  try {
+    const r = await fetch('/api/whatsapp/status', {credentials:'include'});
+    const d = await r.json();
+    if (d.status === 'conectado') {
+      badge.className = 'badge b-green';
+      badge.innerHTML = '<span class="dot"></span> Conectado';
+      msg.textContent = '✅ WhatsApp conectado! Mensagens automáticas ativas.';
+      document.getElementById('wpp-qr-area').classList.add('hidden');
+    } else if (d.status === 'qr_pronto') {
+      badge.className = 'badge b-amber';
+      badge.innerHTML = '<span class="dot"></span> Aguardando QR';
+      msg.textContent = '📷 Escaneie o QR Code abaixo com seu WhatsApp.';
+      buscarQR();
+    } else {
+      badge.className = 'badge b-red';
+      badge.innerHTML = '<span class="dot"></span> Desconectado';
+      msg.textContent = '❌ Servidor desconectado. Rode: node wpp-server.js';
+    }
+  } catch {
+    badge.className = 'badge b-gray';
+    badge.innerHTML = '<span class="dot"></span> Offline';
+    msg.textContent = 'Servidor não encontrado. Rode: node wpp-server.js';
+  }
+}
+
+async function buscarQR() {
+  try {
+    const r = await fetch('/api/whatsapp/qr', {credentials:'include'});
+    const d = await r.json();
+    const area = document.getElementById('wpp-qr-area');
+    const img  = document.getElementById('wpp-qr-img');
+    if (d.qr) {
+      area.classList.remove('hidden');
+      img.innerHTML = `<img src="${d.qr}" class="wpp-qr-img" alt="QR Code do WhatsApp">`;
+    }
+  } catch {}
+}
+
+async function reconectarWpp() {
+  try {
+    await fetch('/api/whatsapp/reconectar', {method:'POST', credentials:'include', headers:{'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Content-Type':'application/json'}});
+    showToast('Reconectando... aguarde.', 'blue');
+    setTimeout(verificarWpp, 3000);
+  } catch {
+    showToast('Servidor offline. Rode: node wpp-server.js', 'red');
+  }
+}
+
+verificarWpp();
+setInterval(verificarWpp, 5000);
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.getAttribute('data-action');
+  if (action === 'cfg-tab') {
+    return showTab(el.getAttribute('data-tab'), el);
+  }
+  if (action === 'wpp-status') return verificarWpp();
+  if (action === 'wpp-qr') return buscarQR();
+  if (action === 'wpp-reconnect') return reconectarWpp();
+});
+</script>
+{% endblock %}
+
