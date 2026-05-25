@@ -1,39 +1,39 @@
-# Zokyo - Sistema de Gestao para Assistencia Tecnica
+# Zokyo — Sistema de Gestão para Assistência Técnica
 
-Aplicacao web para operacao de uma assistencia tecnica de informatica, com foco em ordens de servico, atendimento ao cliente, estoque, financeiro, auditoria, emissao de PDF e comunicacao por WhatsApp.
+Aplicação web para operação de uma assistência técnica de informática, com foco em ordens de serviço, atendimento ao cliente, estoque, financeiro, auditoria, emissão de PDF e comunicação por WhatsApp.
 
-O projeto combina backend Flask, banco MySQL, frontend server-rendered com Jinja2, CSS modularizado e um servidor Node.js opcional para envio automatico de mensagens via WhatsApp Web.
+O projeto combina backend Flask, banco MySQL/MariaDB, frontend server-rendered com Jinja2, CSS modularizado e um servidor Node.js opcional para envio automático de mensagens via WhatsApp Web.
 
-## Sumario
+## Sumário
 
-- [Visao Geral](#visao-geral)
+- [Visão Geral](#visão-geral)
 - [Stack](#stack)
 - [Funcionalidades](#funcionalidades)
 - [Requisitos](#requisitos)
-- [Instalacao Local](#instalacao-local)
-- [Configuracao](#configuracao)
-- [Execucao](#execucao)
+- [Instalação Local](#instalação-local)
+- [Configuração](#configuração)
+- [Execução](#execução)
 - [Primeiro Acesso](#primeiro-acesso)
 - [WhatsApp](#whatsapp)
 - [PDF](#pdf)
-- [Seguranca](#seguranca)
+- [Segurança](#segurança)
 - [Estrutura do Projeto](#estrutura-do-projeto)
 - [Deploy](#deploy)
-- [Validacao e Manutencao](#validacao-e-manutencao)
+- [Validação e Manutenção](#validação-e-manutenção)
 
-## Visao Geral
+## Visão Geral
 
-O Zokyo centraliza a rotina operacional de uma assistencia tecnica:
+O Zokyo centraliza a rotina operacional de uma assistência técnica:
 
-- cadastro e historico de clientes;
-- abertura, edicao, status e historico de ordens de servico;
-- controle de pecas, fornecedores e estoque critico;
+- cadastro e histórico de clientes;
+- abertura, edição, status e histórico de ordens de serviço;
+- controle de peças, fornecedores e estoque crítico;
 - receitas, despesas, fluxo de caixa e baixas de pagamento;
 - dashboard com indicadores operacionais e financeiros;
-- usuarios com perfis de acesso;
+- usuários com perfis de acesso;
 - logs de auditoria;
-- geracao de PDF da OS;
-- integracao opcional com WhatsApp.
+- geração de PDF da OS;
+- integração opcional com WhatsApp.
 
 ## Stack
 
@@ -48,45 +48,45 @@ O Zokyo centraliza a rotina operacional de uma assistencia tecnica:
 | WhatsApp | Node.js, Express, WPPConnect |
 | WSGI | Gunicorn |
 | Proxy | Nginx |
-| Seguranca | CSRF, CSP com nonce, headers HTTP, rate limiting, RBAC |
+| Segurança | CSRF, CSP com nonce, headers HTTP, rate limiting, RBAC |
 
 ## Funcionalidades
 
-| Modulo | Recursos principais |
+| Módulo | Recursos principais |
 | --- | --- |
-| Dashboard | resumo financeiro, OS em aberto, estoque critico, pipeline de status |
-| Ordens de Servico | criacao, edicao, pecas, financeiro, status, historico, PDF e WhatsApp |
-| Clientes | cadastro, filtros, status ativo/inativo e vinculo com OS |
-| Estoque | pecas, custo, preco de venda, fornecedor, estoque minimo e movimentacao |
-| Fornecedores | cadastro, edicao, filtros e status |
-| Financeiro | receitas, despesas, pendencias, baixa, resumo por periodo |
-| Usuarios | perfis, ativacao, troca de senha e administracao |
-| Configuracoes | empresa, metas, alertas, PDF e WhatsApp |
-| Logs | auditoria por usuario, modulo, operacao e periodo |
+| Dashboard | resumo financeiro, OS em aberto, estoque crítico, pipeline de status |
+| Ordens de Serviço | criação, edição, peças, financeiro, status, histórico, PDF e WhatsApp |
+| Clientes | cadastro, filtros, status ativo/inativo e vínculo com OS |
+| Estoque | peças, custo, preço de venda, fornecedor, estoque mínimo e movimentação |
+| Fornecedores | cadastro, edição, filtros e status |
+| Financeiro | receitas, despesas, pendências, baixa, resumo por período |
+| Usuários | perfis, ativação, troca de senha e administração |
+| Configurações | empresa, metas, alertas, PDF e WhatsApp |
+| Logs | auditoria por usuário, módulo, operação e período |
 
 ## Requisitos
 
-Obrigatorios:
+Obrigatórios:
 
 - Python 3.11 ou superior;
 - MySQL ou MariaDB;
 - `pip` e ambiente virtual Python;
-- variaveis de ambiente configuradas em `.env`.
+- variáveis de ambiente configuradas em `.env`.
 
 Opcionais:
 
-- Node.js 18+ para envio automatico de WhatsApp;
+- Node.js 18+ para envio automático de WhatsApp;
 - wkhtmltopdf para PDF com layout HTML completo;
-- Gunicorn e Nginx para producao Linux.
+- Gunicorn e Nginx para produção Linux.
 
-## Instalacao Local
+## Instalação Local
 
 ```bash
-cd zokyo-patched
+cd Zokyo
 python -m venv venv
 ```
 
-Ativar ambiente:
+Ativar ambiente no Windows:
 
 ```powershell
 .\venv\Scripts\Activate.ps1
@@ -98,7 +98,7 @@ Linux/macOS:
 source venv/bin/activate
 ```
 
-Instalar dependencias:
+Instalar dependências Python:
 
 ```bash
 pip install -r requirements.txt
@@ -113,17 +113,17 @@ GRANT ALL PRIVILEGES ON zokyo.* TO 'zokyo'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-Copiar ambiente:
+Copiar variáveis de ambiente:
 
 ```bash
 cp .env.example .env
 ```
 
-No Windows, copie manualmente `.env.example` para `.env` se preferir.
+No Windows, copie manualmente `.env.example` para `.env`.
 
-## Configuracao
+## Configuração
 
-Variaveis essenciais:
+Variáveis essenciais:
 
 ```env
 SECRET_KEY=gere_um_valor_seguro
@@ -137,19 +137,7 @@ Gerar `SECRET_KEY`:
 python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-Recomendado para producao:
-
-```bash
-python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
-```
-
-Use o resultado em:
-
-```env
-ENCRYPTION_SALT=valor_base64_gerado
-```
-
-Variaveis opcionais:
+Variáveis opcionais:
 
 ```env
 WKHTMLTOPDF_PATH=/usr/bin/wkhtmltopdf
@@ -159,9 +147,11 @@ GUNICORN_WORKERS=4
 PROXY_COUNT=1
 ```
 
+Em produção, `SECRET_KEY` e `DATABASE_URL` são obrigatórios. A aplicação recusa iniciar se estiverem ausentes ou com valores placeholder.
+
 Nunca versionar `.env`.
 
-## Execucao
+## Execução
 
 Desenvolvimento:
 
@@ -171,38 +161,36 @@ python app.py
 
 Acesse:
 
-```text
+```
 http://127.0.0.1:5000
 ```
 
-Producao com Gunicorn:
+Produção com Gunicorn:
 
 ```bash
 FLASK_ENV=production gunicorn -c gunicorn.conf.py app:app
 ```
 
-Em producao, `SECRET_KEY` e `DATABASE_URL` precisam estar corretamente definidos.
-
 ## Primeiro Acesso
 
 Ao iniciar com o banco vazio, o sistema redireciona para:
 
-```text
+```
 /primeiro-acesso
 ```
 
-Nesse fluxo e criado o primeiro usuario administrador. Depois disso, o login normal acontece em `/login`.
+Nesse fluxo é criado o primeiro usuário administrador. Depois disso, o login normal acontece em `/login`.
 
 ## WhatsApp
 
 O sistema possui dois modos:
 
-| Modo | Descricao |
+| Modo | Descrição |
 | --- | --- |
 | Manual | gera link `wa.me` com mensagem pronta para o atendente enviar |
-| Automatico | usa `wpp-server.js` rodando em Node.js para enviar pela sessao WhatsApp Web |
+| Automático | usa `wpp-server.js` rodando em Node.js para enviar pela sessão WhatsApp Web |
 
-Para o modo automatico:
+Para o modo automático:
 
 ```bash
 npm install
@@ -220,64 +208,72 @@ Detalhes em [wpp-server.README.md](wpp-server.README.md).
 
 ## PDF
 
-A geracao de PDF usa `wkhtmltopdf`, quando instalado e com caminho valido. Em caso de falha, o sistema usa fallback com `ReportLab`.
+A geração de PDF usa `wkhtmltopdf` quando instalado e com caminho válido. O sistema detecta automaticamente os caminhos comuns (`/usr/bin/wkhtmltopdf`, `/usr/local/bin/wkhtmltopdf`, `/snap/bin/wkhtmltopdf`) ou usa o valor de `WKHTMLTOPDF_PATH`. Em caso de falha ou ausência, usa fallback com ReportLab.
 
-Configure o caminho em `WKHTMLTOPDF_PATH` ou no painel em Configuracoes.
+O caminho também pode ser configurado pelo painel em Configurações.
 
-## Seguranca
+## Segurança
 
 O sistema inclui:
 
-- CSRF para metodos mutantes;
-- CSP com nonce por request para scripts inline;
-- headers HTTP de seguranca;
-- timeout de sessao por inatividade;
-- validacao de usuario ativo a cada request;
-- politica de senha forte;
-- rate limiting de login persistido no banco;
-- rate limiting e token no `wpp-server.js`;
-- validacao de URL do WhatsApp para reduzir risco de SSRF;
-- criptografia de segredos de configuracao via Fernet;
-- configuracoes hardened de Gunicorn e Nginx.
-
-Detalhes em [README_SECURITY_FIXES.md](README_SECURITY_FIXES.md).
+- CSRF para métodos mutantes;
+- CSP com nonce por request (sem `unsafe-inline` em scripts);
+- headers HTTP de segurança via `after_request`;
+- HSTS em produção;
+- timeout de sessão absoluto (8h) e por inatividade (30 min);
+- validação de usuário ativo a cada request;
+- política de senha forte;
+- rate limiting de login persistido no banco, com limpeza agendada via APScheduler;
+- ProxyFix configurável via `PROXY_COUNT` para evitar IP spoofing;
+- validação de URL do WhatsApp para reduzir risco de SSRF;
+- criptografia de segredos de configuração via Fernet (`cryptography`);
+- configurações hardened de Gunicorn e Nginx;
+- lock de mutex para serializar o endpoint de primeiro acesso.
 
 ## Estrutura do Projeto
 
-```text
+```
 .
-|-- app.py
-|-- config.py
-|-- requirements.txt
-|-- package.json
-|-- wpp-server.js
-|-- gunicorn.conf.py
-|-- nginx.conf
-|-- app/
-|   |-- __init__.py
-|   |-- extensions.py
-|   |-- models/
-|   |-- routes/
-|   |-- utils/
-|   |-- templates/
-|   `-- static/
+├── app.py
+├── config.py
+├── requirements.txt
+├── package.json
+├── wpp-server.js
+├── wpp-server.README.md
+├── gunicorn.conf.py
+├── nginx.conf
+├── scripts/
+│   ├── backup_database.py
+│   ├── migrate_constraints.py
+│   └── README.md
+└── app/
+    ├── __init__.py
+    ├── extensions.py
+    ├── config/
+    │   └── branding.py
+    ├── models/
+    ├── routes/
+    ├── utils/
+    ├── templates/
+    └── static/
 ```
 
-Documentacao tecnica interna em [app/README.md](app/README.md).
+Documentação técnica interna em [app/README.md](app/README.md).
 
 ## Deploy
 
 Fluxo recomendado:
 
 1. provisionar servidor Linux;
-2. instalar Python, MySQL/MariaDB, Nginx e dependencias;
+2. instalar Python, MySQL/MariaDB, Nginx e dependências;
 3. configurar `.env` com `FLASK_ENV=production`;
-4. criar banco e usuario dedicado;
-5. instalar dependencias Python;
-6. iniciar Gunicorn com `gunicorn.conf.py`;
-7. publicar Nginx usando `nginx.conf` como base;
-8. configurar HTTPS;
-9. opcionalmente iniciar `wpp-server.js` com PM2 ou systemd.
+4. criar banco e usuário dedicado;
+5. instalar dependências Python;
+6. executar `python scripts/migrate_constraints.py` após o primeiro `python app.py` (aplica índices e constraints);
+7. iniciar Gunicorn com `gunicorn.conf.py`;
+8. publicar Nginx usando `nginx.conf` como base;
+9. configurar HTTPS;
+10. opcionalmente iniciar `wpp-server.js` com PM2 ou systemd.
 
 Exemplo de service systemd:
 
@@ -297,7 +293,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-## Validacao e Manutencao
+## Validação e Manutenção
 
 Validar sintaxe Python:
 
@@ -317,4 +313,4 @@ Backup versionado:
 python scripts/backup_database.py --output-dir backups --keep-days 14
 ```
 
-Detalhes, cron e restauracao em [scripts/README.md](scripts/README.md). Em producao, mantenha copia externa dos backups e teste restauracao periodicamente.
+Detalhes, cron e restauração em [scripts/README.md](scripts/README.md). Em produção, mantenha cópia externa dos backups e teste restauração periodicamente.
