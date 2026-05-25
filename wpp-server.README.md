@@ -1,31 +1,41 @@
-# wpp-server.js - Bridge WhatsApp
+# wpp-server.js — Bridge WhatsApp
 
-Servidor Node.js opcional que conecta o Zokyo ao WhatsApp Web por meio do WPPConnect. Ele permite envio automatico de mensagens da aplicacao Flask para clientes.
+Servidor Node.js opcional que conecta o Zokyo ao WhatsApp Web por meio do WPPConnect. Permite envio automático de mensagens da aplicação Flask para clientes.
 
 Sem este servidor, o Zokyo continua funcionando normalmente e usa fallback com link `wa.me`.
 
-## Visao Geral
+## Visão Geral
 
-```text
-Flask -> HTTP local -> wpp-server.js -> WPPConnect -> WhatsApp Web
+```
+Flask → HTTP local → wpp-server.js → WPPConnect → WhatsApp Web
 ```
 
 O servidor:
 
-- mantem uma sessao WhatsApp Web autenticada;
+- mantém uma sessão WhatsApp Web autenticada;
 - disponibiliza endpoints HTTP locais;
 - protege endpoints com token compartilhado;
 - aplica rate limit;
-- expoe status, QR Code, reconexao e envio de mensagem.
+- expõe status, QR Code, reconexão e envio de mensagem.
 
 ## Requisitos
 
 - Node.js 18 ou superior;
 - npm;
-- uma conta WhatsApp disponivel para pareamento;
-- variavel `WPP_SECRET` definida em producao.
+- uma conta WhatsApp disponível para pareamento;
+- variável `WPP_SECRET` definida em produção.
 
-## Instalacao
+## Dependências Node
+
+Declaradas em `package.json`:
+
+- `@wppconnect-team/wppconnect` ^2.2.0
+- `express` ^5.x
+- `express-rate-limit` ^8.x
+- `helmet` ^8.x
+- `dotenv` ^16.x
+
+## Instalação
 
 Na raiz do projeto:
 
@@ -33,33 +43,19 @@ Na raiz do projeto:
 npm install
 ```
 
-Dependencias principais:
+## Configuração
 
-- `@wppconnect-team/wppconnect`
-- `express`
-- `express-rate-limit`
-- `helmet`
-- `dotenv`
-
-## Configuracao
-
-Variaveis:
+Variáveis no `.env` da aplicação Flask (usadas também pelo servidor Node via `dotenv`):
 
 ```env
 WPP_PORT=3333
 WPP_SECRET=segredo_compartilhado_forte
-```
-
-No `.env` da aplicacao Flask:
-
-```env
 WPP_SERVER_URL=http://127.0.0.1:3333
-WPP_SECRET=segredo_compartilhado_forte
 ```
 
 O mesmo `WPP_SECRET` deve ser usado no Flask e no Node.
 
-## Execucao
+## Execução
 
 Desenvolvimento:
 
@@ -74,15 +70,15 @@ $env:WPP_SECRET="segredo_compartilhado"
 node wpp-server.js
 ```
 
-Na primeira execucao, escaneie o QR Code com o WhatsApp:
+Na primeira execução, escaneie o QR Code com o WhatsApp:
 
-```text
-WhatsApp -> Dispositivos conectados -> Conectar dispositivo
+```
+WhatsApp → Dispositivos conectados → Conectar dispositivo
 ```
 
 ## Endpoints
 
-Todos os endpoints protegidos exigem:
+Todos os endpoints protegidos exigem o header:
 
 ```http
 X-Wpp-Token: <WPP_SECRET>
@@ -94,21 +90,19 @@ Healthcheck simples do servidor.
 
 ### `GET /status`
 
-Retorna o estado da sessao.
+Retorna o estado da sessão.
 
 ```json
-{
-  "status": "conectado"
-}
+{ "status": "conectado" }
 ```
 
 ### `GET /qr`
 
-Retorna o QR Code atual quando a sessao ainda nao esta conectada.
+Retorna o QR Code atual quando a sessão ainda não está conectada.
 
 ### `POST /reconectar`
 
-Reinicia o fluxo de conexao e solicita novo pareamento quando necessario.
+Reinicia o fluxo de conexão e solicita novo pareamento quando necessário.
 
 ### `POST /send`
 
@@ -119,38 +113,36 @@ Request:
 ```json
 {
   "number": "5547999999999",
-  "message": "Ola! Sua OS esta pronta para retirada."
+  "message": "Olá! Sua OS está pronta para retirada."
 }
 ```
 
 Response:
 
 ```json
-{
-  "ok": true
-}
+{ "ok": true }
 ```
 
-## Seguranca
+## Segurança
 
 O servidor aplica:
 
-- `helmet`;
+- `helmet` (headers HTTP);
 - limite de payload JSON;
 - rate limit global;
-- rate limit especifico para `/send`;
-- autenticacao por `X-Wpp-Token`;
-- bloqueio de acesso remoto sem `WPP_SECRET`.
+- rate limit específico para `/send`;
+- autenticação por `X-Wpp-Token`;
+- bloqueio de acesso remoto quando `WPP_SECRET` não está definido.
 
-Recomendacoes:
+Recomendações:
 
-- rode o servidor apenas em `127.0.0.1` ou rede confiavel;
-- nao exponha a porta `3333` publicamente;
+- rode o servidor apenas em `127.0.0.1` ou rede confiável;
+- não exponha a porta `3333` publicamente;
 - use segredo forte e diferente da `SECRET_KEY` do Flask;
-- monitore logs e reinicios;
-- use PM2 ou systemd em producao.
+- monitore logs e reinícios;
+- use PM2 ou systemd em produção.
 
-## Producao com PM2
+## Produção com PM2
 
 ```bash
 npm install -g pm2
@@ -159,7 +151,7 @@ pm2 save
 pm2 startup
 ```
 
-Operacao:
+Operação:
 
 ```bash
 pm2 status
@@ -167,39 +159,39 @@ pm2 logs zokyo-wpp
 pm2 restart zokyo-wpp
 ```
 
-## Formato de Numero
+## Formato de Número
 
-Use DDI + DDD + numero:
+Use DDI + DDD + número, somente dígitos:
 
-```text
+```
 5547999999999
 ```
 
-O Flask normaliza numeros comuns antes de chamar o servidor.
+O Flask normaliza números comuns antes de chamar o servidor.
 
 ## Fallback do Flask
 
-Quando `WPP_SERVER_URL` nao esta configurado, esta offline ou falha, o Flask retorna um link:
+Quando `WPP_SERVER_URL` não está configurado, está offline ou retorna erro, o Flask retorna um link:
 
-```text
+```
 https://wa.me/<numero>?text=<mensagem>
 ```
 
-Assim o atendimento pode enviar a mensagem manualmente sem interromper o fluxo da OS.
+O atendente pode então enviar a mensagem manualmente sem interromper o fluxo da OS.
 
 ## Troubleshooting
 
-| Sintoma | Causa provavel | Acao |
+| Sintoma | Causa provável | Ação |
 | --- | --- | --- |
 | `401 Unauthorized` | token ausente ou diferente | conferir `WPP_SECRET` no Flask e Node |
-| QR nao aparece | sessao travada ou servidor antigo | chamar `/reconectar` ou reiniciar o processo |
-| mensagem nao envia | WhatsApp desconectado | abrir status e parear novamente |
+| QR não aparece | sessão travada ou processo antigo | chamar `/reconectar` ou reiniciar o processo |
+| mensagem não envia | WhatsApp desconectado | verificar `/status` e parear novamente |
 | Flask cai no modo manual | servidor offline ou URL bloqueada | verificar `WPP_SERVER_URL`, porta e logs |
-| rate limit | muitas mensagens em pouco tempo | aguardar janela de limite ou revisar automacoes |
+| rate limit | muitas mensagens em pouco tempo | aguardar janela de limite ou revisar automações |
 
-## Observacoes Operacionais
+## Observações Operacionais
 
-- O WhatsApp Web pode encerrar sessoes periodicamente.
-- Nao use a mesma conta em muitos ambientes ao mesmo tempo.
-- Evite disparos em massa: este bridge e para notificacoes operacionais de OS.
-- A API oficial da Meta e a opcao recomendada para alto volume ou uso critico regulado.
+- O WhatsApp Web pode encerrar sessões periodicamente; monitore via `/status`.
+- Não use a mesma conta em múltiplos ambientes ao mesmo tempo.
+- Evite disparos em massa: este bridge é para notificações operacionais de OS.
+- A API oficial da Meta é a opção recomendada para alto volume ou uso crítico regulado.
