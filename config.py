@@ -55,7 +55,7 @@ class Config:
     # ── Banco ──────────────────────────────────────────────────────────────
     # C03: sem credenciais hardcoded; fallback só aceito em desenvolvimento
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
-        "mysql+pymysql://zokyo:CONFIGURE_NO_ENV@localhost:3306/zokyo"
+        "mysql+pymysql://root:@localhost:3306/zokyo"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_recycle":  1800,

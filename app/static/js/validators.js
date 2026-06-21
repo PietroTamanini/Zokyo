@@ -200,6 +200,25 @@ const DJValidators = (() => {
       }
     }
 
+    // CPF/CNPJ
+    if (classes.contains('validate-cpf-cnpj')) {
+      const digits = soDigitos(trimmed);
+      if (digits.length === 11) {
+        if (!validarCPF(digits)) {
+          showError(el, 'CPF invalido.');
+          return false;
+        }
+      } else if (digits.length === 14) {
+        if (!validarCNPJ(digits)) {
+          showError(el, 'CNPJ invalido.');
+          return false;
+        }
+      } else {
+        showError(el, 'CPF/CNPJ deve ter 11 ou 14 digitos.');
+        return false;
+      }
+    }
+
     // Telefone
     if (classes.contains('validate-phone')) {
       if (!validarTelefone(trimmed)) {
@@ -245,7 +264,7 @@ const DJValidators = (() => {
   function validate(form) {
     const fields = form.querySelectorAll(
       '.validate-required, .validate-email, .validate-cpf, ' +
-      '.validate-cnpj, .validate-phone, .validate-cep, .validate-password, ' +
+      '.validate-cnpj, .validate-cpf-cnpj, .validate-phone, .validate-cep, .validate-password, ' +
       '[data-min], [data-max], [data-match]'
     );
     let valid = true;
@@ -264,7 +283,7 @@ const DJValidators = (() => {
   document.addEventListener('DOMContentLoaded', () => {
     const selector = [
       '.validate-required', '.validate-email', '.validate-cpf',
-      '.validate-cnpj', '.validate-phone', '.validate-cep', '.validate-password',
+      '.validate-cnpj', '.validate-cpf-cnpj', '.validate-phone', '.validate-cep', '.validate-password',
       '[data-min]', '[data-max]', '[data-match]',
     ].join(', ');
 
@@ -320,3 +339,5 @@ const DJValidators = (() => {
 
   return { validate, validateField };
 })();
+
+window.DJValidators = DJValidators;

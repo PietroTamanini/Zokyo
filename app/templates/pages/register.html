@@ -4,10 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{{ APP_SHORT_NAME }}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="application-name" content="{{ APP_SHORT_NAME }}">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/zokyo-icon-192.png') }}">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
   <title>Primeiro Acesso — {{ APP_NAME }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pwa-install.css') }}">
 </head>
 <body class="auth-page">
 <div class="auth-shell">
@@ -72,6 +82,8 @@
   <div class="auth-footer">{{ APP_COPYRIGHT }}</div>
 </div>
 
+{% include 'partials/_pwa_install.html' %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pwa-install.js') }}"></script>
 <script nonce="{{ csp_nonce }}">
 (function(){
   const t = localStorage.getItem('theme') || 'dark';

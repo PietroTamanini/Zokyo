@@ -313,4 +313,64 @@ Backup versionado:
 python scripts/backup_database.py --output-dir backups --keep-days 14
 ```
 
+## Importacao CPlus, Clientes CPF/CNPJ e PWA
+
+Dependencias Firebird:
+
+```bash
+pip install -r requirements.txt
+```
+
+Para importar banco CPlus `.fdb`, a maquina precisa ter Firebird Client/Server
+compativel com o arquivo. O banco real analisado em `Banco cplus/CPlus.FDB` usa
+ODS 11.1 e foi aberto com Firebird 2.5 Embedded. Se a DLL nativa nao estiver no
+PATH, configure:
+
+```env
+FIREBIRD_CLIENT_LIBRARY=C:\caminho\para\fbclient.dll
+```
+
+Migracao segura de clientes:
+
+```bash
+python scripts/migrate_clientes_cpf_cnpj_numero.py
+```
+
+Relatorio real do schema CPlus:
+
+```bash
+python scripts/analyze_cplus_schema.py "Banco cplus/CPlus.FDB"
+```
+
+Importacao CPlus:
+
+1. Entre como admin.
+2. Acesse `/importacao/cplus`.
+3. Informe caminho do `.fdb`, usuario, senha e charset.
+4. Teste conexao.
+5. Gere preview.
+6. Confirme importacao somente depois de revisar duplicados, invalidos e limitacoes.
+
+A senha Firebird nao e salva em banco, sessao ou log. O commit grava log tecnico
+em `instance/import_logs`.
+
+PWA e coleta:
+
+- manifest: `/static/manifest.webmanifest`;
+- service worker: `/service-worker.js`;
+- agenda de coleta: `/coleta`;
+- conclusao mobile: clique em `Concluir no celular` na coleta agendada;
+- a agenda grava apenas dados do cliente/local;
+- a conclusao cria a OS com dados do equipamento, defeito e fotos;
+- fotos ficam em `instance/uploads/os_fotos` e sao acessadas apenas por usuario logado;
+- cache restrito a CSS, JS, imagens, fontes e manifest;
+- APIs, clientes, OS, financeiro, PDFs, uploads e documentos nao sao cacheados.
+
+Fluxo recomendado:
+
+1. Em `/coleta`, cadastre nome, telefone, documento opcional, endereco e horario.
+2. A pessoa no celular abre `/coleta` e entra em `Concluir no celular`.
+3. No local, preenche equipamento, marca, modelo, defeito e anexa fotos.
+4. Ao salvar, o sistema cria a OS, vincula a coleta e mostra as fotos na tela da OS.
+
 Detalhes, cron e restauração em [scripts/README.md](scripts/README.md). Em produção, mantenha cópia externa dos backups e teste restauração periodicamente.

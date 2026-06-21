@@ -224,6 +224,7 @@ def create_app(config_name="default"):
             or request.endpoint in (
                 "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
                 "auth.login_page", "auth.login_post",
+                "pages.service_worker",
             )
         )
         if skip:
@@ -336,11 +337,12 @@ def create_app(config_name="default"):
     from app.routes.defeitos_padrao import defeitos_bp
     from app.routes.configuracoes   import cfg_bp
     from app.routes.logs            import logs_bp
+    from app.routes.importacao      import importacao_bp
 
     for bp in (
         auth_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
         fornecedores_bp, transacoes_bp, usuarios_bp, defeitos_bp,
-        cfg_bp, logs_bp,
+        cfg_bp, logs_bp, importacao_bp,
     ):
         app.register_blueprint(bp)
 

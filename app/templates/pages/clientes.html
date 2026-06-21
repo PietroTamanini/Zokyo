@@ -14,7 +14,7 @@
 
 <form method="GET" class="filter-bar">
     <input type="text" name="q" value="{{ q or '' }}"
-      placeholder="Buscar nome, CPF, telefone..." class="input-search"
+      placeholder="Buscar nome, CPF, CNPJ ou telefone..." class="input-search"
       data-auto-submit>
   <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
   {% if q %}<a href="{{ url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>{% endif %}
@@ -29,16 +29,16 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>OS</th><th>Ações</th></tr>
+        <tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>Endereco</th><th>Cidade</th><th>Status</th><th>OS</th><th>Acoes</th></tr>
       </thead>
       <tbody>
         {% for c in clientes %}
         <tr>
           <td class="td-strong">{{ c.nome }}</td>
-          <td class="td-mono txt-faint">{{ c.cpf }}</td>
+          <td class="td-mono txt-faint">{{ c.documento or '—' }}</td>
           <td>{{ c.telefone }}</td>
-          <td class="td-muted">{{ c.email }}</td>
-          <td>{{ c.cidade }}/{{ c.uf }}</td>
+          <td class="td-muted">{{ c.endereco }}{% if c.numero_casa %}, {{ c.numero_casa }}{% endif %}</td>
+          <td>{% if c.cidade %}{{ c.cidade }}{% endif %}{% if c.uf %}/{{ c.uf }}{% endif %}</td>
           <td>
             {% if c.ativo %}
               <span class="badge b-green"><span class="dot"></span>Ativo</span>
@@ -79,10 +79,10 @@
 
 <script nonce="{{ csp_nonce }}">
   const CLIENTES_EDITAR = {{ clientes_json | safe }};
+  const CLIENTE_FORM_STATE = {{ cliente_form_state_json | default('{}') | safe }};
 </script>
 {% endblock %}
 
 {% block extra_scripts %}
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/clientes.js') }}" nonce="{{ csp_nonce }}"></script>
 {% endblock %}
-

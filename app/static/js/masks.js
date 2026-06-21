@@ -44,6 +44,11 @@ function formatarCNPJ(v) {
     .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
 }
 
+function formatarCpfCnpj(v) {
+  const d = soDigitos(v).slice(0, 14);
+  return d.length > 11 ? formatarCNPJ(d) : formatarCPF(d);
+}
+
 function formatarCEP(v) {
   const d = soDigitos(v).slice(0, 8);
   return d.replace(/(\d{5})(\d{1,3})$/, '$1-$2');
@@ -69,7 +74,9 @@ function aplicarMascara(el) {
   const v         = el.value;
   const c         = el.classList;
 
-  if (c.contains('mask-cpf')) {
+  if (c.contains('mask-cpf-cnpj')) {
+    el.value = formatarCpfCnpj(v);
+  } else if (c.contains('mask-cpf')) {
     el.value = formatarCPF(v);
   } else if (c.contains('mask-cnpj')) {
     el.value = formatarCNPJ(v);
@@ -104,7 +111,7 @@ function aplicarMascara(el) {
 // Funciona em campos estáticos e em qualquer modal criado dinamicamente.
 
 const _MASK_CLASSES = [
-  'mask-cpf', 'mask-cnpj', 'mask-phone', 'mask-cep',
+  'mask-cpf-cnpj', 'mask-cpf', 'mask-cnpj', 'mask-phone', 'mask-cep',
   'mask-int', 'mask-decimal', 'mask-currency',
 ];
 
@@ -120,7 +127,7 @@ document.addEventListener('input', function (e) {
 document.addEventListener('focus', function (e) {
   const el = e.target;
   if (!el || !el.classList || !el.value) return;
-  const formatos = ['mask-cpf', 'mask-cnpj', 'mask-phone', 'mask-cep'];
+  const formatos = ['mask-cpf-cnpj', 'mask-cpf', 'mask-cnpj', 'mask-phone', 'mask-cep'];
   if (formatos.some(m => el.classList.contains(m))) {
     aplicarMascara(el);
   }

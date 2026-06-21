@@ -1,21 +1,23 @@
-"""routes/clientes.py — CRUD de clientes (API JSON).
-
-Segurança:
-  - Sanitização de todos os inputs
-  - Validação de e-mail, CPF, telefone, CEP, UF
-  - Mass Assignment com whitelist explícita
-  - Bloqueia exclusão se há OS ativas vinculadas
-  - LIKE injection: escapa %, _
-"""
+"""routes/clientes.py - CRUD de clientes (API JSON)."""
 from flask import Blueprint, request, jsonify
+
 from app.extensions import db
 from app.models import Cliente, OrdemServico, registrar
 from app.utils.auth import api_login_required as login_required, nivel_required
-from app.utils.validators import validar_email, validar_cpf, validar_telefone, validar_cep, validar_uf
-from app.utils.sanitizers import (
-    sanitize_text, sanitize_email, sanitize_cpf, sanitize_phone, sanitize_cep
-)
 from app.utils.request_data import get_request_data
+from app.utils.sanitizers import (
+    sanitize_cep,
+    sanitize_cpf_cnpj,
+    sanitize_phone,
+    sanitize_search_query,
+    sanitize_text,
+)
+from app.utils.validators import (
+    validar_cep,
+    validar_cpf_cnpj,
+    validar_telefone,
+    validar_uf,
+)
 
 clientes_bp = Blueprint("clientes", __name__)
 
@@ -24,50 +26,88 @@ def _escape_like(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
-def _validar_e_sanitizar(data: dict) -> tuple[dict, list[str]]:
-    erros = []
+def _documento_from_data(data: dict) -> tuple[str | None, str | None, str | None]:
+    raw = data.get("cpf_cnpj", data.get("documento", data.get("cpf") or data.get("cnpj") or ""))
+    doc = sanitize_cpf_cnpj(raw)
+    valido, cpf, cnpj, mensagem = validar_cpf_cnpj(doc)
+    if not valido:
+        return None, None, mensagem
+    return cpf, cnpj, None
+
+
+def _duplicidade_documento(cpf: str | None, cnpj: str | None, cliente_id: int | None = None):
+    if cpf:
+        q = Cliente.query.filter_by(cpf=cpf)
+        if cliente_id:
+            q = q.filter(Cliente.id != cliente_id)
+        if q.first():
+            return "cpf_cnpj", "CPF ja cadastrado para outro cliente."
+    if cnpj:
+        q = Cliente.query.filter_by(cnpj=cnpj)
+        if cliente_id:
+            q = q.filter(Cliente.id != cliente_id)
+        if q.first():
+            return "cpf_cnpj", "CNPJ ja cadastrado para outro cliente."
+    return None, None
+
+
+def _duplicidade_cliente(d: dict, cliente_id: int | None = None):
+    field, msg = _duplicidade_documento(d.get("cpf"), d.get("cnpj"), cliente_id=cliente_id)
+    if msg:
+        return field, msg
+
+    if not d.get("cpf") and not d.get("cnpj") and d.get("nome") and d.get("telefone"):
+        q = Cliente.query.filter_by(nome=d["nome"], telefone=d["telefone"])
+        if cliente_id:
+            q = q.filter(Cliente.id != cliente_id)
+        if q.first():
+            return "telefone", "Ja existe cliente sem documento com este nome e telefone."
+
+    return None, None
+
+
+def _validar_e_sanitizar(data: dict, parcial: bool = False) -> tuple[dict, dict[str, str]]:
+    erros = {}
     d = {}
 
-    if "nome" in data:
-        nome = sanitize_text(data["nome"], max_length=200)
+    if "nome" in data or not parcial:
+        nome = sanitize_text(data.get("nome", ""), max_length=150)
         if not nome or len(nome) < 2:
-            erros.append("Nome deve ter pelo menos 2 caracteres.")
+            erros["nome"] = "Nome deve ter pelo menos 2 caracteres."
         d["nome"] = nome
 
-    if "cpf" in data:
-        cpf_raw = sanitize_cpf(data["cpf"])
-        if cpf_raw and not validar_cpf(cpf_raw):
-            erros.append("CPF inválido.")
-        d["cpf"] = cpf_raw or None
+    if any(k in data for k in ("cpf_cnpj", "documento", "cpf", "cnpj")) or not parcial:
+        cpf, cnpj, msg = _documento_from_data(data)
+        if msg:
+            erros["cpf_cnpj"] = msg
+        d["cpf"] = cpf
+        d["cnpj"] = cnpj
 
-    if "telefone" in data:
-        tel_raw = sanitize_phone(data["telefone"])
+    if "telefone" in data or not parcial:
+        tel_raw = sanitize_phone(data.get("telefone", ""))
         if tel_raw and not validar_telefone(tel_raw):
-            erros.append("Telefone inválido. Use DDD + número (ex: 47 99999-9999).")
+            erros["telefone"] = "Telefone invalido. Use DDD + numero."
         d["telefone"] = tel_raw or None
 
-    if "email" in data:
-        email_clean = sanitize_email(data["email"])
-        if email_clean and not validar_email(email_clean):
-            erros.append("E-mail inválido.")
-        d["email"] = email_clean or None
-
-    if "cep" in data:
-        cep_raw = sanitize_cep(data["cep"])
+    if "cep" in data or not parcial:
+        cep_raw = sanitize_cep(data.get("cep", ""))
         if cep_raw and not validar_cep(cep_raw):
-            erros.append("CEP inválido.")
+            erros["cep"] = "CEP invalido."
         d["cep"] = cep_raw or None
 
-    if "endereco" in data:
-        d["endereco"] = sanitize_text(data["endereco"], max_length=300) or None
+    if "endereco" in data or not parcial:
+        d["endereco"] = sanitize_text(data.get("endereco", ""), max_length=300) or None
 
-    if "cidade" in data:
-        d["cidade"] = sanitize_text(data["cidade"], max_length=100) or None
+    if "numero_casa" in data or not parcial:
+        d["numero_casa"] = sanitize_text(data.get("numero_casa", ""), max_length=20) or None
 
-    if "uf" in data:
-        uf = sanitize_text(data["uf"], max_length=2).upper()
+    if "cidade" in data or not parcial:
+        d["cidade"] = sanitize_text(data.get("cidade", ""), max_length=100) or None
+
+    if "uf" in data or not parcial:
+        uf = sanitize_text(data.get("uf", ""), max_length=2).upper()
         if uf and not validar_uf(uf):
-            erros.append("UF inválida.")
+            erros["uf"] = "UF invalida."
         d["uf"] = uf or None
 
     if "ativo" in data:
@@ -77,15 +117,30 @@ def _validar_e_sanitizar(data: dict) -> tuple[dict, list[str]]:
     return d, erros
 
 
+def _erro_json(erros: dict[str, str], status=400):
+    field, msg = next(iter(erros.items()))
+    return jsonify({"success": False, "field": field, "message": msg, "erro": msg, "errors": erros}), status
+
+
 @clientes_bp.route("/api/clientes", methods=["GET"])
 @login_required
 def listar():
-    from app.utils.sanitizers import sanitize_search_query
-    q     = sanitize_search_query(request.args.get("q", ""), max_length=100)
+    q = sanitize_search_query(request.args.get("q", ""), max_length=100)
     query = Cliente.query
     if q:
         qe = _escape_like(q)
-        query = query.filter(Cliente.nome.ilike(f"%{qe}%"))
+        digitos = sanitize_cpf_cnpj(q)
+        filtros = [
+            Cliente.nome.ilike(f"%{qe}%"),
+            Cliente.telefone.ilike(f"%{qe}%"),
+        ]
+        if digitos:
+            filtros.extend([
+                Cliente.cpf.ilike(f"%{digitos}%"),
+                Cliente.cnpj.ilike(f"%{digitos}%"),
+                Cliente.telefone.ilike(f"%{digitos}%"),
+            ])
+        query = query.filter(db.or_(*filtros))
     return jsonify([c.to_dict() for c in query.order_by(Cliente.nome).all()])
 
 
@@ -99,39 +154,69 @@ def obter(id):
 @login_required
 def criar():
     data, _ = get_request_data()
-    if not data.get("nome"):
-        return jsonify({"success": False, "erro": "Nome é obrigatório"}), 400
-
     d, erros = _validar_e_sanitizar(data)
     if erros:
-        return jsonify({"success": False, "erro": erros[0], "errors": erros}), 400
+        return _erro_json(erros)
+
+    field, msg = _duplicidade_cliente(d)
+    if msg:
+        return _erro_json({field: msg})
 
     c = Cliente(**d)
     db.session.add(c)
     registrar("criacao", "clientes", f"Cliente criado: {d['nome']}")
     db.session.commit()
-    return jsonify(c.to_dict()), 201
+    return jsonify({"success": True, "cliente": c.to_dict(), **c.to_dict()}), 201
+
+
+@clientes_bp.route("/api/clientes/quick-create", methods=["POST"])
+@login_required
+def quick_create():
+    data, _ = get_request_data()
+    d, erros = _validar_e_sanitizar(data)
+    if erros:
+        return _erro_json(erros)
+
+    field, msg = _duplicidade_cliente(d)
+    if msg:
+        return _erro_json({field: msg})
+
+    c = Cliente(**d)
+    db.session.add(c)
+    registrar("criacao", "clientes", f"Cliente rapido criado: {d['nome']}")
+    db.session.commit()
+    return jsonify({"success": True, "cliente": c.to_dict()}), 201
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["PUT"])
 @login_required
 def atualizar(id):
-    c       = db.get_or_404(Cliente, id)
+    c = db.get_or_404(Cliente, id)
     data, _ = get_request_data()
 
     if not data:
-        return jsonify({"success": False, "erro": "Nenhum dado enviado"}), 400
+        return _erro_json({"geral": "Nenhum dado enviado."})
 
-    d, erros = _validar_e_sanitizar(data)
+    d, erros = _validar_e_sanitizar(data, parcial=True)
     if erros:
-        return jsonify({"success": False, "erro": erros[0], "errors": erros}), 400
+        return _erro_json(erros)
+
+    candidato = {
+        "nome": d.get("nome", c.nome),
+        "telefone": d.get("telefone", c.telefone),
+        "cpf": d.get("cpf", c.cpf),
+        "cnpj": d.get("cnpj", c.cnpj),
+    }
+    field, msg = _duplicidade_cliente(candidato, cliente_id=c.id)
+    if msg:
+        return _erro_json({field: msg})
 
     for campo, valor in d.items():
         setattr(c, campo, valor)
 
     registrar("edicao", "clientes", f"Cliente atualizado: {c.nome}")
     db.session.commit()
-    return jsonify(c.to_dict())
+    return jsonify({"success": True, "cliente": c.to_dict(), **c.to_dict()})
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["DELETE"])
@@ -144,8 +229,7 @@ def deletar(id):
     if os_ativas > 0:
         return jsonify({
             "success": False,
-            "erro": f"Cliente possui {os_ativas} OS ativa(s). "
-                    "Encerre ou cancele as OS antes de remover o cliente."
+            "erro": f"Cliente possui {os_ativas} OS ativa(s). Encerre ou cancele as OS antes de remover."
         }), 400
     registrar("exclusao", "clientes", f"Cliente removido: {c.nome}")
     db.session.delete(c)

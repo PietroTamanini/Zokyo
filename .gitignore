@@ -6,6 +6,7 @@
 # Python
 __pycache__/
 *.pyc
+/.codex-tools/
 *.pyo
 *.pyd
 .Python

@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-06-21T15:09:07.029071+00:00",
+  "admin_user": "pietro@tamanini.dev.br",
+  "database_path": "Banco cplus/CPlus.FDB",
+  "created": {
+    "clientes": 86,
+    "produtos": 9,
+    "ordens_servico": 88
+  },
+  "skipped": {
+    "clientes": 0,
+    "produtos": 0,
+    "ordens_servico": 0
+  },
+  "errors": [],
+  "problematic_records": {
+    "clientes": [],
+    "produtos": [],
+    "ordens_servico": []
+  },
+  "probable_duplicates": {
+    "clientes": [],
+    "produtos": [],
+    "ordens_servico": []
+  }
+}
