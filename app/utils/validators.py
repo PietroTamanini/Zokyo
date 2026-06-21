@@ -137,6 +137,26 @@ _DDDS_VALIDOS = {
 }
 
 
+def validar_cpf_cnpj(documento: str) -> tuple[bool, str | None, str | None, str]:
+    """
+    Valida documento opcional de cliente.
+
+    Retorna: (valido, cpf, cnpj, mensagem)
+    """
+    d = _digitos(documento)
+    if not d:
+        return True, None, None, ""
+    if len(d) == 11:
+        if validar_cpf(d):
+            return True, d, None, ""
+        return False, None, None, "CPF invalido."
+    if len(d) == 14:
+        if validar_cnpj(d):
+            return True, None, d, ""
+        return False, None, None, "CNPJ invalido."
+    return False, None, None, "CPF/CNPJ deve ter 11 ou 14 digitos."
+
+
 def validar_telefone(telefone: str, obrigatorio: bool = False) -> bool:
     """
     Valida telefone brasileiro.

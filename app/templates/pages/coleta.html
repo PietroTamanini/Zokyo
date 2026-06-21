@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Coletas — Zokyo{% endblock %}
+{% block breadcrumb %}Coletas{% endblock %}
+{% block topbar_action %}{% endblock %}
+
+{% block content %}
+{% set fd = form_data or {} %}
+{% set fe = form_errors or {} %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Coletas agendadas</div>
+    <div class="page-sub">Agende apenas os dados do cliente. A OS nasce depois, no celular, com equipamento e fotos.</div>
+  </div>
+</div>
+
+{% if fe %}
+<div class="alert a-red">
+  <span>!</span>
+  <div>{{ fe.values()|list|first }}</div>
+</div>
+{% endif %}
+
+<div class="g64 coleta-layout">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Agendar coleta</div></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('pages.coleta_agendar') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Nome do cliente <span class="req">*</span></label>
+            <input type="text" name="nome" value="{{ fd.get('nome', '') }}" class="{{ 'input-error' if fe.get('nome') }}" required>
+          </div>
+          <div class="form-group">
+            <label>CPF/CNPJ</label>
+            <input type="text" name="cpf_cnpj" value="{{ fd.get('cpf_cnpj', '') }}" class="mask-cpf-cnpj validate-cpf-cnpj {{ 'input-error' if fe.get('cpf_cnpj') }}">
+          </div>
+        </div>
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" name="telefone" value="{{ fd.get('telefone', '') }}" class="mask-phone validate-phone {{ 'input-error' if fe.get('telefone') }}">
+          </div>
+          <div class="form-group">
+            <label>Data e hora da coleta</label>
+            <input type="datetime-local" name="data_agendada" value="{{ fd.get('data_agendada', '') }}" class="{{ 'input-error' if fe.get('data_agendada') }}">
+          </div>
+        </div>
+
+        <div class="form-row fr3">
+          <div class="form-group">
+            <label>CEP</label>
+            <input type="text" name="cep" value="{{ fd.get('cep', '') }}" class="mask-cep validate-cep {{ 'input-error' if fe.get('cep') }}"
+                   data-viacep data-fill-logradouro="[name=endereco]" data-fill-cidade="[name=cidade]" data-fill-uf="[name=uf]">
+          </div>
+          <div class="form-group">
+            <label>Endereco</label>
+            <input type="text" name="endereco" value="{{ fd.get('endereco', '') }}">
+          </div>
+          <div class="form-group">
+            <label>Numero</label>
+            <input type="text" name="numero_casa" value="{{ fd.get('numero_casa', '') }}">
+          </div>
+        </div>
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" name="cidade" value="{{ fd.get('cidade', '') }}">
+          </div>
+          <div class="form-group">
+            <label>UF</label>
+            <input type="text" name="uf" maxlength="2" value="{{ fd.get('uf', '') }}" class="{{ 'input-error' if fe.get('uf') }}">
+          </div>
+        </div>
+
+        <div class="form-group mb16">
+          <label>Observacoes para quem vai coletar</label>
+          <textarea name="observacoes" rows="3" placeholder="Ex: cliente so esta no local apos 14h, portao lateral, falar com Maria...">{{ fd.get('observacoes', '') }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary submit-wide">Agendar coleta</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="os-column">
+    {% for c in coletas %}
+    <div class="card coleta-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">{{ c.cliente.nome if c.cliente else 'Cliente removido' }}</div>
+          <div class="muted-sm">
+            {% if c.data_agendada %}{{ c.data_agendada.strftime('%d/%m/%Y %H:%M') }}{% else %}Sem horario definido{% endif %}
+          </div>
+        </div>
+        {% set bcls = {'agendada':'b-blue','em_coleta':'b-amber','concluida':'b-green','cancelada':'b-gray'}[c.status] if c.status else 'b-gray' %}
+        <span class="badge {{ bcls }}"><span class="dot"></span>{{ status_coleta_labels.get(c.status, c.status) }}</span>
+      </div>
+      <div class="card-body">
+        <div class="d-row d-row-compact"><div class="d-label">Telefone</div><div class="d-value">{{ c.telefone_contato or (c.cliente.telefone if c.cliente else '') or '—' }}</div></div>
+        <div class="d-row d-row-compact"><div class="d-label">Endereco</div><div class="d-value">{{ c.endereco_completo or '—' }}</div></div>
+        {% if c.observacoes %}<div class="note-block note-sky">{{ c.observacoes }}</div>{% endif %}
+        <div class="action-wrap mt12">
+          {% if c.status != 'concluida' and c.status != 'cancelada' %}
+          <a class="btn btn-primary btn-sm" href="{{ url_for('pages.coleta_concluir', id=c.id) }}">Concluir no celular</a>
+          <form method="POST" action="{{ url_for('pages.coleta_cancelar', id=c.id) }}" data-confirm="Cancelar esta coleta?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-ghost btn-sm danger-text">Cancelar</button>
+          </form>
+          {% elif c.os_id %}
+          <a class="btn btn-outline btn-sm" href="{{ url_for('pages.os_detalhe', id=c.os_id) }}">Ver OS #{{ '%04d' % c.os_id }}</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card"><div class="card-body"><div class="empty"><div class="empty-title">Nenhuma coleta agendada</div></div></div></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

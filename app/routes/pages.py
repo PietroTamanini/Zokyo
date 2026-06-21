@@ -16,6 +16,7 @@ Fixes aplicados:
 
 import json
 import re as _re
+from pathlib import Path
 
 def _safe_json(data):
     """json.dumps seguro para embedding em HTML: escapa </ para evitar </script> breakout."""
@@ -24,24 +25,41 @@ def _safe_json(data):
 from datetime import date, datetime, timezone, timedelta
 from functools import wraps
 
-from flask import (Blueprint, render_template, session, redirect,
-                   url_for, request, flash, g)
+from flask import (Blueprint, abort, current_app, render_template, session, redirect,
+                   url_for, request, flash, g, make_response, send_from_directory)
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import (OrdemServico, Cliente, Peca, Fornecedor, Transacao,
-                        Usuario, OSHistorico, Configuracao, registrar)
+                        Usuario, OSHistorico, Configuracao, ColetaAgendada,
+                        OSFoto, STATUS_COLETA_LABELS, registrar)
 from app.models.ordem_servico import STATUS_OS, STATUS_OS_LABELS
 from app.utils.auth import page_nivel_required
-from app.utils.sanitizers import sanitize_text, sanitize_email, sanitize_cpf, sanitize_phone, sanitize_cep
-from app.utils.validators import validar_email, validar_cpf, validar_telefone, validar_cep
+from app.utils.sanitizers import sanitize_text, sanitize_email, sanitize_cpf, sanitize_cpf_cnpj, sanitize_phone, sanitize_cep
+from app.utils.validators import validar_email, validar_cpf, validar_cpf_cnpj, validar_telefone, validar_cep, validar_uf
+from app.utils.security import gerar_uuid_filename, validar_upload
 
 pages_bp = Blueprint("pages", __name__)
 STATUS_MAP = STATUS_OS_LABELS
 
 
 # ── helpers ───────────────────────────────────────────────────
+@pages_bp.route("/service-worker.js")
+def service_worker():
+    response = make_response(send_from_directory(current_app.static_folder, "service-worker.js"))
+    response.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@pages_bp.route("/pwa-start")
+def pwa_start():
+    target = url_for("pages.coleta") if session.get("usuario_id") else url_for("auth.login_page")
+    return render_template("pages/pwa_start.html", target_url=target)
+
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -55,6 +73,7 @@ def login_required(f):
 
 def _today(): return date.today().isoformat()
 def _now():   return datetime.now(timezone.utc)
+def _now_db(): return _now().replace(tzinfo=None)
 
 def _safe_date(valor):
     """Parse seguro de data ISO. Retorna None se inválido."""
@@ -64,6 +83,212 @@ def _safe_date(valor):
         return datetime.fromisoformat(str(valor)[:10])
     except (ValueError, TypeError):
         return None
+
+def _safe_datetime_local(valor):
+    if not valor:
+        return None
+    try:
+        return datetime.fromisoformat(str(valor).strip())
+    except (ValueError, TypeError):
+        return None
+
+
+def _coleta_form_context(form_data=None, form_errors=None):
+    coletas = (
+        ColetaAgendada.query
+        .options(joinedload(ColetaAgendada.cliente), joinedload(ColetaAgendada.os))
+        .order_by(
+            ColetaAgendada.status.asc(),
+            ColetaAgendada.data_agendada.is_(None),
+            ColetaAgendada.data_agendada.asc(),
+            ColetaAgendada.criado_em.desc(),
+        )
+        .all()
+    )
+    return dict(
+        active="coleta",
+        coletas=coletas,
+        status_coleta_labels=STATUS_COLETA_LABELS,
+        form_data=form_data or {},
+        form_errors=form_errors or {},
+        hoje_iso=_today(),
+    )
+
+
+def _render_coleta_error(form_data, form_errors):
+    _field, message = next(iter(form_errors.items()))
+    flash(message, "error")
+    return render_template("pages/coleta.html", **_coleta_form_context(form_data, form_errors)), 400
+
+
+def _coleta_cliente_payload(data):
+    erros = {}
+    nome = sanitize_text(data.get("nome", ""), max_length=150)
+    if not nome or len(nome) < 2:
+        erros["nome"] = "Informe o nome do cliente."
+
+    valido, cpf, cnpj, msg = validar_cpf_cnpj(sanitize_cpf_cnpj(data.get("cpf_cnpj", "")))
+    if not valido:
+        erros["cpf_cnpj"] = msg
+
+    telefone = sanitize_phone(data.get("telefone", ""))
+    if telefone and not validar_telefone(telefone):
+        erros["telefone"] = "Telefone invalido."
+
+    cep = sanitize_cep(data.get("cep", ""))
+    if cep and not validar_cep(cep):
+        erros["cep"] = "CEP invalido."
+
+    uf = sanitize_text(data.get("uf", ""), max_length=2).upper()
+    if uf and not validar_uf(uf):
+        erros["uf"] = "UF invalida."
+
+    agendada = _safe_datetime_local(data.get("data_agendada"))
+    if data.get("data_agendada") and not agendada:
+        erros["data_agendada"] = "Data/hora de coleta invalida."
+
+    payload = {
+        "nome": nome,
+        "cpf": cpf,
+        "cnpj": cnpj,
+        "telefone": telefone or None,
+        "cep": cep or None,
+        "endereco": sanitize_text(data.get("endereco", ""), max_length=300) or None,
+        "numero_casa": sanitize_text(data.get("numero_casa", ""), max_length=20) or None,
+        "cidade": sanitize_text(data.get("cidade", ""), max_length=100) or None,
+        "uf": uf or None,
+        "data_agendada": agendada,
+        "observacoes": sanitize_text(data.get("observacoes", ""), max_length=3000) or None,
+    }
+    return payload, erros
+
+
+def _cliente_para_coleta(payload):
+    cliente = None
+    if payload.get("cpf"):
+        cliente = Cliente.query.filter_by(cpf=payload["cpf"]).first()
+    if not cliente and payload.get("cnpj"):
+        cliente = Cliente.query.filter_by(cnpj=payload["cnpj"]).first()
+    if not cliente and payload.get("telefone"):
+        cliente = Cliente.query.filter_by(nome=payload["nome"], telefone=payload["telefone"]).first()
+
+    if not cliente:
+        cliente = Cliente(
+            nome=payload["nome"],
+            cpf=payload.get("cpf"),
+            cnpj=payload.get("cnpj"),
+            telefone=payload.get("telefone"),
+            cep=payload.get("cep"),
+            endereco=payload.get("endereco"),
+            numero_casa=payload.get("numero_casa"),
+            cidade=payload.get("cidade"),
+            uf=payload.get("uf"),
+        )
+        db.session.add(cliente)
+        db.session.flush()
+        return cliente
+
+    for campo in ("telefone", "cep", "endereco", "numero_casa", "cidade", "uf"):
+        if payload.get(campo) and not getattr(cliente, campo):
+            setattr(cliente, campo, payload[campo])
+    return cliente
+
+
+_FOTO_MIMES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+_FOTO_EXTS = {"jpg", "jpeg", "png", "webp", "gif"}
+
+
+def _validar_fotos(files):
+    fotos = [f for f in files if f and f.filename]
+    erros = []
+    if not fotos:
+        return fotos, ["Adicione pelo menos uma foto da coleta."]
+    if len(fotos) > 12:
+        return fotos, ["Envie no maximo 12 fotos por coleta."]
+
+    for foto in fotos:
+        original = foto.filename or ""
+        ext = original.rsplit(".", 1)[-1].lower() if "." in original else ""
+        foto.stream.seek(0, 2)
+        tamanho = foto.stream.tell()
+        foto.stream.seek(0)
+        erros.extend(validar_upload(original, foto.mimetype, tamanho))
+        if ext not in _FOTO_EXTS or foto.mimetype not in _FOTO_MIMES:
+            erros.append(f"{original}: apenas fotos JPG, PNG, WEBP ou GIF sao aceitas.")
+    return fotos, erros
+
+
+def _salvar_fotos_os(os_obj, coleta, fotos):
+    base = Path(current_app.instance_path) / "uploads" / "os_fotos" / f"os_{os_obj.id:04d}"
+    base.mkdir(parents=True, exist_ok=True)
+    registros = []
+    for foto in fotos:
+        original = foto.filename or "foto"
+        ext = original.rsplit(".", 1)[-1].lower() if "." in original else "jpg"
+        filename = gerar_uuid_filename(ext)
+        destino = base / filename
+        foto.save(destino)
+        rel = Path("os_fotos") / f"os_{os_obj.id:04d}" / filename
+        registros.append(OSFoto(
+            os_id=os_obj.id,
+            coleta_id=coleta.id if coleta else None,
+            usuario_id=session["usuario_id"],
+            filename=rel.as_posix(),
+            original_filename=sanitize_text(original, max_length=255) or "foto",
+            mime_type=foto.mimetype,
+            tamanho_bytes=destino.stat().st_size,
+        ))
+    db.session.add_all(registros)
+    return registros
+
+
+def _clientes_json_payload(clientes):
+    return _safe_json([
+        {
+            "id": c.id,
+            "nome": c.nome,
+            "cpf": c.cpf or "",
+            "cnpj": c.cnpj or "",
+            "documento": c.documento,
+            "telefone": c.telefone or "",
+            "cep": c.cep or "",
+            "endereco": c.endereco or "",
+            "numero_casa": c.numero_casa or "",
+            "cidade": c.cidade or "",
+            "uf": c.uf or "",
+        }
+        for c in clientes
+    ])
+
+
+def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os", coleta=False):
+    clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome).all()
+    tecnicos = (Usuario.query.filter_by(ativo=True)
+                .filter(Usuario.nivel.in_(["admin", "operacional"])).all())
+    pecas = Peca.query.order_by(Peca.nome).all()
+    return dict(
+        active=active,
+        os=os_obj,
+        clientes=clientes,
+        clientes_json=_clientes_json_payload(clientes),
+        pecas_estoque=pecas,
+        tecnicos=tecnicos,
+        status_map=STATUS_MAP,
+        hoje_iso=_today(),
+        pecas_usadas=os_obj.to_dict().get("pecas", []) if os_obj else [],
+        form_data=form_data or {},
+        form_errors=form_errors or {},
+        coleta=coleta,
+    )
+
+
+def _render_os_form_error(message, field, form_data, os_obj=None):
+    flash(message, "error")
+    return render_template(
+        "pages/os_form.html",
+        **_os_form_context(os_obj, dict(form_data), {field: message}),
+    ), 400
+
 
 def _escape_like(q: str) -> str:
     """Escapa % e _ para evitar LIKE injection."""
@@ -227,10 +452,20 @@ def os_lista():
     if prio_filtro:   query = query.filter_by(prio=prio_filtro)
     if q:
         qe = _escape_like(q)
-        query = query.join(Cliente).filter(db.or_(
+        digitos = sanitize_cpf_cnpj(q)
+        filtros = [
             Cliente.nome.ilike(f"%{qe}%"),
             OrdemServico.marca.ilike(f"%{qe}%"),
             OrdemServico.modelo.ilike(f"%{qe}%"),
+        ]
+        if digitos:
+            filtros.extend([
+                Cliente.cpf.ilike(f"%{digitos}%"),
+                Cliente.cnpj.ilike(f"%{digitos}%"),
+                Cliente.telefone.ilike(f"%{digitos}%"),
+            ])
+        query = query.join(Cliente).filter(db.or_(
+            *filtros
         ))
     pag = query.order_by(
         OrdemServico.data_entrada.desc()).paginate(
@@ -243,24 +478,190 @@ def os_lista():
     return render_template("pages/os_lista.html",
         active="os", os_list=pag.items, paginacao=pag,
         q=q, status_filtro=status_filtro, prio_filtro=prio_filtro,
-        status_map=STATUS_MAP, hoje_dt=_now(), pipeline_os=pipeline_os)
+        status_map=STATUS_MAP, hoje_dt=_now_db(), pipeline_os=pipeline_os)
 
 
 @pages_bp.route("/os/nova", methods=["GET"])
 @login_required
 def os_nova():
-    clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome).all()
-    tecnicos = (Usuario.query.filter_by(ativo=True)
-                .filter(Usuario.nivel.in_(["admin", "operacional"])).all())
-    pecas    = Peca.query.order_by(Peca.nome).all()
-    clientes_json = _safe_json([
-        {"id": c.id, "nome": c.nome,
-         "cpf": c.cpf or "", "telefone": c.telefone or ""}
-        for c in clientes])
-    return render_template("pages/os_form.html", active="os", os=None,
-        clientes=clientes, clientes_json=clientes_json,
-        pecas_estoque=pecas, tecnicos=tecnicos,
-        status_map=STATUS_MAP, hoje_iso=_today(), pecas_usadas=[])
+    return render_template("pages/os_form.html", **_os_form_context())
+
+
+@pages_bp.route("/coleta", methods=["GET"])
+@login_required
+def coleta():
+    return render_template("pages/coleta.html", **_coleta_form_context())
+
+
+@pages_bp.route("/coleta/agendar", methods=["POST"])
+@login_required
+def coleta_agendar():
+    data = request.form.to_dict()
+    payload, erros = _coleta_cliente_payload(data)
+    if erros:
+        return _render_coleta_error(data, erros)
+
+    cliente = _cliente_para_coleta(payload)
+    coleta_obj = ColetaAgendada(
+        cliente_id=cliente.id,
+        usuario_id=session["usuario_id"],
+        status="agendada",
+        data_agendada=payload.get("data_agendada"),
+        telefone_contato=payload.get("telefone") or cliente.telefone,
+        cep=payload.get("cep"),
+        endereco=payload.get("endereco"),
+        numero_casa=payload.get("numero_casa"),
+        cidade=payload.get("cidade"),
+        uf=payload.get("uf"),
+        observacoes=payload.get("observacoes"),
+    )
+    db.session.add(coleta_obj)
+    registrar("criacao", "coleta", f"Coleta agendada para {cliente.nome}")
+    db.session.commit()
+    flash("Coleta agendada. Agora ela aparece para conclusao pelo celular.", "success")
+    return redirect(url_for("pages.coleta"))
+
+
+@pages_bp.route("/coletas/<int:id>/cancelar", methods=["POST"])
+@login_required
+def coleta_cancelar(id):
+    coleta_obj = db.get_or_404(ColetaAgendada, id)
+    if coleta_obj.status == "concluida":
+        flash("Coleta concluida nao pode ser cancelada.", "error")
+        return redirect(url_for("pages.coleta"))
+    coleta_obj.status = "cancelada"
+    registrar("status", "coleta", f"Coleta #{coleta_obj.id} cancelada")
+    db.session.commit()
+    flash("Coleta cancelada.", "success")
+    return redirect(url_for("pages.coleta"))
+
+
+@pages_bp.route("/coletas/<int:id>/concluir", methods=["GET"])
+@login_required
+def coleta_concluir(id):
+    coleta_obj = (
+        ColetaAgendada.query
+        .options(joinedload(ColetaAgendada.cliente))
+        .filter_by(id=id)
+        .first_or_404()
+    )
+    if coleta_obj.status == "concluida" and coleta_obj.os_id:
+        return redirect(url_for("pages.os_detalhe", id=coleta_obj.os_id))
+    return render_template(
+        "pages/coleta_concluir.html",
+        active="coleta",
+        coleta=coleta_obj,
+        status_map=STATUS_MAP,
+        form_data={},
+        form_errors={},
+        hoje_iso=_today(),
+    )
+
+
+def _render_coleta_concluir_error(coleta_obj, form_data, form_errors):
+    _field, message = next(iter(form_errors.items()))
+    flash(message, "error")
+    return render_template(
+        "pages/coleta_concluir.html",
+        active="coleta",
+        coleta=coleta_obj,
+        status_map=STATUS_MAP,
+        form_data=form_data,
+        form_errors=form_errors,
+        hoje_iso=_today(),
+    ), 400
+
+
+@pages_bp.route("/coletas/<int:id>/concluir", methods=["POST"])
+@login_required
+def coleta_concluir_post(id):
+    coleta_obj = (
+        ColetaAgendada.query
+        .options(joinedload(ColetaAgendada.cliente))
+        .filter_by(id=id)
+        .first_or_404()
+    )
+    if coleta_obj.status == "concluida" and coleta_obj.os_id:
+        flash("Esta coleta ja virou OS.", "warning")
+        return redirect(url_for("pages.os_detalhe", id=coleta_obj.os_id))
+    if coleta_obj.status == "cancelada":
+        flash("Coleta cancelada nao pode ser concluida.", "error")
+        return redirect(url_for("pages.coleta"))
+
+    data = request.form.to_dict()
+    erros = {}
+    tipo_aparelho = sanitize_text(data.get("tipo_aparelho", ""), max_length=100)
+    marca = sanitize_text(data.get("marca", ""), max_length=100)
+    modelo = sanitize_text(data.get("modelo", ""), max_length=100)
+    defeito_alegado = sanitize_text(data.get("defeito_alegado", ""), max_length=5000)
+
+    if not tipo_aparelho:
+        erros["tipo_aparelho"] = "Informe o tipo do equipamento."
+    if not marca:
+        erros["marca"] = "Informe a marca."
+    if not modelo:
+        erros["modelo"] = "Informe o modelo."
+    if not defeito_alegado:
+        erros["defeito_alegado"] = "Informe o defeito alegado."
+
+    fotos, foto_erros = _validar_fotos(request.files.getlist("fotos"))
+    if foto_erros:
+        erros["fotos"] = foto_erros[0]
+    if erros:
+        return _render_coleta_concluir_error(coleta_obj, data, erros)
+
+    prio = data.get("prio", "normal")
+    if prio not in {"normal", "urgente", "critico"}:
+        prio = "normal"
+    garantia_dias = 90
+    try:
+        garantia_dias = int(data.get("garantia_dias") or 90)
+    except (ValueError, TypeError):
+        erros["garantia_dias"] = "Garantia invalida."
+        return _render_coleta_concluir_error(coleta_obj, data, erros)
+
+    observacoes = sanitize_text(data.get("observacoes", ""), max_length=5000) or ""
+    if coleta_obj.observacoes:
+        observacoes = (observacoes + "\n\n" if observacoes else "") + f"Coleta: {coleta_obj.observacoes}"
+    if coleta_obj.endereco_completo:
+        observacoes = (observacoes + "\n\n" if observacoes else "") + f"Endereco da coleta: {coleta_obj.endereco_completo}"
+
+    os_obj = OrdemServico(
+        cliente_id=coleta_obj.cliente_id,
+        usuario_id=session["usuario_id"],
+        tipo_aparelho=tipo_aparelho,
+        marca=marca,
+        modelo=modelo,
+        numero_serie=sanitize_text(data.get("numero_serie", ""), max_length=100) or None,
+        defeito_alegado=defeito_alegado,
+        defeito_encontrado=sanitize_text(data.get("defeito_encontrado", ""), max_length=5000) or None,
+        solucao=sanitize_text(data.get("solucao", ""), max_length=5000) or None,
+        observacoes=observacoes or None,
+        valor_servico=0,
+        valor_pecas=0,
+        desconto=0,
+        status="recepcao",
+        prio=prio,
+        tecnico_nome=sanitize_text(data.get("tecnico_nome", ""), max_length=120) or None,
+        garantia_dias=garantia_dias,
+        data_entrada=_now(),
+        data_prev=_safe_date(data.get("data_prev")),
+    )
+    db.session.add(os_obj)
+    db.session.flush()
+    _salvar_fotos_os(os_obj, coleta_obj, fotos)
+    coleta_obj.status = "concluida"
+    coleta_obj.os_id = os_obj.id
+    db.session.add(OSHistorico(
+        os_id=os_obj.id,
+        usuario_id=session["usuario_id"],
+        status_anterior=None,
+        status_novo=os_obj.status,
+    ))
+    registrar("criacao", "os", f"OS #{os_obj.id:04d} criada a partir da coleta #{coleta_obj.id}")
+    db.session.commit()
+    flash("Coleta concluida e OS criada com fotos.", "success")
+    return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
 
 @pages_bp.route("/os/nova", methods=["POST"])
@@ -272,11 +673,11 @@ def os_criar():
     cliente_id_raw = data.get("cliente_id", "").strip()
     if not cliente_id_raw or not cliente_id_raw.isdigit():
         flash("Cliente inválido ou não selecionado.", "error")
-        return redirect(url_for("pages.os_nova"))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
     cliente_id = int(cliente_id_raw)
     if not Cliente.query.filter_by(id=cliente_id, ativo=True).first():
         flash("Cliente não encontrado.", "error")
-        return redirect(url_for("pages.os_nova"))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
 
     # Bug #6: validar status
     status_raw = data.get("status", "recepcao")
@@ -288,7 +689,7 @@ def os_criar():
         garantia_dias = int(data.get("garantia_dias") or 90)
     except (ValueError, TypeError):
         flash("Valores numéricos inválidos no formulário.", "error")
-        return redirect(url_for("pages.os_nova"))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
 
     _PRIOS = {"normal", "urgente", "critico"}
     prio = data.get("prio", "normal")
@@ -296,10 +697,10 @@ def os_criar():
         prio = "normal"
     if valor_servico < 0 or desconto < 0:
         flash("Valores financeiros não podem ser negativos.", "error")
-        return redirect(url_for("pages.os_nova"))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
     if valor_servico > 999_999.99 or desconto > valor_servico:
         flash("Valores financeiros fora do intervalo permitido.", "error")
-        return redirect(url_for("pages.os_nova"))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
     os_obj = OrdemServico(
         cliente_id=cliente_id,
         usuario_id=session["usuario_id"],
@@ -341,19 +742,7 @@ def os_criar():
 def os_editar(id):
     # Bug #3: get_or_404 depreciado → db.get_or_404
     os_obj   = db.get_or_404(OrdemServico, id)
-    clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome).all()
-    tecnicos = (Usuario.query.filter_by(ativo=True)
-                .filter(Usuario.nivel.in_(["admin", "operacional"])).all())
-    pecas    = Peca.query.order_by(Peca.nome).all()
-    clientes_json = _safe_json([
-        {"id": c.id, "nome": c.nome,
-         "cpf": c.cpf or "", "telefone": c.telefone or ""}
-        for c in clientes])
-    return render_template("pages/os_form.html", active="os", os=os_obj,
-        clientes=clientes, clientes_json=clientes_json,
-        pecas_estoque=pecas, tecnicos=tecnicos,
-        status_map=STATUS_MAP, hoje_iso=_today(),
-        pecas_usadas=os_obj.to_dict().get("pecas", []))
+    return render_template("pages/os_form.html", **_os_form_context(os_obj))
 
 
 @pages_bp.route("/os/<int:id>/editar", methods=["POST"])
@@ -380,13 +769,13 @@ def os_atualizar(id):
         gd = int(data.get("garantia_dias") or 90)
     except (ValueError, TypeError):
         flash("Valores numéricos inválidos.", "error")
-        return redirect(url_for("pages.os_editar", id=id))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
     if vs < 0 or dc < 0:
         flash("Valores financeiros não podem ser negativos.", "error")
-        return redirect(url_for("pages.os_editar", id=id))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
     if dc > vs:
         flash("Desconto não pode ser maior que o valor do serviço.", "error")
-        return redirect(url_for("pages.os_editar", id=id))
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
     os_obj.valor_servico = vs
     os_obj.desconto      = dc
     os_obj.garantia_dias = gd
@@ -399,19 +788,19 @@ def os_atualizar(id):
         d = _safe_date(data["data_entrada"])
         if d is None:
             flash("Data de entrada inválida.", "error")
-            return redirect(url_for("pages.os_editar", id=id))
+            return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
         os_obj.data_entrada = d
     if data.get("data_saida"):
         d = _safe_date(data["data_saida"])
         if d is None:
             flash("Data de saída inválida.", "error")
-            return redirect(url_for("pages.os_editar", id=id))
+            return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
         os_obj.data_saida = d
     if data.get("data_prev"):
         d = _safe_date(data["data_prev"])
         if d is None:
             flash("Data prevista inválida.", "error")
-            return redirect(url_for("pages.os_editar", id=id))
+            return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
         os_obj.data_prev = d
 
     if os_obj.status == "entregue" and not os_obj.data_saida:
@@ -552,6 +941,17 @@ def os_pdf(id):
     )
 
 
+@pages_bp.route("/uploads/os-fotos/<int:foto_id>")
+@login_required
+def os_foto(foto_id):
+    foto = db.get_or_404(OSFoto, foto_id)
+    base = Path(current_app.instance_path) / "uploads"
+    target = (base / foto.filename).resolve()
+    if not str(target).startswith(str(base.resolve())) or not target.exists():
+        abort(404)
+    return send_from_directory(base, foto.filename)
+
+
 @pages_bp.route("/os/<int:id>/deletar", methods=["POST"])
 @login_required
 def os_deletar(id):
@@ -583,16 +983,29 @@ def os_deletar(id):
 @pages_bp.route("/clientes")
 @login_required
 def clientes():
+    return _render_clientes_page()
+
+
+def _render_clientes_page(cliente_form_state=None, status=200):
     q            = request.args.get("q", "").strip()
     ativo_filtro = request.args.get("ativo", "1")
     page         = request.args.get("page", 1, type=int)
     query = Cliente.query
     if q:
         qe = _escape_like(q)
-        query = query.filter(db.or_(
+        digitos = sanitize_cpf_cnpj(q)
+        filtros = [
             Cliente.nome.ilike(f"%{qe}%"),
-            Cliente.cpf.ilike(f"%{qe}%"),
             Cliente.telefone.ilike(f"%{qe}%"),
+        ]
+        if digitos:
+            filtros.extend([
+                Cliente.cpf.ilike(f"%{digitos}%"),
+                Cliente.cnpj.ilike(f"%{digitos}%"),
+                Cliente.telefone.ilike(f"%{digitos}%"),
+            ])
+        query = query.filter(db.or_(
+            *filtros
         ))
     if ativo_filtro == "1": query = query.filter_by(ativo=True)
     if ativo_filtro == "0": query = query.filter_by(ativo=False)
@@ -603,63 +1016,67 @@ def clientes():
         cli.os_count = OrdemServico.query.filter_by(
             cliente_id=cli.id).filter(
             OrdemServico.deletado_em.is_(None)).count()
-    clientes_json = _safe_json([
-        {"id": c.id, "nome": c.nome, "cpf": c.cpf or "",
-         "telefone": c.telefone or "", "email": c.email or "",
-         "cep": c.cep or "", "endereco": c.endereco or "",
-         "cidade": c.cidade or "", "uf": c.uf or "", "ativo": c.ativo}
-        for c in lista])
+    clientes_payload = []
+    for c in lista:
+        item = c.to_dict()
+        item["os_count"] = c.os_count
+        clientes_payload.append(item)
+    clientes_json = _safe_json(clientes_payload)
     return render_template("pages/clientes.html", active="clientes",
         clientes=lista, paginacao=pag, clientes_json=clientes_json,
-        q=q, ativo_filtro=ativo_filtro)
+        cliente_form_state_json=_safe_json(cliente_form_state or {}),
+        q=q, ativo_filtro=ativo_filtro), status
+
+
+def _cliente_form_state(mode, form_data, form_errors, edit_id=None):
+    raw_doc = (
+        form_data.get("cpf_cnpj")
+        or form_data.get("documento")
+        or form_data.get("cpf")
+        or form_data.get("cnpj")
+        or ""
+    )
+    data = {
+        "id": edit_id,
+        "nome": form_data.get("nome", ""),
+        "cpf_cnpj_raw": raw_doc,
+        "telefone": form_data.get("telefone", ""),
+        "cep": form_data.get("cep", ""),
+        "endereco": form_data.get("endereco", ""),
+        "numero_casa": form_data.get("numero_casa", ""),
+        "cidade": form_data.get("cidade", ""),
+        "uf": form_data.get("uf", ""),
+        "ativo": str(form_data.get("ativo", "1")) != "0",
+    }
+    return {"mode": mode, "id": edit_id, "data": data, "errors": form_errors}
+
+
+def _render_cliente_form_error(mode, form_data, form_errors, edit_id=None):
+    _field, message = next(iter(form_errors.items()))
+    flash(message, "error")
+    return _render_clientes_page(
+        cliente_form_state=_cliente_form_state(mode, form_data, form_errors, edit_id=edit_id),
+        status=400,
+    )
 
 
 @pages_bp.route("/clientes/novo", methods=["POST"])
 @login_required
 def cliente_criar():
-    data = request.form
-    nome = sanitize_text(data.get("nome", ""), max_length=200)
-    if not nome or len(nome) < 2:
-        flash("Nome do cliente é obrigatório (mínimo 2 caracteres).", "error")
-        return redirect(url_for("pages.clientes"))
-    email = sanitize_email(data.get("email", ""))
-    if email and not validar_email(email):
-        flash("E-mail inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    cpf_raw = sanitize_cpf(data.get("cpf", ""))
-    if cpf_raw and not validar_cpf(cpf_raw):
-        flash("CPF inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    tel_raw = sanitize_phone(data.get("telefone", ""))
-    if tel_raw and not validar_telefone(tel_raw):
-        flash("Telefone inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    cep_raw = sanitize_cep(data.get("cep", ""))
-    if cep_raw and not validar_cep(cep_raw):
-        flash("CEP inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    # Unicidade
-    if cpf_raw and Cliente.query.filter_by(cpf=cpf_raw).first():
-        flash("CPF já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    if email and Cliente.query.filter_by(email=email).first():
-        flash("E-mail já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    if tel_raw and Cliente.query.filter_by(telefone=tel_raw).first():
-        flash("Telefone já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    c = Cliente(
-        nome     = nome,
-        cpf      = cpf_raw or None,
-        telefone = tel_raw or None,
-        email    = email or None,
-        cep      = cep_raw or None,
-        endereco = sanitize_text(data.get("endereco", ""), max_length=300) or None,
-        cidade   = sanitize_text(data.get("cidade", ""), max_length=100) or None,
-        uf       = sanitize_text(data.get("uf", ""), max_length=2).upper() or None,
-    )
+    from app.routes.clientes import _duplicidade_cliente, _validar_e_sanitizar
+
+    data = request.form.to_dict()
+    d, erros = _validar_e_sanitizar(data)
+    if erros:
+        return _render_cliente_form_error("new", data, erros)
+
+    field, msg = _duplicidade_cliente(d)
+    if msg:
+        return _render_cliente_form_error("new", data, {field: msg})
+
+    c = Cliente(**d)
     db.session.add(c)
-    registrar("criacao", "clientes", f"Cliente criado: {nome}")
+    registrar("criacao", "clientes", f"Cliente criado: {d['nome']}")
     db.session.commit()
     flash("Cliente salvo!", "success")
     return redirect(url_for("pages.clientes"))
@@ -668,50 +1085,20 @@ def cliente_criar():
 @pages_bp.route("/clientes/<int:id>/editar", methods=["POST"])
 @login_required
 def cliente_editar(id):
+    from app.routes.clientes import _duplicidade_cliente, _validar_e_sanitizar
+
     c    = db.get_or_404(Cliente, id)
-    data = request.form
-    nome = sanitize_text(data.get("nome", ""), max_length=200)
-    if not nome or len(nome) < 2:
-        flash("Nome é obrigatório (mínimo 2 caracteres).", "error")
-        return redirect(url_for("pages.clientes"))
-    email = sanitize_email(data.get("email", ""))
-    if email and not validar_email(email):
-        flash("E-mail inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    cpf_raw = sanitize_cpf(data.get("cpf", ""))
-    if cpf_raw and not validar_cpf(cpf_raw):
-        flash("CPF inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    tel_raw = sanitize_phone(data.get("telefone", ""))
-    if tel_raw and not validar_telefone(tel_raw):
-        flash("Telefone inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    cep_raw = sanitize_cep(data.get("cep", ""))
-    if cep_raw and not validar_cep(cep_raw):
-        flash("CEP inválido.", "error")
-        return redirect(url_for("pages.clientes"))
-    # Unicidade (exclui o próprio cliente)
-    dup_cpf = Cliente.query.filter_by(cpf=cpf_raw).first() if cpf_raw else None
-    if dup_cpf and dup_cpf.id != c.id:
-        flash("CPF já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    dup_email = Cliente.query.filter_by(email=email).first() if email else None
-    if dup_email and dup_email.id != c.id:
-        flash("E-mail já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    dup_tel = Cliente.query.filter_by(telefone=tel_raw).first() if tel_raw else None
-    if dup_tel and dup_tel.id != c.id:
-        flash("Telefone já cadastrado para outro cliente.", "error")
-        return redirect(url_for("pages.clientes"))
-    c.nome     = nome
-    c.cpf      = cpf_raw or None
-    c.telefone = tel_raw or None
-    c.email    = email or None
-    c.cep      = cep_raw or None
-    c.endereco = sanitize_text(data.get("endereco", ""), max_length=300) or None
-    c.cidade   = sanitize_text(data.get("cidade", ""), max_length=100) or None
-    c.uf       = sanitize_text(data.get("uf", ""), max_length=2).upper() or None
-    c.ativo    = data.get("ativo") == "1"
+    data = request.form.to_dict()
+    d, erros = _validar_e_sanitizar(data)
+    if erros:
+        return _render_cliente_form_error("edit", data, erros, edit_id=c.id)
+
+    field, msg = _duplicidade_cliente(d, cliente_id=c.id)
+    if msg:
+        return _render_cliente_form_error("edit", data, {field: msg}, edit_id=c.id)
+
+    for campo, valor in d.items():
+        setattr(c, campo, valor)
     registrar("edicao", "clientes", f"Cliente editado: {c.nome}")
     db.session.commit()
     flash("Cliente atualizado!", "success")

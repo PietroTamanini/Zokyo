@@ -1,16 +1,25 @@
 ﻿{% extends 'base.html' %}
-{% block title %}{{ 'Editar OS #%04d' % os.id if os else 'Nova OS' }} — Zokyo{% endblock %}
-{% block breadcrumb %}{{ 'Editar OS #%04d' % os.id if os else 'Nova OS' }}{% endblock %}
+{% block title %}{{ 'Coleta Rapida' if coleta else ('Editar OS #%04d' % os.id if os else 'Nova OS') }} — Zokyo{% endblock %}
+{% block breadcrumb %}{{ 'Coleta Rapida' if coleta else ('Editar OS #%04d' % os.id if os else 'Nova OS') }}{% endblock %}
 {% block topbar_action %}<a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">← Cancelar</a>{% endblock %}
 
 {% block content %}
+{% set fd = form_data or {} %}
+{% set fe = form_errors or {} %}
 
 <div class="page-header">
   <div>
-    <div class="page-title">{{ 'Editar OS #%04d' % os.id if os else 'Nova Ordem de Serviço' }}</div>
-    <div class="page-sub">Preencha todos os campos obrigatórios</div>
+    <div class="page-title">{{ 'Coleta rapida de OS' if coleta else ('Editar OS #%04d' % os.id if os else 'Nova Ordem de Serviço') }}</div>
+    <div class="page-sub">{{ 'Fluxo rapido para recepcao e balcao no celular' if coleta else 'Preencha todos os campos obrigatórios' }}</div>
   </div>
 </div>
+
+{% if fe %}
+<div class="alert a-red">
+  <span>!</span>
+  <div>{{ fe.get('geral') or fe.values()|list|first }}</div>
+</div>
+{% endif %}
 
 <form method="POST" action="{{ url_for('pages.os_atualizar', id=os.id) if os else url_for('pages.os_criar') }}">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -37,14 +46,17 @@
             <div id="cliente-info" class="flex-fill">
               {% if os and os.cliente %}
                 <strong>{{ os.cliente.nome }}</strong> · {{ os.cliente.telefone or '—' }}
-                <span class="mono-sm chip-spaced">{{ os.cliente.cpf or '' }}</span>
+                <span class="mono-sm chip-spaced">{{ os.cliente.documento or '' }}</span>
               {% endif %}
             </div>
             <button type="button" data-action="os-cliente-trocar" class="btn btn-ghost btn-xs">Trocar</button>
           </div>
         </div>
         <input type="hidden" name="cliente_id" id="cliente_id"
-               value="{{ os.cliente_id if os else '' }}" required>
+               value="{{ fd.get('cliente_id', os.cliente_id if os else '') }}" required>
+        <button type="button" class="btn btn-outline btn-sm mt8" data-action="quick-client-open">
+          + Cliente rapido
+        </button>
       </div>
     </div>
 
@@ -57,21 +69,22 @@
             <label>Tipo <span class="req">*</span></label>
             <select name="tipo_aparelho" required>
               {% for t in ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
-              <option {{ 'selected' if os and os.tipo_aparelho == t }}>{{ t }}</option>
+              {% set v = fd.get('tipo_aparelho', os.tipo_aparelho if os else 'Notebook') %}
+              <option {{ 'selected' if v == t }}>{{ t }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="form-group">
             <label>Marca <span class="req">*</span></label>
-            <input type="text" name="marca" value="{{ os.marca if os else '' }}" placeholder="Ex: Samsung" required>
+            <input type="text" name="marca" value="{{ fd.get('marca', os.marca if os else '') }}" placeholder="Ex: Samsung" required class="{{ 'input-error' if fe.get('marca') }}">
           </div>
           <div class="form-group">
             <label>Modelo <span class="req">*</span></label>
-            <input type="text" name="modelo" value="{{ os.modelo if os else '' }}" placeholder="Ex: Galaxy A54" required>
+            <input type="text" name="modelo" value="{{ fd.get('modelo', os.modelo if os else '') }}" placeholder="Ex: Galaxy A54" required class="{{ 'input-error' if fe.get('modelo') }}">
           </div>
           <div class="form-group">
             <label>Nº Série</label>
-            <input type="text" name="numero_serie" value="{{ os.numero_serie if os else '' }}" placeholder="Opcional">
+            <input type="text" name="numero_serie" value="{{ fd.get('numero_serie', os.numero_serie if os else '') }}" placeholder="Opcional">
           </div>
         </div>
       </div>
@@ -84,36 +97,38 @@
         <div class="defect-grid">
           <div class="form-group form-group-compact">
             <label class="label-amber">① Defeito Alegado pelo Cliente <span class="req">*</span></label>
-            <textarea name="defeito_alegado" rows="4" required placeholder="O que o cliente relatou...">{{ os.defeito_alegado if os else '' }}</textarea>
+            <textarea name="defeito_alegado" rows="4" required placeholder="O que o cliente relatou..." class="{{ 'input-error' if fe.get('defeito_alegado') }}">{{ fd.get('defeito_alegado', os.defeito_alegado if os else '') }}</textarea>
           </div>
           <div class="form-group form-group-compact">
             <label class="label-sky">② Defeito Encontrado</label>
-            <textarea name="defeito_encontrado" rows="4" placeholder="O que o técnico encontrou...">{{ os.defeito_encontrado if os else '' }}</textarea>
+            <textarea name="defeito_encontrado" rows="4" placeholder="O que o técnico encontrou...">{{ fd.get('defeito_encontrado', os.defeito_encontrado if os else '') }}</textarea>
           </div>
           <div class="form-group form-group-compact">
             <label class="label-green">③ Solução Aplicada</label>
-            <textarea name="solucao" rows="4" placeholder="O que foi feito...">{{ os.solucao if os else '' }}</textarea>
+            <textarea name="solucao" rows="4" placeholder="O que foi feito...">{{ fd.get('solucao', os.solucao if os else '') }}</textarea>
           </div>
         </div>
         <div class="form-group mb16">
           <label>Observações / Acessórios</label>
-          <textarea name="observacoes" rows="2" placeholder="Ex: Sem carregador. Tela rachada no canto...">{{ os.observacoes if os else '' }}</textarea>
+          <textarea name="observacoes" rows="2" placeholder="Ex: Sem carregador. Tela rachada no canto...">{{ fd.get('observacoes', os.observacoes if os else '') }}</textarea>
         </div>
         <div class="form-row fr4">
           <div class="form-group">
             <label>Status <span class="req">*</span></label>
             <select name="status">
               {% for key, label in status_map.items() %}
-              <option value="{{ key }}" {{ 'selected' if (os and os.status == key) or (not os and key == 'recepcao') }}>{{ label }}</option>
+              {% set v = fd.get('status', os.status if os else 'recepcao') %}
+              <option value="{{ key }}" {{ 'selected' if v == key }}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="form-group">
             <label>Prioridade</label>
             <select name="prio">
-              <option value="normal" {{ 'selected' if not os or os.prio == 'normal' }}>Normal</option>
-              <option value="alta"   {{ 'selected' if os and os.prio == 'alta' }}>Alta</option>
-              <option value="baixa"  {{ 'selected' if os and os.prio == 'baixa' }}>Baixa</option>
+              {% set prio_v = fd.get('prio', os.prio if os else 'normal') %}
+              <option value="normal" {{ 'selected' if prio_v == 'normal' }}>Normal</option>
+              <option value="urgente" {{ 'selected' if prio_v == 'urgente' }}>Urgente</option>
+              <option value="critico" {{ 'selected' if prio_v == 'critico' }}>Critico</option>
             </select>
           </div>
           <div class="form-group">
@@ -121,30 +136,31 @@
             <select name="tecnico_nome">
               <option value="">— Não atribuído —</option>
               {% for u in tecnicos %}
-              <option {{ 'selected' if os and os.tecnico_nome == u.nome }}>{{ u.nome }}</option>
+              {% set tecnico_v = fd.get('tecnico_nome', os.tecnico_nome if os else '') %}
+              <option {{ 'selected' if tecnico_v == u.nome }}>{{ u.nome }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="form-group">
             <label>Garantia (dias)</label>
-            <input type="number" name="garantia_dias" value="{{ os.garantia_dias if os else 90 }}" min="0">
+            <input type="number" name="garantia_dias" value="{{ fd.get('garantia_dias', os.garantia_dias if os else 90) }}" min="0">
           </div>
         </div>
         <div class="form-row fr3">
           <div class="form-group">
             <label>Data de Entrada</label>
             <input type="date" name="data_entrada"
-                   value="{{ os.data_entrada.date().isoformat() if os and os.data_entrada else hoje_iso }}">
+                   value="{{ fd.get('data_entrada', os.data_entrada.date().isoformat() if os and os.data_entrada else hoje_iso) }}">
           </div>
           <div class="form-group">
             <label>Previsão de Entrega</label>
             <input type="date" name="data_prev"
-                   value="{{ os.data_prev.date().isoformat() if os and os.data_prev else '' }}">
+                   value="{{ fd.get('data_prev', os.data_prev.date().isoformat() if os and os.data_prev else '') }}">
           </div>
           <div class="form-group">
             <label>Data de Saída</label>
             <input type="date" name="data_saida"
-                   value="{{ os.data_saida.date().isoformat() if os and os.data_saida else '' }}">
+                   value="{{ fd.get('data_saida', os.data_saida.date().isoformat() if os and os.data_saida else '') }}">
           </div>
         </div>
       </div>
@@ -164,7 +180,7 @@
         <div class="form-group mb16">
           <label>Mão de Obra (R$)</label>
              <input type="number" name="valor_servico" id="f-mo" step="0.01" min="0"
-               value="{{ '%.2f' % (os.valor_servico or 0) if os else '0.00' }}" data-action="os-total-recalc">
+               value="{{ fd.get('valor_servico', '%.2f' % (os.valor_servico or 0) if os else '0.00') }}" data-action="os-total-recalc">
         </div>
         <div class="form-group mb16">
           <label>Valor das Peças (R$)</label>
@@ -176,7 +192,7 @@
         <div class="form-group mb20">
           <label>Desconto (R$)</label>
              <input type="number" name="desconto" id="f-dc" step="0.01" min="0"
-               value="{{ '%.2f' % (os.desconto or 0) if os else '0.00' }}" data-action="os-total-recalc">
+               value="{{ fd.get('desconto', '%.2f' % (os.desconto or 0) if os else '0.00') }}" data-action="os-total-recalc">
         </div>
         <div class="total-box">
           <div class="total-label">Total da OS</div>

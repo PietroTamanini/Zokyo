@@ -74,6 +74,22 @@
       </div>
     </div>
 
+    <!-- Fotos -->
+    {% if os.fotos %}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Fotos da coleta</div></div>
+      <div class="card-body">
+        <div class="photo-grid">
+          {% for foto in os.fotos %}
+          <a href="{{ url_for('pages.os_foto', foto_id=foto.id) }}" target="_blank" class="photo-thumb">
+            <img src="{{ url_for('pages.os_foto', foto_id=foto.id) }}" alt="{{ foto.original_filename or 'Foto da OS' }}">
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Peças — usando pecas_dict com quantidade/valor corretos da tabela os_pecas -->
     <div class="card">
       <div class="card-header">
@@ -180,7 +196,6 @@
         {% if os.cliente %}
           <div class="customer-name">{{ os.cliente.nome }}</div>
           {% if os.cliente.telefone %}<div class="d-row d-row-compact"><div class="d-label">Fone</div><div class="d-value">{{ os.cliente.telefone }}</div></div>{% endif %}
-          {% if os.cliente.email %}<div class="d-row d-row-compact"><div class="d-label">Email</div><div class="d-value muted-sm">{{ os.cliente.email }}</div></div>{% endif %}
           {% if os.cliente.cidade %}<div class="d-row d-row-compact"><div class="d-label">Cidade</div><div class="d-value">{{ os.cliente.cidade }}{% if os.cliente.uf %}/{{ os.cliente.uf }}{% endif %}</div></div>{% endif %}
         {% else %}
           <span class="txt-faint">Cliente não encontrado</span>

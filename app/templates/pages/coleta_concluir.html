@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Concluir coleta #{{ coleta.id }} — Zokyo{% endblock %}
+{% block breadcrumb %}Concluir coleta{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.coleta') }}" class="btn btn-ghost btn-sm">← Coletas</a>{% endblock %}
+
+{% block content %}
+{% set fd = form_data or {} %}
+{% set fe = form_errors or {} %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Concluir coleta #{{ coleta.id }}</div>
+    <div class="page-sub">No local, preencha equipamento, defeito e fotos. Isso cria a OS.</div>
+  </div>
+</div>
+
+{% if fe %}
+<div class="alert a-red">
+  <span>!</span>
+  <div>{{ fe.values()|list|first }}</div>
+</div>
+{% endif %}
+
+<div class="g64 coleta-layout">
+  <form method="POST" action="{{ url_for('pages.coleta_concluir_post', id=coleta.id) }}" enctype="multipart/form-data" class="coleta-mobile-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Cliente e local</div></div>
+      <div class="card-body">
+        <div class="customer-name">{{ coleta.cliente.nome if coleta.cliente else 'Cliente removido' }}</div>
+        <div class="d-row d-row-compact"><div class="d-label">Telefone</div><div class="d-value">{{ coleta.telefone_contato or (coleta.cliente.telefone if coleta.cliente else '') or '—' }}</div></div>
+        <div class="d-row d-row-compact"><div class="d-label">Endereco</div><div class="d-value">{{ coleta.endereco_completo or '—' }}</div></div>
+        {% if coleta.observacoes %}<div class="note-block note-sky">{{ coleta.observacoes }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Equipamento</div></div>
+      <div class="card-body">
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Tipo <span class="req">*</span></label>
+            <select name="tipo_aparelho" class="{{ 'input-error' if fe.get('tipo_aparelho') }}" required>
+              {% set tipo_v = fd.get('tipo_aparelho', 'Notebook') %}
+              {% for t in ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
+              <option {{ 'selected' if tipo_v == t }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Numero de serie</label>
+            <input type="text" name="numero_serie" value="{{ fd.get('numero_serie', '') }}">
+          </div>
+        </div>
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Marca <span class="req">*</span></label>
+            <input type="text" name="marca" value="{{ fd.get('marca', '') }}" class="{{ 'input-error' if fe.get('marca') }}" required>
+          </div>
+          <div class="form-group">
+            <label>Modelo <span class="req">*</span></label>
+            <input type="text" name="modelo" value="{{ fd.get('modelo', '') }}" class="{{ 'input-error' if fe.get('modelo') }}" required>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Diagnostico inicial</div></div>
+      <div class="card-body">
+        <div class="form-group mb16">
+          <label>Defeito alegado <span class="req">*</span></label>
+          <textarea name="defeito_alegado" rows="4" class="{{ 'input-error' if fe.get('defeito_alegado') }}" required>{{ fd.get('defeito_alegado', '') }}</textarea>
+        </div>
+        <div class="form-group mb16">
+          <label>Defeito encontrado</label>
+          <textarea name="defeito_encontrado" rows="3">{{ fd.get('defeito_encontrado', '') }}</textarea>
+        </div>
+        <div class="form-group mb16">
+          <label>Observacoes / acessorios</label>
+          <textarea name="observacoes" rows="3" placeholder="Ex: acompanha carregador, senha, riscos visiveis...">{{ fd.get('observacoes', '') }}</textarea>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group">
+            <label>Prioridade</label>
+            {% set prio_v = fd.get('prio', 'normal') %}
+            <select name="prio">
+              <option value="normal" {{ 'selected' if prio_v == 'normal' }}>Normal</option>
+              <option value="urgente" {{ 'selected' if prio_v == 'urgente' }}>Urgente</option>
+              <option value="critico" {{ 'selected' if prio_v == 'critico' }}>Critico</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Previsao</label>
+            <input type="date" name="data_prev" value="{{ fd.get('data_prev', '') }}">
+          </div>
+          <div class="form-group">
+            <label>Garantia dias</label>
+            <input type="number" name="garantia_dias" value="{{ fd.get('garantia_dias', 90) }}" min="0">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Fotos obrigatorias</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Fotos do equipamento e estado externo <span class="req">*</span></label>
+          <input type="file" name="fotos" accept="image/*" capture="environment" multiple class="{{ 'input-error' if fe.get('fotos') }}" required>
+          <div class="input-hint">Envie ate 12 fotos. Use a camera do celular para registrar estado, etiqueta, tela e acessorios.</div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary submit-wide coleta-submit">Criar OS com fotos</button>
+  </form>
+
+  <div class="os-column coleta-side-hint">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Checklist rapido</div></div>
+      <div class="card-body">
+        <label class="check-inline"><input type="checkbox" class="input-check"> Foto frontal do equipamento</label>
+        <label class="check-inline"><input type="checkbox" class="input-check"> Foto traseira / etiqueta / serie</label>
+        <label class="check-inline"><input type="checkbox" class="input-check"> Foto de dano visivel</label>
+        <label class="check-inline"><input type="checkbox" class="input-check"> Acessorios anotados</label>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

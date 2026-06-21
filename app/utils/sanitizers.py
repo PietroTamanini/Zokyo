@@ -135,6 +135,13 @@ def sanitize_cnpj(value: Any) -> str:
     return re.sub(r'\D', '', str(value))[:14]
 
 
+def sanitize_cpf_cnpj(value: Any) -> str:
+    """Remove tudo exceto digitos. Retorna string de ate 14 chars."""
+    if value is None:
+        return ""
+    return re.sub(r'\D', '', str(value))[:14]
+
+
 def sanitize_phone(value: Any) -> str:
     """Remove tudo exceto dígitos. Retorna string de até 15 chars."""
     if value is None:
