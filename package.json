@@ -12,7 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "@wppconnect-team/wppconnect": "^2.2.0",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0"
