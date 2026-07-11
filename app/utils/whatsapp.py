@@ -182,6 +182,12 @@ def mensagem_os_pronta(os) -> str:
     solucao      = os.solucao or "Reparo concluído"
     cliente_nome = os.cliente.nome if os.cliente else "Cliente"
 
+    try:
+        from app.models import Configuracao
+        cfg = Configuracao.get()
+    except Exception:
+        cfg = None
+
     return (
         f"Olá, *{cliente_nome}*! 👋\n\n"
         f"Seu aparelho está *pronto* para retirada! ✅\n\n"

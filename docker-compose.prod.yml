@@ -1,0 +1,53 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MYSQL_DATABASE:?defina MYSQL_DATABASE}
+      MARIADB_USER: ${MYSQL_USER:?defina MYSQL_USER}
+      MARIADB_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?defina ENCRYPTION_SALT}
+      REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
+      REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
+      DISABLE_CREATE_ALL: "true"
+      GUNICORN_BIND: 0.0.0.0:8000
+      GUNICORN_ACCESSLOG: "-"
+      GUNICORN_ERRORLOG: "-"
+      PROXY_COUNT: 1
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/instance/uploads
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  db_data:
+  uploads_data:

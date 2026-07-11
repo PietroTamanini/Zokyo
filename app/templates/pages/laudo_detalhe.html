@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block title %}Laudo {{ laudo.numero or '#' ~ laudo.id }} - Zokyo{% endblock %}
+{% block breadcrumb %}Laudos / {{ laudo.numero or 'Rascunho' }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('laudos.index') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</div>
+    <div class="page-sub">OS #{{ '%04d' % laudo.os_id }} · {{ tipo_labels.get(laudo.tipo, laudo.tipo) }} · versao {{ laudo.versao }}</div>
+  </div>
+  <div class="flex-gap">
+    {% if laudo.status == 'draft' %}<a href="{{ url_for('laudos.editar', id=laudo.id) }}" class="btn btn-primary btn-sm">Editar rascunho</a>{% endif %}
+    {% if laudo.pdf_path %}<a href="{{ url_for('laudos.baixar_pdf', id=laudo.id) }}" class="btn btn-ghost btn-sm">Baixar PDF</a>{% endif %}
+    <form method="POST" action="{{ url_for('laudos.duplicar', id=laudo.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Duplicar</button>
+    </form>
+    {% if laudo.status == 'finalized' %}
+    <form method="POST" action="{{ url_for('laudos.revisao', id=laudo.id) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-ghost btn-sm" type="submit">Nova versao</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="g64">
+  <div class="os-column">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Resumo</div>
+        <span class="badge {{ 'b-green' if laudo.status == 'finalized' else 'b-red' if laudo.status == 'cancelled' else 'b-amber' }}"><span class="dot"></span>{{ status_labels.get(laudo.status, laudo.status) }}</span>
+      </div>
+      <div class="card-body">
+        <div class="d-row"><div class="d-label">Cliente</div><div class="d-value">{{ laudo.cliente.nome if laudo.cliente else '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Equipamento</div><div class="d-value">{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</div></div>
+        <div class="d-row"><div class="d-label">Serie</div><div class="d-value td-mono">{{ laudo.os.numero_serie if laudo.os else '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Tecnico</div><div class="d-value">{{ laudo.tecnico_responsavel_nome or '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Emissao</div><div class="d-value">{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</div></div>
+        {% if laudo.pdf_sha256 %}<div class="d-row"><div class="d-label">SHA-256</div><div class="d-value td-mono">{{ laudo.pdf_sha256 }}</div></div>{% endif %}
+        {% if laudo.verification_token %}<div class="d-row"><div class="d-label">Verificacao</div><div class="d-value td-mono">{{ laudo.verification_token }}</div></div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Conteudo tecnico</div></div>
+      <div class="card-body parts-body">
+        {% for label, value in [
+          ('Defeito relatado', laudo.defeito_relatado),
+          ('Inspecao visual', laudo.inspecao_visual),
+          ('Testes realizados', laudo.testes_realizados),
+          ('Instrumentos e metodos', laudo.instrumentos_metodos),
+          ('Medicoes', laudo.medicoes),
+          ('Diagnostico tecnico', laudo.diagnostico_tecnico),
+          ('Causa provavel', laudo.causa_provavel),
+          ('Servicos realizados', laudo.servicos_realizados),
+          ('Pecas utilizadas', laudo.pecas_utilizadas),
+          ('Conclusao tecnica', laudo.conclusao_tecnica),
+          ('Estado final', laudo.estado_final),
+          ('Recomendacoes', laudo.recomendacoes),
+          ('Riscos e limitacoes', laudo.riscos_limitacoes),
+          ('Garantia', laudo.garantia),
+          ('Observacoes', laudo.observacoes)
+        ] %}
+          {% if value %}
+          <div>
+            <div class="fs-title">{{ label }}</div>
+            <div class="note-block">{{ value }}</div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if laudo.fotos %}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Fotografias</div></div>
+      <div class="card-body">
+        <div class="photo-grid">
+          {% for foto in laudo.fotos|sort(attribute='ordem') %}
+          <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank" class="photo-thumb">
+            <img src="{{ url_for('laudos.foto', foto_id=foto.id) }}" alt="{{ foto.legenda or foto.tipo }}">
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="os-column">
+    {% if laudo.status != 'cancelled' %}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Acoes</div></div>
+      <div class="card-body status-actions">
+        {% if laudo.status == 'draft' %}
+        <form method="POST" action="{{ url_for('laudos.finalizar', id=laudo.id) }}" data-confirm="Finalizar e gerar PDF?">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-primary btn-sm btn-full-start" type="submit">Finalizar e gerar PDF</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('laudos.cancelar', id=laudo.id) }}" data-confirm="Cancelar este laudo?">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <textarea name="motivo" rows="3" placeholder="Justificativa obrigatoria"></textarea>
+          <button class="btn btn-danger btn-sm btn-full-start" type="submit">Cancelar com justificativa</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Historico</div></div>
+      <div class="card-body">
+        <div class="timeline">
+          {% for ev in eventos %}
+          <div class="tl-item">
+            <div class="tl-date">{{ ev.criado_em | fmtdata }} <span class="mono-xs txt-faint">{{ ev.criado_em.strftime('%H:%M') if ev.criado_em else '' }}</span></div>
+            <div class="tl-text"><strong>{{ ev.tipo }}</strong> · {{ ev.descricao }}</div>
+          </div>
+          {% else %}
+          <div class="tl-item"><div class="tl-text">Sem eventos registrados.</div></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    {% if laudo.motivo_cancelamento %}
+    <div class="card card-accent-green">
+      <div class="card-header"><div class="card-title">Cancelamento</div></div>
+      <div class="card-body">{{ laudo.motivo_cancelamento }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

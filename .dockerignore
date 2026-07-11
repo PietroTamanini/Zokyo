@@ -1,0 +1,19 @@
+.git
+.github
+__pycache__/
+*.pyc
+.coverage
+htmlcov/
+venv/
+.venv/
+node_modules/
+tokens/
+backups/
+logs/
+tmp/
+temp/
+.env
+.env.*
+instance/import_logs/
+instance/uploads/
+Banco cplus/

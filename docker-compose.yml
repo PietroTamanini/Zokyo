@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: ${MYSQL_DATABASE:-zokyo}
+      MARIADB_USER: ${MYSQL_USER:-zokyo}
+      MARIADB_PASSWORD: ${MYSQL_PASSWORD:-zokyo_dev_password}
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-zokyo_root_dev_password}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    environment:
+      FLASK_ENV: development
+      SECRET_KEY: ${SECRET_KEY:-dev-only-change-me}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-zokyo}:${MYSQL_PASSWORD:-zokyo_dev_password}@db:3306/${MYSQL_DATABASE:-zokyo}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:-}
+      REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
+      REPORTS_PUBLIC_VERIFICATION: "true"
+      GUNICORN_BIND: 0.0.0.0:8000
+      GUNICORN_ACCESSLOG: "-"
+      GUNICORN_ERRORLOG: "-"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/instance/uploads
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data:
+  uploads_data:

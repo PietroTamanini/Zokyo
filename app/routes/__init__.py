@@ -8,9 +8,11 @@ from .transacoes      import transacoes_bp
 from .usuarios        import usuarios_bp
 from .defeitos_padrao import defeitos_bp
 from .importacao      import importacao_bp
+from .laudos          import laudos_bp
+from .health          import health_bp
 
 __all__ = [
     "auth_bp", "pages_bp", "clientes_bp", "os_bp",
     "pecas_bp", "fornecedores_bp", "transacoes_bp",
-    "usuarios_bp", "defeitos_bp", "importacao_bp",
+    "usuarios_bp", "defeitos_bp", "importacao_bp", "laudos_bp", "health_bp",
 ]

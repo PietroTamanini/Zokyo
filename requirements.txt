@@ -6,6 +6,7 @@ Flask>=3.0,<4.0
 
 # Banco
 Flask-SQLAlchemy>=3.1,<4.0
+Flask-Migrate>=4.0,<5.0
 PyMySQL>=1.1,<2.0
 cryptography>=42.0,<44.0
 firebird-driver>=1.10
@@ -14,6 +15,7 @@ fdb>=2.0.2
 # PDF
 pdfkit>=1.0,<2.0
 reportlab>=4.0,<5.0
+Pillow>=10.0,<12.0
 
 # HTTP (WhatsApp)
 requests>=2.31,<3.0
@@ -23,3 +25,6 @@ APScheduler>=3.10,<4.0
 
 # Ambiente
 python-dotenv>=1.0,<2.0
+
+# Testes
+pytest>=8.0,<9.0

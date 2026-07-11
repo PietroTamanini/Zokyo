@@ -141,6 +141,8 @@ Variáveis opcionais:
 
 ```env
 WKHTMLTOPDF_PATH=/usr/bin/wkhtmltopdf
+REPORTS_UPLOAD_FOLDER=
+REPORTS_PUBLIC_VERIFICATION=true
 WPP_SERVER_URL=http://127.0.0.1:3333
 WPP_SECRET=segredo_compartilhado
 GUNICORN_WORKERS=4
@@ -168,7 +170,7 @@ http://127.0.0.1:5000
 Produção com Gunicorn:
 
 ```bash
-FLASK_ENV=production gunicorn -c gunicorn.conf.py app:app
+FLASK_ENV=production gunicorn -c gunicorn.conf.py wsgi:app
 ```
 
 ## Primeiro Acesso
@@ -311,6 +313,24 @@ Backup versionado:
 
 ```bash
 python scripts/backup_database.py --output-dir backups --keep-days 14
+```
+
+Migrar tabelas de laudos:
+
+```bash
+python scripts/migrate_laudos.py
+```
+
+Migrar com Flask-Migrate/Alembic:
+
+```bash
+python -m flask --app wsgi:app db upgrade
+```
+
+Executar testes:
+
+```bash
+python -m pytest -q
 ```
 
 ## Importacao CPlus, Clientes CPF/CNPJ e PWA

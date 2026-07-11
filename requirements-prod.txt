@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# WSGI de producao
+gunicorn>=22.0,<24.0

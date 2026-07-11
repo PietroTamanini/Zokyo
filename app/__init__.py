@@ -22,8 +22,8 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, abort, g, request, session, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from config import config
-from app.extensions import db
+from config import config as config_map
+from app.extensions import db, migrate
 
 
 # Lock para serializar o endpoint de primeiro acesso (fix M02)
@@ -35,7 +35,7 @@ _tem_usuarios: bool = False
 
 def create_app(config_name="default"):
     app = Flask(__name__)
-    cfg_obj = config[config_name]
+    cfg_obj = config_map[config_name]
     app.config.from_object(cfg_obj)
 
     # Chama init_app da config (ProductionConfig valida segredos)
@@ -58,6 +58,7 @@ def create_app(config_name="default"):
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
 
     db.init_app(app)
+    migrate.init_app(app, db)
 
     # ── Context processors ────────────────────────────────────────────────
     # ── Branding centralizado ─────────────────────────────────────────────
@@ -224,7 +225,7 @@ def create_app(config_name="default"):
             or request.endpoint in (
                 "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
                 "auth.login_page", "auth.login_post",
-                "pages.service_worker",
+                "pages.service_worker", "health.healthz", "health.readyz",
             )
         )
         if skip:
@@ -338,39 +339,57 @@ def create_app(config_name="default"):
     from app.routes.configuracoes   import cfg_bp
     from app.routes.logs            import logs_bp
     from app.routes.importacao      import importacao_bp
+    from app.routes.laudos          import laudos_bp
+    from app.routes.health          import health_bp
 
     for bp in (
         auth_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
         fornecedores_bp, transacoes_bp, usuarios_bp, defeitos_bp,
-        cfg_bp, logs_bp, importacao_bp,
+        cfg_bp, logs_bp, importacao_bp, laudos_bp, health_bp,
     ):
         app.register_blueprint(bp)
 
 
     # ── Handlers de excecao global ────────────────────────────────────────
     from app.utils.exceptions import AppError
-    from flask import jsonify as _jsonify
+    from flask import jsonify as _jsonify, render_template as _render_template
 
     @app.errorhandler(AppError)
     def handle_app_error(exc):
         return _jsonify(exc.to_dict()), exc.code
 
+    def _wants_json():
+        if (request.path or "").startswith("/api/"):
+            return True
+        best = request.accept_mimetypes.best_match(["application/json", "text/html"])
+        return best == "application/json" and request.accept_mimetypes[best] > request.accept_mimetypes["text/html"]
+
+    def _error_response(code, message):
+        if _wants_json():
+            return _jsonify({"success": False, "erro": message}), code
+        return _render_template(f"errors/{code}.html", code=code, message=message), code
+
+    @app.errorhandler(403)
+    def forbidden(exc):
+        return _error_response(403, "Acesso negado.")
+
     @app.errorhandler(404)
     def not_found(exc):
-        return _jsonify({"success": False, "erro": "Recurso nao encontrado."}), 404
+        return _error_response(404, "Recurso nao encontrado.")
 
     @app.errorhandler(405)
     def method_not_allowed(exc):
-        return _jsonify({"success": False, "erro": "Metodo nao permitido."}), 405
+        return _error_response(405, "Metodo nao permitido.")
 
     @app.errorhandler(500)
     def internal_error(exc):
         app.logger.error("Erro interno: %s", exc, exc_info=True)
-        return _jsonify({"success": False, "erro": "Erro interno do servidor."}), 500
+        return _error_response(500, "Erro interno do servidor.")
 
     with app.app_context():
         from app.utils.rate_limit import LoginAttempt  # noqa: F401
-        db.create_all()
+        if not app.config.get("DISABLE_CREATE_ALL", False):
+            db.create_all()
 
     # ── V-06 FIX: APScheduler — limpeza periódica das tabelas de rate limit ──
     # Evita crescimento indefinido de login_attempts e api_rate_limits.

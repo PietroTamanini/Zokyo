@@ -4,7 +4,7 @@
   "description": "Sistema web para gestão de ordens de serviço de assistência técnica em informática. Multi-usuário, com controle de estoque, financeiro, emissão de PDF e envio de WhatsApp.",
   "main": "wpp-server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --check wpp-server.js"
   },
   "keywords": [],
   "author": "",
