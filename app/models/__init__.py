@@ -10,6 +10,11 @@ from .defeito_padrao import DefeitoPadrao
 from .os_historico  import OSHistorico
 from .configuracao  import Configuracao
 from .evento_log    import EventoLog, registrar
+from .laudo import (
+    LaudoTecnico, LaudoFoto, LaudoEvento, LaudoCounter,
+    LAUDO_STATUS, LAUDO_STATUS_LABELS, LAUDO_TIPOS, LAUDO_TIPOS_LABELS,
+    LAUDO_FOTO_TIPOS, LAUDO_FOTO_TIPOS_LABELS,
+)
 
 __all__ = [
     "Usuario","PERFIS","PERFIS_LABELS",
@@ -17,4 +22,7 @@ __all__ = [
     "ColetaAgendada","STATUS_COLETA","STATUS_COLETA_LABELS","OSFoto",
     "Peca","Fornecedor","Transacao","DefeitoPadrao","OSHistorico",
     "Configuracao","EventoLog","registrar",
+    "LaudoTecnico","LaudoFoto","LaudoEvento","LaudoCounter",
+    "LAUDO_STATUS","LAUDO_STATUS_LABELS","LAUDO_TIPOS","LAUDO_TIPOS_LABELS",
+    "LAUDO_FOTO_TIPOS","LAUDO_FOTO_TIPOS_LABELS",
 ]

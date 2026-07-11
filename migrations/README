@@ -1,0 +1,15 @@
+Flask-Migrate/Alembic migrations.
+
+Instalacao nova:
+
+    flask --app app:app db upgrade
+
+Instalacoes existentes:
+
+    1. faca backup do banco;
+    2. aplique as migracoes;
+    3. enquanto o baseline completo do legado nao existir, mantenha os scripts
+       idempotentes em scripts/ como caminho de compatibilidade.
+
+Esta estrutura foi adicionada incrementalmente para retirar `db.create_all()` de
+producao e migrar o projeto para Alembic com seguranca.

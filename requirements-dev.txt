@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Ferramentas de qualidade para desenvolvimento
+ruff>=0.8,<1.0
+coverage>=7.0,<8.0

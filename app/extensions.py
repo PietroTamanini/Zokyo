@@ -6,5 +6,7 @@ Importar daqui evita imports circulares entre app/__init__.py e models.
 """
 
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 
 db = SQLAlchemy()
+migrate = Migrate()

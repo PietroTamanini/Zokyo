@@ -2,10 +2,13 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Python
 __pycache__/
 *.pyc
+.coverage
+htmlcov/
 /.codex-tools/
 *.pyo
 *.pyd

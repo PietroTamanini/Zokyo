@@ -1,0 +1,8 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+# Foco inicial para CI em erros que costumam quebrar runtime:
+# sintaxe/indentacao grave, asserts invalidos e nomes indefinidos.
+select = ["E9", "F63", "F7", "F82"]

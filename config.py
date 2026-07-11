@@ -57,13 +57,16 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
         "mysql+pymysql://root:@localhost:3306/zokyo"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_recycle":  1800,
-        "pool_pre_ping": True,
-        "pool_timeout":  20,
-        "pool_size":     10,
-        "max_overflow":  20,
-    }
+    if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
+        SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_recycle":  1800,
+            "pool_pre_ping": True,
+            "pool_timeout":  20,
+            "pool_size":     10,
+            "max_overflow":  20,
+        }
 
     # ── PDF ────────────────────────────────────────────────────────────────
     PDFKIT_WKHTMLTOPDF = _detect_wkhtmltopdf()
@@ -81,6 +84,9 @@ class Config:
         "disable-local-file-access": None,
         "no-background": None,
     }
+    REPORTS_UPLOAD_FOLDER = os.environ.get("REPORTS_UPLOAD_FOLDER", "").strip() or None
+    REPORTS_PUBLIC_VERIFICATION = os.environ.get("REPORTS_PUBLIC_VERIFICATION", "true").lower() in ("1", "true", "yes", "on")
+    DISABLE_CREATE_ALL = os.environ.get("DISABLE_CREATE_ALL", "false").lower() in ("1", "true", "yes", "on")
 
     # ── WhatsApp ───────────────────────────────────────────────────────────
     WPP_SERVER_URL = os.environ.get("WPP_SERVER_URL", "").strip() or None
@@ -117,6 +123,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
+    DISABLE_CREATE_ALL = True
 
     # C02: em produção, SECRET_KEY DEVE ser definida no ambiente
     @classmethod

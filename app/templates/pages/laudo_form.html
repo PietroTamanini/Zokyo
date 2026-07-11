@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Novo laudo' if modo == 'novo' else 'Editar laudo' }} - Zokyo{% endblock %}
+{% block breadcrumb %}Laudos / {{ 'Novo' if modo == 'novo' else 'Editar' }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('laudos.index') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+
+{% block content %}
+{% set form_action = url_for('laudos.criar') if modo == 'novo' else url_for('laudos.salvar', id=laudo.id) %}
+{% set obj = laudo %}
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ 'Novo laudo tecnico' if modo == 'novo' else 'Rascunho de laudo' }}</div>
+    <div class="page-sub">
+      {% if obj %}OS #{{ '%04d' % obj.os_id }} · {{ obj.cliente.nome if obj.cliente else '' }}{% else %}Selecione uma OS para preencher os dados existentes{% endif %}
+    </div>
+  </div>
+  {% if obj %}
+  <div class="flex-gap">
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('laudos.detalhe', id=obj.id) }}">Visualizar</a>
+    <form method="POST" action="{{ url_for('laudos.finalizar', id=obj.id) }}" data-confirm="Finalizar e gerar PDF? Depois disso o conteudo fica imutavel.">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-primary btn-sm" type="submit">Finalizar e gerar PDF</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="laudo-editor">
+  <div>
+    <form id="laudo-form" method="POST" action="{{ form_action }}" class="card">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="card-header"><div class="card-title">Identificacao</div></div>
+      <div class="card-body">
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Ordem de servico *</label>
+            {% if modo == 'novo' %}
+            <select name="os_id" required>
+              <option value="">Selecione</option>
+              {% for os in os_options %}
+              <option value="{{ os.id }}" {{ 'selected' if selected_os_id == os.id }}>#{{ '%04d' % os.id }} - {{ os.cliente.nome if os.cliente else 'Cliente' }} - {{ os.tipo_aparelho or '' }} {{ os.marca or '' }} {{ os.modelo or '' }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input value="#{{ '%04d' % obj.os_id }} - {{ obj.cliente.nome if obj.cliente else '' }}" disabled>
+            {% endif %}
+          </div>
+          <div class="form-group">
+            <label>Tipo de laudo *</label>
+            <select name="tipo" required>
+              {% for key, label in tipo_labels.items() %}
+              <option value="{{ key }}" {{ 'selected' if obj and obj.tipo == key }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group"><label>Tecnico responsavel</label><input name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
+          <div class="form-group"><label>Data da analise</label><input type="date" name="analisado_em" value="{{ obj.analisado_em.strftime('%Y-%m-%d') if obj and obj.analisado_em else '' }}"></div>
+          <div class="form-group"><label>Estado final *</label><input name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120"></div>
+        </div>
+      </div>
+
+      <div class="card-header"><div class="card-title">Conteudo tecnico</div></div>
+      <div class="card-body laudo-fields">
+        {% for field, label, required in [
+          ('defeito_relatado','Defeito relatado pelo cliente', True),
+          ('inspecao_visual','Inspecao visual', True),
+          ('testes_realizados','Testes realizados', True),
+          ('instrumentos_metodos','Instrumentos e metodos', False),
+          ('medicoes','Medicoes', False),
+          ('diagnostico_tecnico','Diagnostico tecnico', True),
+          ('causa_provavel','Causa provavel', False),
+          ('servicos_realizados','Servicos realizados', False),
+          ('pecas_utilizadas','Pecas utilizadas', False),
+          ('conclusao_tecnica','Conclusao tecnica', True),
+          ('recomendacoes','Recomendacoes', False),
+          ('riscos_limitacoes','Riscos e limitacoes', False),
+          ('garantia','Garantia', False),
+          ('observacoes','Observacoes', False)
+        ] %}
+        <div class="form-group">
+          <label>{{ label }}{% if required %} *{% endif %}</label>
+          {% if field == 'garantia' %}
+          <input name="{{ field }}" value="{{ obj|attr(field) if obj else '' }}" maxlength="200">
+          {% else %}
+          <textarea name="{{ field }}" rows="4" maxlength="12000" {% if required %}required{% endif %}>{{ obj|attr(field) if obj else '' }}</textarea>
+          <div class="field-hint"><span data-count-for="{{ field }}">0</span>/12000</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="card-body form-actions sticky-actions">
+        <button class="btn btn-primary" type="submit">Salvar rascunho</button>
+        {% if obj %}<a href="{{ url_for('laudos.detalhe', id=obj.id) }}" class="btn btn-ghost">Visualizar</a>{% endif %}
+      </div>
+    </form>
+
+    {% if obj %}
+    <div class="card mt20">
+      <div class="card-header"><div class="card-title">Fotografias</div></div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('laudos.upload_foto', id=obj.id) }}" enctype="multipart/form-data" class="form-row fr4">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group">
+            <label>Categoria *</label>
+            <select name="tipo" required>
+              {% for key, label in foto_labels.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group"><label>Legenda</label><input name="legenda" maxlength="255"></div>
+          <div class="form-group"><label>Ordem</label><input type="number" name="ordem" value="0" min="0"></div>
+          <div class="form-group"><label>Foto *</label><input type="file" name="foto" accept="image/jpeg,image/png,image/webp" capture="environment" required></div>
+          <div class="form-actions"><button class="btn btn-primary btn-sm" type="submit">Adicionar foto</button></div>
+        </form>
+        <div class="photo-grid mt20">
+          {% for foto in obj.fotos|sort(attribute='ordem') %}
+          <div class="photo-card">
+            <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank"><img src="{{ url_for('laudos.foto', foto_id=foto.id) }}" alt="{{ foto.legenda or foto.tipo }}"></a>
+            <div class="muted-sm">{{ foto_labels.get(foto.tipo, foto.tipo) }}</div>
+            <div class="td-strong">{{ foto.legenda or '-' }}</div>
+            <form method="POST" action="{{ url_for('laudos.excluir_foto', foto_id=foto.id) }}" data-confirm="Remover esta foto?">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-xs" type="submit">Remover</button>
+            </form>
+          </div>
+          {% else %}
+          <div class="empty-state">Adicione as cinco fotos obrigatorias antes de finalizar.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <aside class="laudo-preview">
+    <div class="a4-preview">
+      <div class="preview-company">{{ cfg.nome_empresa if cfg else 'Zokyo Platform' }}</div>
+      <h2>Laudo tecnico</h2>
+      <div class="muted-sm">{{ obj.numero if obj and obj.numero else 'Numero gerado na finalizacao' }}</div>
+      <hr>
+      <p><strong>Cliente:</strong> {{ obj.cliente.nome if obj and obj.cliente else 'Cliente da OS selecionada' }}</p>
+      <p><strong>Equipamento:</strong> {% if obj and obj.os %}{{ obj.os.tipo_aparelho }} {{ obj.os.marca }} {{ obj.os.modelo }}{% else %}-{% endif %}</p>
+      <p><strong>Defeito:</strong> <span data-preview="defeito_relatado">{{ obj.defeito_relatado if obj else '-' }}</span></p>
+      <p><strong>Diagnostico:</strong> <span data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</span></p>
+      <p><strong>Conclusao:</strong> <span data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</span></p>
+      <div class="signature-row">Responsavel tecnico</div>
+      <div class="signature-row">Cliente / ciencia</div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  const form = document.getElementById('laudo-form');
+  if (!form) return;
+  let dirty = false;
+  form.addEventListener('input', (event) => {
+    dirty = true;
+    const field = event.target.getAttribute('name');
+    if (field) {
+      const counter = document.querySelector(`[data-count-for="${field}"]`);
+      if (counter) counter.textContent = event.target.value.length;
+      const preview = document.querySelector(`[data-preview="${field}"]`);
+      if (preview) preview.textContent = event.target.value || '-';
+    }
+  });
+  form.querySelectorAll('textarea').forEach((el) => {
+    const counter = document.querySelector(`[data-count-for="${el.name}"]`);
+    if (counter) counter.textContent = el.value.length;
+  });
+  form.addEventListener('submit', () => { dirty = false; });
+  window.addEventListener('beforeunload', (event) => {
+    if (!dirty) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+})();
+</script>
+{% endblock %}

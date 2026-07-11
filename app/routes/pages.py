@@ -33,7 +33,8 @@ from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models import (OrdemServico, Cliente, Peca, Fornecedor, Transacao,
                         Usuario, OSHistorico, Configuracao, ColetaAgendada,
-                        OSFoto, STATUS_COLETA_LABELS, registrar)
+                        OSFoto, STATUS_COLETA_LABELS, registrar, LaudoTecnico,
+                        LAUDO_STATUS_LABELS, LAUDO_TIPOS_LABELS)
 from app.models.ordem_servico import STATUS_OS, STATUS_OS_LABELS
 from app.utils.auth import page_nivel_required
 from app.utils.sanitizers import sanitize_text, sanitize_email, sanitize_cpf, sanitize_cpf_cnpj, sanitize_phone, sanitize_cep
@@ -834,6 +835,10 @@ def os_detalhe(id):
          "quantidade": p.quantidade,
          "preco_venda": float(p.preco_venda or p.custo or 0)}
         for p in pecas_estoque])
+    laudos = (LaudoTecnico.query
+              .filter_by(os_id=os_obj.id)
+              .order_by(LaudoTecnico.criado_em.desc())
+              .all())
 
     # Bug #8: nivel_usuario não era passado ao template → buttons admin sumiam
     nivel_usuario = session.get("nivel", "operacional")
@@ -841,7 +846,9 @@ def os_detalhe(id):
     return render_template("pages/os_detalhe.html", active="os",
         os=os_obj, status_map=STATUS_MAP, historico=historico,
         pecas_dict=pecas_dict, pecas_estoque_json=pecas_estoque_json,
-        nivel_usuario=nivel_usuario)
+        nivel_usuario=nivel_usuario, laudos=laudos,
+        laudo_status_labels=LAUDO_STATUS_LABELS,
+        laudo_tipo_labels=LAUDO_TIPOS_LABELS)
 
 
 @pages_bp.route("/os/<int:id>/status", methods=["POST"])

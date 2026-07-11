@@ -74,6 +74,37 @@
       </div>
     </div>
 
+    <!-- Laudos -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Laudos tecnicos</div>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('laudos.novo', os_id=os.id) }}">Criar laudo</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Numero</th><th>Tipo</th><th>Status</th><th>Versao</th><th>Emissao</th><th></th></tr></thead>
+          <tbody>
+            {% for laudo in laudos %}
+            <tr>
+              <td class="td-strong">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</td>
+              <td>{{ laudo_tipo_labels.get(laudo.tipo, laudo.tipo) }}</td>
+              <td><span class="badge {{ 'b-green' if laudo.status == 'finalized' else 'b-red' if laudo.status == 'cancelled' else 'b-amber' }}"><span class="dot"></span>{{ laudo_status_labels.get(laudo.status, laudo.status) }}</span></td>
+              <td class="td-mono">{{ laudo.versao }}</td>
+              <td>{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</td>
+              <td class="txt-r">
+                <a class="btn btn-ghost btn-xs" href="{{ url_for('laudos.detalhe', id=laudo.id) }}">Abrir</a>
+                {% if laudo.status == 'draft' %}<a class="btn btn-primary btn-xs" href="{{ url_for('laudos.editar', id=laudo.id) }}">Editar</a>{% endif %}
+                {% if laudo.pdf_path %}<a class="btn btn-ghost btn-xs" href="{{ url_for('laudos.baixar_pdf', id=laudo.id) }}">PDF</a>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="td-empty">Nenhum laudo vinculado a esta OS.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- Fotos -->
     {% if os.fotos %}
     <div class="card">
