@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
-from werkzeug.security import generate_password_hash, check_password_hash
+
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from app.extensions import db
 
 PERFIS = ("admin","operacional","cadastro","consulta","financeiro")
@@ -16,12 +18,21 @@ NIVEIS = PERFIS
 class Usuario(db.Model):
     __tablename__ = "usuarios"
     id         = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome       = db.Column(db.String(120), nullable=False)
     email      = db.Column(db.String(120), nullable=False, unique=True)
     senha_hash = db.Column(db.String(256), nullable=False)
     nivel      = db.Column(db.String(20), nullable=False, default="operacional")
     ativo      = db.Column(db.Boolean, default=True)
     criado_em  = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    totp_secret_encrypted = db.Column(db.Text)
+    totp_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    recovery_codes_hash = db.Column(db.JSON)
+    permissoes_extra = db.Column(db.JSON)
+    permissoes_negadas = db.Column(db.JSON)
+    onboarding_completed = db.Column(db.Boolean, default=True, nullable=False)
+    security_version = db.Column(db.Integer, default=1, nullable=False)
+    organization = db.relationship("Organization", backref=db.backref("usuarios", lazy=True))
 
     def set_senha(self, senha):
         self.senha_hash = generate_password_hash(senha)
@@ -30,4 +41,7 @@ class Usuario(db.Model):
     def to_dict(self):
         return {"id":self.id,"nome":self.nome,"email":self.email,
                 "nivel":self.nivel,"ativo":self.ativo,
-                "criado_em":self.criado_em.isoformat()}
+                "criado_em":self.criado_em.isoformat(),
+                "totp_enabled": self.totp_enabled,
+                "permissoes_extra": self.permissoes_extra or [],
+                "permissoes_negadas": self.permissoes_negadas or []}

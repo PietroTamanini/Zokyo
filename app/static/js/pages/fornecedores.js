@@ -24,7 +24,7 @@ function abrirModalNovoFornecedor() {
         <div class="form-group"><label>Endereço</label><input type="text" name="endereco" placeholder="Rua, nº, complemento"></div>
       </div>
       <div class="form-group"><label>Cidade</label><input type="text" name="cidade" placeholder="Ex: Joinville"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
       </div>
@@ -57,7 +57,7 @@ function abrirModalEditarFornecedor(id) {
         <div class="form-group"><label>Endereço</label><input type="text" name="endereco" value="${f.endereco || ''}" placeholder="Rua, nº, complemento"></div>
       </div>
       <div class="form-group"><label>Cidade</label><input type="text" name="cidade" value="${f.cidade || ''}" placeholder="Ex: Joinville"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
       </div>

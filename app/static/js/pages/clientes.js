@@ -81,7 +81,7 @@ function clienteFormHtml(c = null) {
           <option value="0" ${!c.ativo ? 'selected' : ''}>Inativo</option>
         </select>
       </div>` : ''}
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="button" class="btn btn-primary" data-action="cliente-salvar" data-id="${c?.id || ''}">Salvar</button>
       </div>
@@ -154,7 +154,7 @@ function showFieldError(form, field, message) {
     input.parentElement.appendChild(hint);
   }
   hint.textContent = message;
-  hint.style.display = 'block';
+  hint.classList.remove('hidden');
   input.focus();
 }
 

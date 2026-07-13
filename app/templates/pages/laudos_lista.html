@@ -1,7 +1,13 @@
 {% extends 'base.html' %}
 {% block title %}Laudos - Zokyo{% endblock %}
 {% block breadcrumb %}Laudos{% endblock %}
-{% block topbar_action %}<a href="{{ url_for('laudos.novo') }}" class="btn btn-primary btn-sm">Novo laudo</a>{% endblock %}
+{% block topbar_action %}
+<div class="flex-gap">
+  {% if session.get('nivel') == 'admin' %}<a href="{{ url_for('laudos.templates') }}" class="btn btn-ghost btn-sm">Templates</a>{% endif %}
+  <a href="{{ url_for('laudos.exportar_csv', q=filtros.q, status=filtros.status, tipo=filtros.tipo, tecnico=filtros.tecnico) }}" class="btn btn-outline btn-sm">Exportar CSV</a>
+  <a href="{{ url_for('laudos.novo') }}" class="btn btn-primary btn-sm">Novo laudo</a>
+</div>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">

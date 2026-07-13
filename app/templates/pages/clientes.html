@@ -9,7 +9,7 @@
     <div class="page-title">Clientes</div>
     <div class="page-sub">{{ clientes | length }} clientes cadastrados</div>
   </div>
-  <button class="btn btn-primary" data-action="cliente-novo">+ Novo Cliente</button>
+  {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<button class="btn btn-primary" data-action="cliente-novo">+ Novo Cliente</button>{% endif %}
 </div>
 
 <form method="GET" class="filter-bar">
@@ -29,33 +29,37 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>Endereco</th><th>Cidade</th><th>Status</th><th>OS</th><th>Acoes</th></tr>
+        <tr><th>Nome</th><th class="th-hide-sm">CPF/CNPJ</th><th>Telefone</th><th class="th-hide-sm">Endereco</th><th class="th-hide-sm">Cidade</th><th class="th-hide-sm">Status</th><th class="th-hide-sm">OS</th><th>Acoes</th></tr>
       </thead>
       <tbody>
         {% for c in clientes %}
         <tr>
           <td class="td-strong">{{ c.nome }}</td>
-          <td class="td-mono txt-faint">{{ c.documento or '—' }}</td>
+          <td class="td-mono txt-faint td-hide-sm">{{ c.documento or '—' }}</td>
           <td>{{ c.telefone }}</td>
-          <td class="td-muted">{{ c.endereco }}{% if c.numero_casa %}, {{ c.numero_casa }}{% endif %}</td>
-          <td>{% if c.cidade %}{{ c.cidade }}{% endif %}{% if c.uf %}/{{ c.uf }}{% endif %}</td>
-          <td>
+          <td class="td-muted td-hide-sm">{{ c.endereco }}{% if c.numero_casa %}, {{ c.numero_casa }}{% endif %}</td>
+          <td class="td-hide-sm">{% if c.cidade %}{{ c.cidade }}{% endif %}{% if c.uf %}/{{ c.uf }}{% endif %}</td>
+          <td class="td-hide-sm">
             {% if c.ativo %}
               <span class="badge b-green"><span class="dot"></span>Ativo</span>
             {% else %}
               <span class="badge b-gray"><span class="dot"></span>Inativo</span>
             {% endif %}
           </td>
-          <td class="td-mono txt-blue">{{ c.os_count }}</td>
+          <td class="td-mono txt-blue td-hide-sm">{{ c.os_count }}</td>
           <td data-stop>
             <div class="action-wrap">
-              <button class="btn btn-outline btn-xs"
-                      data-action="cliente-editar" data-id="{{ c.id }}">✏ Editar</button>
+              {% if is_admin %}<a class="btn btn-ghost btn-xs" href="{{ url_for('privacy.client_privacy', client_id=c.id) }}">Privacidade</a>{% endif %}
+              {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<button class="btn btn-outline btn-xs"
+                      data-action="cliente-editar" data-id="{{ c.id }}">Editar</button>
+              {% endif %}
+              {% if is_admin %}
               <form method="POST" action="{{ url_for('pages.cliente_deletar', id=c.id) }}"
-                    data-confirm="Excluir este cliente?" class="inline-form">
+                    data-confirm="Arquivar este cliente preservando o historico?" class="inline-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+                <button type="submit" class="btn btn-danger btn-xs" aria-label="Arquivar cliente">Arquivar</button>
               </form>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -84,5 +88,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/clientes.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/clientes.js') }}"></script>
 {% endblock %}

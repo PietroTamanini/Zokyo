@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Sessoes ativas - Zokyo{% endblock %}
+{% block breadcrumb %}Seguranca / Sessoes{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Sessoes e dispositivos</div><div class="page-sub">Acessos recentes vinculados a sua conta</div></div>
+  <form method="POST" action="{{ url_for('auth.sessions_revoke_others') }}" data-confirm="Encerrar todas as outras sessoes?">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-outline" type="submit">Encerrar outras sessoes</button>
+  </form>
+</div>
+{% include 'partials/_flash.html' %}
+<div class="card"><div class="table-wrap"><table>
+  <thead><tr><th>Dispositivo</th><th>IP</th><th>Inicio</th><th>Ultima atividade</th><th>Situacao</th><th></th></tr></thead>
+  <tbody>
+  {% for item in records %}
+    <tr class="tr-static">
+      <td><div class="td-strong">{{ item.user_agent or 'Desconhecido' }}</div></td>
+      <td class="td-mono">{{ item.ip_address or '-' }}</td>
+      <td>{{ item.created_at|fmtdata }}</td>
+      <td>{{ item.last_seen_at|fmtdata }}</td>
+      <td>
+        {% if item.token_hash == current_hash %}<span class="badge b-blue">Atual</span>
+        {% elif item.is_active %}<span class="badge b-green">Ativa</span>
+        {% else %}<span class="badge b-gray">Encerrada</span>{% endif %}
+      </td>
+      <td>{% if item.is_active %}<form method="POST" action="{{ url_for('auth.session_revoke', record_id=item.id) }}" data-confirm="Encerrar esta sessao?">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm" type="submit">Encerrar</button>
+      </form>{% endif %}</td>
+    </tr>
+  {% else %}<tr><td colspan="6" class="td-empty">Nenhuma sessao registrada.</td></tr>{% endfor %}
+  </tbody>
+</table></div></div>
+{% endblock %}

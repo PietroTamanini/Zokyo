@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Erro {{ code }} - Zokyo{% endblock %}
+{% block breadcrumb %}Erro {{ code }}{% endblock %}
+{% block content %}
+<section class="error-state" role="alert" aria-labelledby="error-title">
+  <div class="error-code" aria-hidden="true">{{ code }}</div>
+  <h1 class="page-title" id="error-title">Não foi possível concluir</h1>
+  <p>{{ message }}</p>
+  {% if request_id and code >= 500 %}<p class="error-reference">Referência para o suporte: <code>{{ request_id }}</code></p>{% endif %}
+  <div class="error-actions">
+    <button class="btn btn-ghost" type="button" data-action="history-back">Voltar</button>
+    <a class="btn btn-primary" href="{{ url_for('pages.dashboard') }}">Ir ao dashboard</a>
+  </div>
+</section>
+{% endblock %}

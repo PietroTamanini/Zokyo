@@ -20,7 +20,7 @@
 }
 
 .tab-btn.active {
-  color: var(--blue);
+  color: var(--blue-text);
   border-bottom-color: var(--blue);
 }
 

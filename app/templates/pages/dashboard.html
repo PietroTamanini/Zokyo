@@ -5,7 +5,7 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-title">📊 Dashboard Operacional</div>
+    <div class="page-title">Dashboard operacional</div>
   </div>
 </div>
 
@@ -23,10 +23,10 @@
 <div class="card mb20">
   <div class="card-body card-body-compact">
     <div class="flex jbet items-c mb16">
-      <span class="fw7 muted-sm">🎯 Meta de Receita Mensal</span>
+      <span class="fw7 muted-sm">Meta de receita mensal</span>
       <span class="fw8 txt-blue">{{ pct_meta }}% — {{ receitas_mes | moeda }} / {{ meta_receita_mensal | moeda }}</span>
     </div>
-    <div class="prog-wrap"><div class="prog-fill prog-fill-dynamic" style="--progress:{{ pct_meta }}%;--progress-color:{{ 'var(--green)' if pct_meta >= 100 else 'var(--blue)' }}"></div></div>
+    <div class="prog-wrap"><progress class="progress {{ 'is-success' if pct_meta >= 100 }}" value="{{ [pct_meta, 100]|min }}" max="100">{{ pct_meta }}%</progress></div>
   </div>
 </div>
 {% endif %}
@@ -34,13 +34,13 @@
 <!-- CAIXA + VENDAS DIA -->
 <div class="stats-grid stats-grid-2">
   <div class="stat-card c-blue">
-    <div class="stat-icon">💰</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M16 8.5c-.8-.7-2-1-3.4-1-1.8 0-3.1.8-3.1 2s1.1 1.8 3.3 2.3 3.2 1.1 3.2 2.5-1.4 2.2-3.4 2.2c-1.5 0-2.9-.4-3.8-1.2M12 5v14"/></svg></div>
     <div class="stat-label">Caixa Acumulado</div>
     <div class="stat-value stat-value-md">{{ caixa | moeda }}</div>
     <div class="stat-meta">Receitas pagas − Despesas pagas (total)</div>
   </div>
   <div class="stat-card c-green">
-    <div class="stat-icon">🛒</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 10.4A2 2 0 0 0 9.4 16h7.8a2 2 0 0 0 2-1.6L21 7H6"/></svg></div>
     <div class="stat-label">Vendas Hoje</div>
     <div class="stat-value stat-value-md">{{ vendas_dia | moeda }}</div>
     <div class="stat-meta">Receitas pagas no dia</div>
@@ -69,25 +69,25 @@
 <!-- STATS OPERACIONAIS -->
 <div class="stats-grid mb24">
   <div class="stat-card c-blue" data-href="/os">
-    <div class="stat-icon">📋</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></svg></div>
     <div class="stat-label">OS em Aberto</div>
     <div class="stat-value">{{ os_abertas }}</div>
     <div class="stat-meta">{{ os_atrasadas }} atrasada(s)</div>
   </div>
   <div class="stat-card c-green" data-href="/os?status=pronto">
-    <div class="stat-icon">✅</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></div>
     <div class="stat-label">Prontos p/ Retirada</div>
     <div class="stat-value">{{ os_prontas }}</div>
     <div class="stat-meta">{{ os_aprovacao }} aguardando aprovação</div>
   </div>
   <div class="stat-card c-amber" data-href="/estoque?critico=1">
-    <div class="stat-icon">📦</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="M4 7v10l8 4 8-4V7M12 11v10"/></svg></div>
     <div class="stat-label">Estoque Crítico</div>
     <div class="stat-value">{{ estoque_critico }}</div>
     <div class="stat-meta">{{ total_pecas }} peças no total · {{ valor_estoque | moeda }}</div>
   </div>
   <div class="stat-card c-blue" data-href="/clientes">
-    <div class="stat-icon">👥</div>
+    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 4a4 4 0 0 1 0 8M17 15a5 5 0 0 1 4 5"/></svg></div>
     <div class="stat-label">Clientes Ativos</div>
     <div class="stat-value">{{ total_clientes }}</div>
     <div class="stat-meta">{{ total_fornecedores }} fornecedores · {{ total_usuarios }} usuários</div>

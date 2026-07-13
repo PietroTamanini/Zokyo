@@ -5,15 +5,14 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-title">📦 Estoque de Peças</div>
+    <div class="page-title">Estoque de peças</div>
     <div class="page-sub">{{ paginacao.total if paginacao is defined else (pecas|length) }} itens · valor total {{ valor_total | moeda }}</div>
   </div>
-  <button class="btn btn-primary" data-action="peca-nova">+ Nova Peça</button>
+  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('pages.estoque_movimentacoes') }}">Movimentacoes</a>{% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary" data-action="peca-nova">+ Nova Peça</button>{% endif %}</div>
 </div>
 
 {% if criticos %}
 <div class="alert a-red mb20">
-  <span>⚠️</span>
   <div><strong>{{ criticos|length }} peça(s) com estoque crítico:</strong> {{ criticos|map(attribute='nome')|join(', ') }}</div>
 </div>
 {% endif %}
@@ -85,7 +84,7 @@
               <span class="muted-xs">/ {{ p.estoque_minimo }}</span>
             </div>
             <div class="prog-wrap prog-stock">
-              <div class="prog-fill prog-fill-dynamic" style="--progress:{{ pct }}%;--progress-color:{{ 'var(--red)' if critico else 'var(--green)' }}"></div>
+              <progress class="progress {{ 'stock-critical' if critico else 'stock-ok' }}" value="{{ [pct, 100]|min }}" max="100">{{ pct }}%</progress>
             </div>
           </td>
           <td class="th-hide-sm td-muted">{{ p.localizacao or '—' }}</td>
@@ -93,19 +92,21 @@
           <td class="td-mono txt-blue fw7">{{ p.preco_venda | moeda }}</td>
           <td data-stop>
             <div class="action-row">
-              <button class="btn btn-outline btn-xs" data-action="peca-movimentar" data-id="{{ p.id }}">↕</button>
+              {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-outline btn-xs" data-action="peca-movimentar" data-id="{{ p.id }}">↕</button>{% endif %}
+              {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-ghost btn-xs" data-action="peca-lote" data-id="{{ p.id }}">Lote</button>{% endif %}
+              {% if is_admin %}
               <form method="POST" action="{{ url_for('pages.peca_deletar', id=p.id) }}"
                     data-confirm="Excluir esta peça?" class="inline-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+                <button type="submit" class="btn btn-danger btn-xs" aria-label="Excluir peça">Excluir</button>
               </form>
+              {% endif %}
             </div>
           </td>
         </tr>
         {% else %}
         <tr><td colspan="8">
           <div class="empty">
-            <div class="empty-icon">📦</div>
             <div class="empty-title">Nenhuma peça cadastrada</div>
           </div>
         </td></tr>
@@ -131,6 +132,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/estoque.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/estoque.js') }}"></script>
 {% endblock %}
 

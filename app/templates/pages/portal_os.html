@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Acompanhamento da OS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/public.css') }}">
+</head>
+<body class="public-page">
+<main class="public-shell">
+  <div class="public-brand"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>{{ APP_NAME }}</span></div>
+  <article class="public-card">
+  <header class="public-header"><div class="public-kicker">Acompanhamento seguro</div><h1 class="public-title">Ordem de serviço #{{ '%04d' % os.id }}</h1><p class="public-subtitle">Consulte as informações atuais do atendimento.</p></header>
+  <div class="public-body">
+  {% if erro %}<div class="public-error">{{ erro }}</div>{% endif %}
+  <div class="public-detail-list">
+  <div class="public-detail-row"><span>Status</span><span><span class="public-status">{{ os.status.replace('_', ' ')|title }}</span></span></div>
+  <div class="public-detail-row"><span>Equipamento</span><strong>{{ os.tipo_aparelho or '' }} {{ os.marca or '' }} {{ os.modelo or '' }}</strong></div>
+  <div class="public-detail-row"><span>Entrada</span><strong>{{ os.data_entrada.strftime('%d/%m/%Y') if os.data_entrada else '-' }}</strong></div>
+  <div class="public-detail-row"><span>Previsão</span><strong>{{ os.data_prev.strftime('%d/%m/%Y') if os.data_prev else '-' }}</strong></div>
+  </div>
+
+  {% if portal_token.purpose == 'budget' %}
+  <h2 class="public-section-title">Orçamento</h2>
+  <div class="public-detail-row"><span>Valor total</span><span class="public-total">R$ {{ '%.2f'|format(os.valor_total)|replace('.', ',') }}</span></div>
+  {% if os.orcamento_status %}
+  <div class="public-notice">Decisão registrada: <strong>{{ 'Aprovado' if os.orcamento_status == 'approved' else 'Rejeitado' }}</strong>.</div>
+  {% elif not portal_token.usado_em %}
+  <div class="public-notice">Confirme somente depois de revisar o valor. A decisão fica registrada e este link não permite uma segunda resposta.</div>
+  <form method="POST" class="public-actions">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button class="public-button public-button-approve" name="decisao" value="approved" type="submit">Aprovar orçamento</button>
+    <button class="public-button public-button-reject" name="decisao" value="rejected" type="submit">Rejeitar orçamento</button>
+  </form>
+  {% endif %}
+  {% endif %}
+  </div></article>
+</main>
+</body>
+</html>

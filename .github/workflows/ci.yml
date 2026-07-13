@@ -4,10 +4,27 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 5 * * *"
 
 jobs:
   python:
     runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: zokyo_ci
+          MARIADB_USER: zokyo
+          MARIADB_PASSWORD: zokyo_ci_password
+          MARIADB_ROOT_PASSWORD: root_ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -21,6 +38,10 @@ jobs:
         run: python -m compileall app tests
       - name: Lint
         run: ruff check app tests scripts
+      - name: Security audit
+        run: |
+          bandit -q -r app scripts -x tests -lll
+          pip-audit -r requirements-prod.txt
       - name: Test
         env:
           DATABASE_URL: sqlite:///:memory:
@@ -32,12 +53,49 @@ jobs:
           SECRET_KEY: ci-secret-key
         run: |
           coverage run -m pytest -q
-          coverage report
+          coverage report --fail-under=65
+          coverage report --include="app/models/*,app/services/*" --omit="app/services/cplus_firebird_importer.py" --fail-under=80
       - name: Validate migrations command
         env:
           DATABASE_URL: sqlite:///:memory:
           SECRET_KEY: ci-secret-key
         run: python -m flask --app wsgi:app db current
+      - name: Upgrade clean MariaDB schema
+        env:
+          FLASK_ENV: production
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          SECRET_KEY: ci-production-secret-key
+          ENCRYPTION_SALT: ci-encryption-salt
+          DISABLE_CREATE_ALL: "true"
+          SCHEDULER_ENABLED: "false"
+        run: |
+          python -m flask --app wsgi:app db upgrade
+          python -m flask --app wsgi:app db current
+          python -m flask --app wsgi:app db check
+      - name: Test concurrent report numbering on MariaDB
+        env:
+          FLASK_ENV: production
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          SECRET_KEY: ci-production-secret-key
+          ENCRYPTION_SALT: ci-encryption-salt
+          DISABLE_CREATE_ALL: "true"
+          SCHEDULER_ENABLED: "false"
+        run: python scripts/test_laudo_concurrency.py
+      - name: Load smoke test on MariaDB
+        env:
+          FLASK_ENV: production
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          SECRET_KEY: ci-production-secret-key
+          ENCRYPTION_SALT: ci-encryption-salt
+          DISABLE_CREATE_ALL: "true"
+          SCHEDULER_ENABLED: "false"
+          GUNICORN_BIND: 127.0.0.1:8000
+        run: |
+          gunicorn -c gunicorn.conf.py wsgi:app &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          for i in {1..30}; do curl -fsS http://127.0.0.1:8000/healthz && break || sleep 1; done
+          python scripts/load_test.py --requests 200 --concurrency 20 --max-p95-ms 1000
       - name: Validate templates
         run: |
           python - <<'PY'
@@ -49,23 +107,8 @@ jobs:
               env.parse(path.read_text(encoding="utf-8"))
           print("templates ok")
           PY
-      - name: Secret scan baseline
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          needles = ("BEGIN RSA PRIVATE KEY", "BEGIN OPENSSH PRIVATE KEY", "aws_secret_access_key", "ghp_")
-          for path in Path(".").rglob("*"):
-              if ".git" in path.parts or path.is_dir():
-                  continue
-              try:
-                  text = path.read_text(encoding="utf-8", errors="ignore")
-              except Exception:
-                  continue
-              for needle in needles:
-                  if needle in text:
-                      raise SystemExit(f"possible secret marker {needle!r} in {path}")
-          print("secret markers ok")
-          PY
+      - name: Secret scan
+        run: git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
 
   node:
     runs-on: ubuntu-latest
@@ -76,6 +119,24 @@ jobs:
           node-version: "20"
           cache: npm
       - name: Install Node dependencies
-        run: npm install
-      - name: Validate WhatsApp server
+        run: npm ci
+      - name: Validate JavaScript
         run: npm test
+
+  container-security:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build -t zokyo:${{ github.sha }} .
+      - name: Scan image for known vulnerabilities
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: zokyo:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

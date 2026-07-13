@@ -1,13 +1,13 @@
 """routes/fornecedores.py — CRUD de fornecedores (API JSON)."""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify
+
 from app.extensions import db
 from app.models import Fornecedor, registrar
-from app.utils.auth import api_login_required as login_required, nivel_required
-from app.utils.validators import validar_email, validar_cnpj, validar_telefone, validar_cep
-from app.utils.sanitizers import (
-    sanitize_text, sanitize_email, sanitize_cnpj, sanitize_phone, sanitize_cep
-)
+from app.utils.auth import api_login_required as login_required
+from app.utils.auth import nivel_required
 from app.utils.request_data import get_request_data
+from app.utils.sanitizers import sanitize_cep, sanitize_cnpj, sanitize_email, sanitize_phone, sanitize_text
+from app.utils.validators import validar_cep, validar_cnpj, validar_email, validar_telefone
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
 
@@ -112,7 +112,7 @@ def atualizar(id):
 @nivel_required("admin")
 def deletar(id):
     f = db.get_or_404(Fornecedor, id)
-    registrar("exclusao", "fornecedores", f"Fornecedor removido: {f.nome}")
-    db.session.delete(f)
+    f.ativo = False
+    registrar("arquivamento", "fornecedores", f"Fornecedor arquivado: {f.nome}")
     db.session.commit()
-    return jsonify({"success": True, "mensagem": "Fornecedor removido"})
+    return jsonify({"success": True, "mensagem": "Fornecedor arquivado; historico preservado"})

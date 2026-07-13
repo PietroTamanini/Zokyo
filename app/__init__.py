@@ -13,18 +13,16 @@ Fixes aplicados:
   V-06 — APScheduler limpa tabelas de rate limit a cada 24h
   V-09 — Flag em memória evita SELECT em cada request após primeiro usuário criado
 """
-import os
 import secrets
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 
-from flask import Flask, abort, g, request, session, redirect, url_for
+from flask import Flask, abort, g, redirect, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from config import config as config_map
 from app.extensions import db, migrate
-
+from config import config as config_map
 
 # Lock para serializar o endpoint de primeiro acesso (fix M02)
 _primeiro_acesso_lock = threading.Lock()
@@ -41,6 +39,12 @@ def create_app(config_name="default"):
     # Chama init_app da config (ProductionConfig valida segredos)
     if hasattr(cfg_obj, "init_app"):
         cfg_obj.init_app(app)
+
+    from app.utils.logging_config import configure_logging
+    from app.utils.observability import init_sentry, observe_response, start_request_metrics
+
+    configure_logging(app)
+    init_sentry(app)
 
     # ── C04: ProxyFix — confia apenas em PROXY_COUNT proxies ──────────────
     proxy_count = app.config.get("PROXY_COUNT", 1)
@@ -59,6 +63,10 @@ def create_app(config_name="default"):
 
     db.init_app(app)
     migrate.init_app(app, db)
+    from app.utils.tenancy import register_tenant_scope
+    register_tenant_scope()
+    from app.cli import register_cli
+    register_cli(app)
 
     # ── Context processors ────────────────────────────────────────────────
     # ── Branding centralizado ─────────────────────────────────────────────
@@ -75,7 +83,8 @@ def create_app(config_name="default"):
     @app.context_processor
     def inject_globals():
         from flask import session as _s
-        from app.models import Usuario, Configuracao
+
+        from app.models import Configuracao, Usuario
         usuario = None
         if "usuario_id" in _s:
             try:
@@ -118,11 +127,19 @@ def create_app(config_name="default"):
     def gerar_csp_nonce():
         """V-03: gera nonce criptograficamente único por request."""
         g.csp_nonce = secrets.token_urlsafe(16)
+        supplied_request_id = request.headers.get("X-Request-ID", "")
+        if supplied_request_id and len(supplied_request_id) <= 64 and supplied_request_id.replace("-", "").isalnum():
+            g.request_id = supplied_request_id
+        else:
+            g.request_id = secrets.token_hex(16)
+        start_request_metrics()
 
     @app.before_request
     def protect_csrf():
         """CSRF protection para métodos mutantes."""
         if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+            return
+        if request.endpoint in app.config.get("CSRF_EXEMPT_ENDPOINTS", set()):
             return
         token    = session.get("_csrf_token")
         supplied = (
@@ -197,9 +214,38 @@ def create_app(config_name="default"):
             session.clear()
             return redirect(url_for("auth.login_page"))
 
+        if not u.organization or not u.organization.ativo:
+            session.clear()
+            return redirect(url_for("auth.login_page"))
+
+        if session.get("security_version") is None and app.config.get("ALLOW_LEGACY_SESSIONS"):
+            session["security_version"] = u.security_version
+        elif session.get("security_version") != u.security_version:
+            session.clear()
+            return redirect(url_for("auth.login_page"))
+
+        from app.services.user_sessions import validate_session_record
+        if session.get("session_token"):
+            if not validate_session_record(u):
+                session.clear()
+                return redirect(url_for("auth.login_page"))
+        elif not app.config.get("ALLOW_LEGACY_SESSIONS"):
+            session.clear()
+            return redirect(url_for("auth.login_page"))
+
+        g.organization_id = u.organization_id
+
         # Sincroniza papel na sessão se foi alterado (promoção/rebaixamento)
         if session.get("nivel") != u.nivel:
             session["nivel"] = u.nivel
+
+        if (
+            app.config.get("REQUIRE_ADMIN_2FA")
+            and u.nivel == "admin"
+            and not u.totp_enabled
+            and ep not in {"auth.two_factor_setup", "auth.logout"}
+        ):
+            return redirect(url_for("auth.two_factor_setup"))
 
     @app.before_request
     def primeiro_acesso_redirect():
@@ -225,7 +271,7 @@ def create_app(config_name="default"):
             or request.endpoint in (
                 "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
                 "auth.login_page", "auth.login_post",
-                "pages.service_worker", "health.healthz", "health.readyz",
+                "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
         )
         if skip:
@@ -270,14 +316,16 @@ def create_app(config_name="default"):
         # Templates devem usar: <script nonce="{{ csp_nonce }}">
         is_prod = app.config.get("SESSION_COOKIE_SECURE", False)
         upgrade = " upgrade-insecure-requests;" if is_prod else ""
+        connect_src = "connect-src 'self' https://viacep.com.br;"
+        if not is_prod:
+            connect_src = "connect-src 'self' http://localhost:* ws://localhost:* https://viacep.com.br;"
         csp = (
             f"default-src 'self'; "
-            f"script-src 'self' 'nonce-{nonce}' https://cdn.jsdelivr.net; "
-            f"style-src 'self' 'unsafe-inline' "
-            f"https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-            f"font-src 'self' https://fonts.gstatic.com; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'nonce-{nonce}'; "
+            f"font-src 'self'; "
             f"img-src 'self' data:; "
-            f"connect-src 'self' http://localhost:* ws://localhost:* https://viacep.com.br; "
+            f"{connect_src} "
             f"frame-ancestors 'none'; "
             f"base-uri 'self'; "
             f"form-action 'self';"
@@ -293,7 +341,8 @@ def create_app(config_name="default"):
 
         # Remover header que revela a stack
         response.headers.pop("Server", None)
-        return response
+        response.headers["X-Request-ID"] = getattr(g, "request_id", "")
+        return observe_response(response)
 
     @app.teardown_request
     def rollback_on_error(exc):
@@ -327,36 +376,38 @@ def create_app(config_name="default"):
         return str(v)
 
     # ── Blueprints ────────────────────────────────────────────────────────
-    from app.routes.auth            import auth_bp
-    from app.routes.pages           import pages_bp
-    from app.routes.clientes        import clientes_bp
-    from app.routes.os              import os_bp
-    from app.routes.pecas           import pecas_bp
-    from app.routes.fornecedores    import fornecedores_bp
-    from app.routes.transacoes      import transacoes_bp
-    from app.routes.usuarios        import usuarios_bp
+    from app.routes.auth import auth_bp
+    from app.routes.clientes import clientes_bp
+    from app.routes.configuracoes import cfg_bp
     from app.routes.defeitos_padrao import defeitos_bp
-    from app.routes.configuracoes   import cfg_bp
-    from app.routes.logs            import logs_bp
-    from app.routes.importacao      import importacao_bp
-    from app.routes.laudos          import laudos_bp
-    from app.routes.health          import health_bp
+    from app.routes.fornecedores import fornecedores_bp
+    from app.routes.health import health_bp
+    from app.routes.importacao import importacao_bp
+    from app.routes.laudos import laudos_bp
+    from app.routes.logs import logs_bp
+    from app.routes.os import os_bp
+    from app.routes.pages import pages_bp
+    from app.routes.pecas import pecas_bp
+    from app.routes.platform import platform_bp
+    from app.routes.portal import portal_bp
+    from app.routes.privacy import privacy_bp
+    from app.routes.relatorios import relatorios_bp
+    from app.routes.transacoes import transacoes_bp
+    from app.routes.usuarios import usuarios_bp
 
     for bp in (
         auth_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
         fornecedores_bp, transacoes_bp, usuarios_bp, defeitos_bp,
-        cfg_bp, logs_bp, importacao_bp, laudos_bp, health_bp,
+        cfg_bp, logs_bp, importacao_bp, laudos_bp, health_bp, portal_bp, relatorios_bp, platform_bp, privacy_bp,
     ):
         app.register_blueprint(bp)
 
 
     # ── Handlers de excecao global ────────────────────────────────────────
-    from app.utils.exceptions import AppError
-    from flask import jsonify as _jsonify, render_template as _render_template
+    from flask import jsonify as _jsonify
+    from flask import render_template as _render_template
 
-    @app.errorhandler(AppError)
-    def handle_app_error(exc):
-        return _jsonify(exc.to_dict()), exc.code
+    from app.utils.exceptions import AppError
 
     def _wants_json():
         if (request.path or "").startswith("/api/"):
@@ -365,9 +416,27 @@ def create_app(config_name="default"):
         return best == "application/json" and request.accept_mimetypes[best] > request.accept_mimetypes["text/html"]
 
     def _error_response(code, message):
+        request_id = getattr(g, "request_id", "")
         if _wants_json():
-            return _jsonify({"success": False, "erro": message}), code
-        return _render_template(f"errors/{code}.html", code=code, message=message), code
+            return _jsonify({"success": False, "erro": message, "code": code, "request_id": request_id}), code
+        template = f"errors/{code}.html" if code in {403, 404, 405, 500} else "errors/error.html"
+        return _render_template(template, code=code, message=message, request_id=request_id), code
+
+    @app.errorhandler(AppError)
+    def handle_app_error(exc):
+        if _wants_json():
+            payload = exc.to_dict()
+            payload.update(code=exc.code, request_id=getattr(g, "request_id", ""))
+            return _jsonify(payload), exc.code
+        return _error_response(exc.code, exc.message)
+
+    @app.errorhandler(400)
+    def bad_request(exc):
+        return _error_response(400, "Não foi possível processar os dados enviados.")
+
+    @app.errorhandler(401)
+    def unauthorized(exc):
+        return _error_response(401, "Sua sessão expirou ou a autenticação é necessária.")
 
     @app.errorhandler(403)
     def forbidden(exc):
@@ -381,32 +450,67 @@ def create_app(config_name="default"):
     def method_not_allowed(exc):
         return _error_response(405, "Metodo nao permitido.")
 
+    @app.errorhandler(422)
+    def unprocessable(exc):
+        return _error_response(422, "Os dados são válidos, mas violam uma regra da operação.")
+
+    @app.errorhandler(429)
+    def too_many_requests(exc):
+        return _error_response(429, "Muitas tentativas. Aguarde alguns instantes e tente novamente.")
+
+    @app.errorhandler(503)
+    def unavailable(exc):
+        return _error_response(503, "Serviço temporariamente indisponível. Tente novamente em instantes.")
+
     @app.errorhandler(500)
     def internal_error(exc):
         app.logger.error("Erro interno: %s", exc, exc_info=True)
         return _error_response(500, "Erro interno do servidor.")
 
-    with app.app_context():
-        from app.utils.rate_limit import LoginAttempt  # noqa: F401
-        if not app.config.get("DISABLE_CREATE_ALL", False):
-            db.create_all()
-
     # ── V-06 FIX: APScheduler — limpeza periódica das tabelas de rate limit ──
     # Evita crescimento indefinido de login_attempts e api_rate_limits.
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
+
+        from app.services.notifications import process_pending_notifications
+        from app.services.retention import apply_active_policies
+        from app.services.scheduled_reports import process_scheduled_reports
         from app.utils.rate_limit import limpar_rate_limit_antigos
 
         scheduler = BackgroundScheduler(daemon=True)
         scheduler.add_job(
-            func=lambda: _run_with_context(app, limpar_rate_limit_antigos),
+            func=lambda: _run_with_context(app, "limpar_rate_limit", limpar_rate_limit_antigos),
             trigger="interval",
             hours=24,
             id="limpar_rate_limit",
             replace_existing=True,
         )
-        scheduler.start()
-        app.logger.info("[Scheduler] Limpeza de rate limit agendada (24h).")
+        scheduler.add_job(
+            func=lambda: _run_with_context(app, "processar_notificacoes", process_pending_notifications),
+            trigger="interval",
+            minutes=1,
+            id="processar_notificacoes",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            func=lambda: _run_with_context(app, "aplicar_retencao", apply_active_policies),
+            trigger="interval",
+            hours=24,
+            id="aplicar_retencao",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            func=lambda: _run_with_context(app, "processar_relatorios", process_scheduled_reports),
+            trigger="interval", hours=1, id="processar_relatorios_agendados",
+            replace_existing=True, max_instances=1, coalesce=True,
+        )
+        if app.config.get("SCHEDULER_ENABLED", False):
+            scheduler.start()
+            app.logger.info("[Scheduler] Limpeza de rate limit agendada (24h).")
     except ImportError:
         app.logger.warning(
             "[Scheduler] APScheduler não instalado. "
@@ -416,16 +520,27 @@ def create_app(config_name="default"):
     except Exception as exc:
         app.logger.warning("[Scheduler] Erro ao iniciar scheduler: %s", exc)
 
+    @app.cli.command("run-scheduler")
+    def run_scheduler_command():
+        """Mantem o scheduler ativo em um processo dedicado."""
+        import time
+
+        if not app.config.get("SCHEDULER_ENABLED", False):
+            raise RuntimeError("Defina SCHEDULER_ENABLED=true somente no processo dedicado.")
+        while True:
+            time.sleep(3600)
+
     # Expõe o lock para o blueprint de auth (fix M02)
     app._primeiro_acesso_lock = _primeiro_acesso_lock
 
     return app
 
 
-def _run_with_context(app, func):
+def _run_with_context(app, job_name, func):
     """Executa função dentro do contexto da aplicação (necessário para DB)."""
     with app.app_context():
         try:
-            func()
+            from app.services.operational_alerts import run_job
+            run_job(job_name, func)
         except Exception as exc:
             app.logger.error("[Scheduler] Erro na tarefa agendada: %s", exc)

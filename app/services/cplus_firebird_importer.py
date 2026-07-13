@@ -14,8 +14,8 @@ from flask import current_app, has_app_context
 
 from app.extensions import db
 from app.models import Cliente, OrdemServico, OSHistorico, Peca
-from app.utils.sanitizers import sanitize_cep, sanitize_cpf_cnpj, sanitize_phone, sanitize_text
-from app.utils.validators import validar_cpf, validar_cnpj
+from app.utils.sanitizers import sanitize_cep, sanitize_phone, sanitize_text
+from app.utils.validators import validar_cnpj, validar_cpf
 
 
 class CPlusImportError(RuntimeError):

@@ -15,7 +15,6 @@ import os
 import secrets
 from typing import Any
 
-
 # ── Tokens seguros ────────────────────────────────────────────────────────────
 
 def gerar_token(length: int = 32) -> str:

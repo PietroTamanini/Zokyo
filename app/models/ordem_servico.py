@@ -5,9 +5,10 @@ Ordem de Serviço (OS) — coração do sistema.
 """
 
 from datetime import datetime, timezone
-from sqlalchemy import text
-from app.extensions import db
 
+from sqlalchemy import text
+
+from app.extensions import db
 
 os_pecas = db.Table(
     "os_pecas",
@@ -39,6 +40,7 @@ class OrdemServico(db.Model):
     __tablename__ = "ordens_servico"
 
     id         = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"),  nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"),  nullable=False)
 
@@ -58,6 +60,14 @@ class OrdemServico(db.Model):
     valor_servico = db.Column(db.Numeric(10,2), default=0)
     valor_pecas   = db.Column(db.Numeric(10,2), default=0)
     desconto      = db.Column(db.Numeric(10,2), default=0)
+    orcamento_status = db.Column(db.String(20))
+    orcamento_decidido_em = db.Column(db.DateTime)
+    checklist_template_id = db.Column(db.Integer, db.ForeignKey("service_checklist_templates.id"))
+    checklist_snapshot = db.Column(db.JSON)
+    checklist_answers = db.Column(db.JSON)
+    authorization_accepted_at = db.Column(db.DateTime)
+    authorization_accepted_by = db.Column(db.String(120))
+    warranty_return_of_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), index=True)
 
     # Campos extras
     prio          = db.Column(db.String(20), default="normal")
@@ -82,6 +92,8 @@ class OrdemServico(db.Model):
     # Relacionamentos
     pecas   = db.relationship("Peca", secondary=os_pecas, backref=db.backref("ordens", lazy=True))
     usuario = db.relationship("Usuario", backref=db.backref("ordens", lazy=True))
+    checklist_template = db.relationship("ServiceChecklistTemplate")
+    warranty_origin = db.relationship("OrdemServico", remote_side=[id], backref=db.backref("warranty_returns", lazy=True))
 
     @property
     def valor_total(self):
@@ -107,6 +119,7 @@ class OrdemServico(db.Model):
         ).fetchall()
         assoc_map = {row.peca_id: row for row in assoc}
 
+        active_signature = next((item for item in sorted(self.signatures, key=lambda value: value.created_at, reverse=True) if item.revoked_at is None), None)
         return {
             "id":                  self.id,
             "cliente_id":          self.cliente_id,
@@ -129,6 +142,17 @@ class OrdemServico(db.Model):
             "prio":                self.prio or "normal",
             "garantia_dias":       self.garantia_dias or 90,
             "em_garantia":         self.em_garantia,
+            "checklist_snapshot":  self.checklist_snapshot or [],
+            "checklist_answers":   self.checklist_answers or {},
+            "authorization_accepted_at": self.authorization_accepted_at.isoformat() if self.authorization_accepted_at else None,
+            "authorization_accepted_by": self.authorization_accepted_by,
+            "warranty_return_of_id": self.warranty_return_of_id,
+            "assinatura": ({
+                "id": active_signature.id,
+                "signatario": active_signature.signer_name,
+                "criada_em": active_signature.created_at.isoformat(),
+                "sha256": active_signature.sha256,
+            } if active_signature else None),
             "data_entrada":        self.data_entrada.isoformat() if self.data_entrada else None,
             "data_saida":          self.data_saida.isoformat()   if self.data_saida   else None,
             "data_prev":           self.data_prev.isoformat()    if self.data_prev    else None,

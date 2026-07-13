@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 
 from app.extensions import db
 
-
 STATUS_COLETA = ("agendada", "em_coleta", "concluida", "cancelada")
 
 STATUS_COLETA_LABELS = {
@@ -17,6 +16,7 @@ class ColetaAgendada(db.Model):
     __tablename__ = "coletas_agendadas"
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), nullable=False, index=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     os_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), nullable=True, index=True)

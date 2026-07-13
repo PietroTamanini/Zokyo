@@ -9,7 +9,7 @@
     <div class="page-title">Fornecedores</div>
     <div class="page-sub">{{ paginacao.total }} fornecedores cadastrados</div>
   </div>
-  <button class="btn btn-primary" data-action="fornecedor-novo">+ Novo Fornecedor</button>
+  {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary" data-action="fornecedor-novo">+ Novo Fornecedor</button>{% endif %}
 </div>
 
 <form method="GET" class="filter-bar">
@@ -44,12 +44,14 @@
           </td>
           <td data-stop>
             <div class="action-wrap">
-              <button class="btn btn-outline btn-xs" data-action="fornecedor-editar" data-id="{{ f.id }}">✏ Editar</button>
+              {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-outline btn-xs" data-action="fornecedor-editar" data-id="{{ f.id }}">Editar</button>{% endif %}
+              {% if is_admin %}
               <form method="POST" action="{{ url_for('pages.fornecedor_deletar', id=f.id) }}"
-                    data-confirm="Excluir este fornecedor?" class="inline-form">
+                    data-confirm="Arquivar este fornecedor preservando o historico?" class="inline-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+                <button type="submit" class="btn btn-danger btn-xs" aria-label="Arquivar fornecedor">Arquivar</button>
               </form>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -74,5 +76,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/fornecedores.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/fornecedores.js') }}"></script>
 {% endblock %}

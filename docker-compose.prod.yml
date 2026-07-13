@@ -16,6 +16,7 @@ services:
       retries: 10
 
   app:
+    image: ${APP_IMAGE:-zokyo:local}
     build: .
     restart: unless-stopped
     environment:
@@ -26,27 +27,93 @@ services:
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
       DISABLE_CREATE_ALL: "true"
+      SCHEDULER_ENABLED: "false"
       GUNICORN_BIND: 0.0.0.0:8000
       GUNICORN_ACCESSLOG: "-"
       GUNICORN_ERRORLOG: "-"
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
+      GUNICORN_FORWARDED_IPS: "*"
+      PROXY_COUNT: 1
+      REQUIRE_ADMIN_2FA: ${REQUIRE_ADMIN_2FA:-true}
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_WEBHOOK_ALLOWED_HOSTS: ${ALERT_WEBHOOK_ALLOWED_HOSTS:-}
+      WPP_SERVER_URL: ${WPP_SERVER_URL:-}
+      WPP_SECRET: ${WPP_SECRET:-}
+      WPP_ALLOWED_HOSTS: ${WPP_ALLOWED_HOSTS:-}
+      WHATSAPP_CLOUD_API_TOKEN: ${WHATSAPP_CLOUD_API_TOKEN:-}
+      WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${WHATSAPP_CLOUD_PHONE_NUMBER_ID:-}
+      WHATSAPP_CLOUD_API_VERSION: ${WHATSAPP_CLOUD_API_VERSION:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - uploads_data:/app/instance/uploads
+    expose:
+      - "8000"
+
+  scheduler:
+    image: ${APP_IMAGE:-zokyo:local}
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "flask", "--app", "wsgi:app", "run-scheduler"]
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?defina ENCRYPTION_SALT}
+      REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
+      REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
+      DISABLE_CREATE_ALL: "true"
+      SCHEDULER_ENABLED: "true"
+      PROXY_COUNT: 1
+      ALERT_EMAIL: ${ALERT_EMAIL:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      ALERT_WEBHOOK_ALLOWED_HOSTS: ${ALERT_WEBHOOK_ALLOWED_HOSTS:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - uploads_data:/app/instance/uploads
+
+  migrate:
+    image: ${APP_IMAGE:-zokyo:local}
+    build: .
+    restart: "no"
+    command: ["python", "-m", "flask", "--app", "wsgi:app", "db", "upgrade"]
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      ENCRYPTION_SALT: ${ENCRYPTION_SALT:?defina ENCRYPTION_SALT}
+      REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
+      REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
+      DISABLE_CREATE_ALL: "true"
+      SCHEDULER_ENABLED: "false"
       PROXY_COUNT: 1
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - uploads_data:/app/instance/uploads
-    expose:
-      - "8000"
 
   nginx:
     image: nginx:1.27-alpine
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     ports:
-      - "80:80"
+      - "${HTTP_PORT:-80}:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.docker.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   db_data:

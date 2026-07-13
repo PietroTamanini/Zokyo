@@ -13,24 +13,10 @@ import os
 import secrets
 import warnings
 from datetime import timedelta
-from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
-def _detect_wkhtmltopdf():
-    candidates = [
-        os.environ.get("WKHTMLTOPDF_PATH"),
-        "/usr/bin/wkhtmltopdf",
-        "/usr/local/bin/wkhtmltopdf",
-        "/snap/bin/wkhtmltopdf",
-    ]
-    for c in candidates:
-        if c and Path(c).exists():
-            return c
-    return None
 
 
 class Config:
@@ -69,27 +55,31 @@ class Config:
         }
 
     # ── PDF ────────────────────────────────────────────────────────────────
-    PDFKIT_WKHTMLTOPDF = _detect_wkhtmltopdf()
-    PDF_DISPONIVEL      = PDFKIT_WKHTMLTOPDF is not None
-    PDFKIT_OPTIONS = {
-        "page-size":     "A4",
-        "orientation":   "Landscape",
-        "margin-top":    "8mm",
-        "margin-right":  "8mm",
-        "margin-bottom": "8mm",
-        "margin-left":   "8mm",
-        "encoding":      "UTF-8",
-        "no-outline":    None,
-        # Segurança wkhtmltopdf: desabilita acesso a arquivos locais e rede
-        "disable-local-file-access": None,
-        "no-background": None,
-    }
     REPORTS_UPLOAD_FOLDER = os.environ.get("REPORTS_UPLOAD_FOLDER", "").strip() or None
     REPORTS_PUBLIC_VERIFICATION = os.environ.get("REPORTS_PUBLIC_VERIFICATION", "true").lower() in ("1", "true", "yes", "on")
-    DISABLE_CREATE_ALL = os.environ.get("DISABLE_CREATE_ALL", "false").lower() in ("1", "true", "yes", "on")
+    # O schema da aplicacao e gerenciado exclusivamente pelo Alembic.
+    DISABLE_CREATE_ALL = True
+    CSRF_EXEMPT_ENDPOINTS = {"platform.sandbox_webhook"}
+    SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "false").lower() in ("1", "true", "yes", "on")
 
     # ── WhatsApp ───────────────────────────────────────────────────────────
     WPP_SERVER_URL = os.environ.get("WPP_SERVER_URL", "").strip() or None
+    WHATSAPP_CLOUD_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "").strip() or None
+    WHATSAPP_CLOUD_API_VERSION = os.environ.get("WHATSAPP_CLOUD_API_VERSION", "").strip() or None
+    PASSWORD_RESET_TTL_MINUTES = int(os.environ.get("PASSWORD_RESET_TTL_MINUTES", "30"))
+    SMTP_HOST = os.environ.get("SMTP_HOST", "").strip() or None
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "").strip() or None
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_STARTTLS = os.environ.get("SMTP_STARTTLS", "true").lower() in ("1", "true", "yes", "on")
+    MAIL_FROM = os.environ.get("MAIL_FROM", "").strip() or None
+    SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip() or None
+    SENTRY_TRACES_SAMPLE_RATE = float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0"))
+    METRICS_TOKEN = os.environ.get("METRICS_TOKEN", "").strip() or None
+    ALERT_EMAIL = os.environ.get("ALERT_EMAIL", "").strip() or None
+    ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "").strip() or None
+    REQUIRE_ADMIN_2FA = os.environ.get("REQUIRE_ADMIN_2FA", "false").lower() in ("1", "true", "yes", "on")
+    ALLOW_LEGACY_SESSIONS = True
 
     # ── Sessão ─────────────────────────────────────────────────────────────
     # M06: timeout absoluto de 8h; inatividade tratada no middleware
@@ -100,21 +90,6 @@ class Config:
     # ── Rate Limiting ──────────────────────────────────────────────────────
     # Número de proxies confiáveis à frente da app (C04)
     PROXY_COUNT = int(os.environ.get("PROXY_COUNT", "1"))
-
-    # ── CSP base (sobrescrito por subclasses) ──────────────────────────────
-    # H01: Content-Security-Policy
-    CSP_HEADER = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data:; "
-        "connect-src 'self' https://viacep.com.br; "
-        "frame-ancestors 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self';"
-    )
-
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -143,24 +118,10 @@ class ProductionConfig(Config):
 
     # H02: HSTS — só faz sentido com HTTPS
     HSTS_MAX_AGE        = 31_536_000  # 1 ano em segundos
-    HSTS_INCLUDE_SUBDOMAINS = True
-
     SESSION_COOKIE_SECURE   = True
     SESSION_COOKIE_SAMESITE = "Strict"
-
-    # CSP mais restrita em produção
-    CSP_HEADER = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data:; "
-        "connect-src 'self' https://viacep.com.br; "
-        "frame-ancestors 'none'; "
-        "base-uri 'self'; "
-        "form-action 'self'; "
-        "upgrade-insecure-requests;"
-    )
+    REQUIRE_ADMIN_2FA = os.environ.get("REQUIRE_ADMIN_2FA", "true").lower() in ("1", "true", "yes", "on")
+    ALLOW_LEGACY_SESSIONS = False
 
 
 config = {

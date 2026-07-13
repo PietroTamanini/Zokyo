@@ -7,6 +7,7 @@ class OSFoto(db.Model):
     __tablename__ = "os_fotos"
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     os_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), nullable=False, index=True)
     coleta_id = db.Column(db.Integer, db.ForeignKey("coletas_agendadas.id"), nullable=True, index=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)

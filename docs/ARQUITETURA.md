@@ -14,13 +14,13 @@ O Zokyo usa Flask com application factory em `app/__init__.py`.
 
 ## Entry points
 
-- Desenvolvimento: `python app.py`.
+- Desenvolvimento: `flask --app wsgi:app run --debug`.
 - WSGI/CLI: `wsgi:app`.
 - Gunicorn: `gunicorn -c gunicorn.conf.py wsgi:app`.
 
 ## Banco
 
-Flask-Migrate foi registrado em `app/extensions.py` e `app/__init__.py`. Em producao, `db.create_all()` fica desabilitado por `ProductionConfig.DISABLE_CREATE_ALL = True`.
+Flask-Migrate foi registrado em `app/extensions.py` e `app/__init__.py`. O schema e gerenciado exclusivamente por migrations Alembic em desenvolvimento e producao; `db.create_all()` e usado apenas de forma explicita em bancos efemeros dos testes unitarios.
 
 Pendencia: baseline Alembic completo do schema legado.
 

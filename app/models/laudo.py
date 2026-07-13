@@ -1,9 +1,8 @@
 """Modelos do modulo de laudos tecnicos."""
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
 from app.extensions import db
-
 
 LAUDO_STATUS = ("draft", "finalized", "cancelled")
 LAUDO_STATUS_LABELS = {
@@ -84,6 +83,42 @@ class LaudoCounter(db.Model):
     atualizado_em = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)
 
 
+class LaudoTemplate(db.Model):
+    __tablename__ = "laudo_templates"
+    __table_args__ = (
+        db.UniqueConstraint("organization_id", "nome", "versao", name="uq_laudo_template_org_nome_versao"),
+        db.Index("ix_laudo_template_org_tipo_ativo", "organization_id", "tipo_laudo", "ativo"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    nome = db.Column(db.String(120), nullable=False)
+    tipo_laudo = db.Column(db.String(30), nullable=False, default="diagnostico")
+    versao = db.Column(db.Integer, nullable=False, default=1)
+    titulo = db.Column(db.String(160), nullable=False, default="Laudo tecnico")
+    declaracao_final = db.Column(db.Text)
+    rodape = db.Column(db.String(500))
+    fotos_obrigatorias = db.Column(db.JSON, nullable=False, default=lambda: list(LAUDO_FOTOS_OBRIGATORIAS))
+    ativo = db.Column(db.Boolean, nullable=False, default=True)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
+    criado_em = db.Column(db.DateTime, default=_now, nullable=False)
+    atualizado_em = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)
+
+    criado_por = db.relationship("Usuario", foreign_keys=[criado_por_id])
+
+    def snapshot(self):
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "tipo_laudo": self.tipo_laudo,
+            "versao": self.versao,
+            "titulo": self.titulo,
+            "declaracao_final": self.declaracao_final,
+            "rodape": self.rodape,
+            "fotos_obrigatorias": list(self.fotos_obrigatorias or []),
+        }
+
+
 class LaudoTecnico(db.Model):
     __tablename__ = "laudos_tecnicos"
     __table_args__ = (
@@ -98,7 +133,7 @@ class LaudoTecnico(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     public_uuid = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
-    organization_id = db.Column(db.Integer, default=1, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), default=1, nullable=False)
     os_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), nullable=False)
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), nullable=False)
     equipamento_id = db.Column(db.Integer, nullable=True)
@@ -114,6 +149,7 @@ class LaudoTecnico(db.Model):
     atualizado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
     versao = db.Column(db.Integer, default=1, nullable=False)
     laudo_origem_id = db.Column(db.Integer, db.ForeignKey("laudos_tecnicos.id"))
+    template_id = db.Column(db.Integer, db.ForeignKey("laudo_templates.id"))
 
     defeito_relatado = db.Column(db.Text)
     inspecao_visual = db.Column(db.Text)
@@ -136,6 +172,7 @@ class LaudoTecnico(db.Model):
     cliente_snapshot = db.Column(db.JSON)
     equipamento_snapshot = db.Column(db.JSON)
     tecnico_snapshot = db.Column(db.JSON)
+    template_snapshot = db.Column(db.JSON)
 
     assinatura_tecnico_nome = db.Column(db.String(120))
     assinatura_tecnico_em = db.Column(db.DateTime)
@@ -161,6 +198,7 @@ class LaudoTecnico(db.Model):
     criado_por = db.relationship("Usuario", foreign_keys=[criado_por_id])
     atualizado_por = db.relationship("Usuario", foreign_keys=[atualizado_por_id])
     origem = db.relationship("LaudoTecnico", remote_side=[id], backref="revisoes")
+    template = db.relationship("LaudoTemplate", foreign_keys=[template_id])
 
     @property
     def is_draft(self):
@@ -184,12 +222,14 @@ class LaudoFoto(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     laudo_id = db.Column(db.Integer, db.ForeignKey("laudos_tecnicos.id"), nullable=False)
     tipo = db.Column(db.String(30), nullable=False)
     legenda = db.Column(db.String(255))
     ordem = db.Column(db.Integer, default=0, nullable=False)
     nome_original = db.Column(db.String(255))
     storage_key = db.Column(db.String(600), nullable=False)
+    thumbnail_key = db.Column(db.String(600))
     mime_type = db.Column(db.String(100), nullable=False)
     tamanho_bytes = db.Column(db.Integer, nullable=False)
     largura = db.Column(db.Integer)
@@ -209,6 +249,7 @@ class LaudoEvento(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     laudo_id = db.Column(db.Integer, db.ForeignKey("laudos_tecnicos.id"), nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
     tipo = db.Column(db.String(30), nullable=False)

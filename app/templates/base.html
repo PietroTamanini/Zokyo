@@ -15,13 +15,13 @@
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icons/zokyo-icon-192.png') }}">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pwa-install.css') }}">
+  <style nonce="{{ csp_nonce }}">[data-theme="dark"],[data-theme="light"]{--blue:{{ PRIMARY_COLOR }};--indigo:{{ ACCENT_COLOR }};}</style>
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+<a class="skip-link" href="#content">Ir para o conteúdo principal</a>
 
 <div id="sidebar-overlay" data-action="close-sidebar"></div>
 {% include 'partials/_sidebar.html' %}
@@ -29,20 +29,20 @@
 <div id="main">
   <div class="topbar">
     <div class="topbar-left">
-      <button class="hamburger" data-action="open-sidebar" aria-label="Menu">&#9776;</button>
+      <button class="hamburger" data-action="toggle-sidebar" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">&#9776;</button>
       <div class="breadcrumb">{{ APP_SHORT_NAME }} / <span class="ca">{% block breadcrumb %}—{% endblock %}</span></div>
     </div>
     <div class="topbar-right">
       <div class="topbar-date" id="td-date"></div>
-      <button class="theme-btn" data-action="toggle-theme" id="theme-btn-el">☀️ Claro</button>
+      <button class="theme-btn" data-action="toggle-theme" id="theme-btn-el" aria-label="Alternar tema">Tema claro</button>
       {% block topbar_action %}{% endblock %}
     </div>
   </div>
 
-  <div id="content">
+  <main id="content" tabindex="-1">
     {% include 'partials/_flash.html' %}
     {% block content %}{% endblock %}
-  </div>
+  </main>
 </div>
 
 {% include 'partials/_modal.html' %}
@@ -57,22 +57,88 @@
 <script nonce="{{ csp_nonce }}">
 // ── Sidebar drawer ──────────────────────────────────────────
 function openSidebar() {
-  document.getElementById('sidebar').classList.add('open');
+  const sidebar = document.getElementById('sidebar');
+  sidebar.inert = false;
+  if (window.innerWidth > 900) {
+    document.body.classList.remove('sidebar-collapsed');
+    localStorage.setItem('sidebar-collapsed', 'false');
+    updateSidebarTrigger(true);
+    return;
+  }
+  sidebar.classList.add('open');
   const ov = document.getElementById('sidebar-overlay');
-  ov.style.display = 'block';
   requestAnimationFrame(() => ov.classList.add('show'));
-  document.body.style.overflow = 'hidden';
+  document.body.classList.add('body-lock');
+  const trigger = document.querySelector('.hamburger');
+  updateSidebarTrigger(true);
+  requestAnimationFrame(() => sidebar.querySelector('.sidebar-close')?.focus());
 }
 function closeSidebar() {
-  document.getElementById('sidebar').classList.remove('open');
+  const sidebar = document.getElementById('sidebar');
+  if (window.innerWidth > 900) {
+    document.body.classList.add('sidebar-collapsed');
+    localStorage.setItem('sidebar-collapsed', 'true');
+    updateSidebarTrigger(false);
+    return;
+  }
+  sidebar.classList.remove('open');
   const ov = document.getElementById('sidebar-overlay');
   ov.classList.remove('show');
-  setTimeout(() => { ov.style.display = 'none'; }, 250);
-  document.body.style.overflow = '';
+  document.body.classList.remove('body-lock');
+  const trigger = document.querySelector('.hamburger');
+  updateSidebarTrigger(false);
+  if (window.innerWidth <= 900) sidebar.inert = true;
+  if (document.activeElement?.closest('#sidebar')) trigger?.focus();
+}
+function updateSidebarTrigger(expanded) {
+  const trigger = document.querySelector('.hamburger');
+  trigger?.setAttribute('aria-expanded', String(expanded));
+  trigger?.setAttribute('aria-label', expanded ? 'Guardar menu' : 'Abrir menu');
+}
+function toggleSidebar() {
+  const expanded = window.innerWidth > 900
+    ? !document.body.classList.contains('sidebar-collapsed')
+    : document.getElementById('sidebar').classList.contains('open');
+  expanded ? closeSidebar() : openSidebar();
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSidebar(); closeModal(); } });
 document.querySelectorAll && document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => { if (window.innerWidth <= 900) closeSidebar(); });
+});
+function syncSidebarMode() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  if (window.innerWidth > 900) {
+    sidebar.inert = false;
+    sidebar.classList.remove('open');
+    document.body.classList.remove('body-lock');
+    const collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    document.body.classList.toggle('sidebar-collapsed', collapsed);
+    updateSidebarTrigger(!collapsed);
+  } else if (!sidebar.classList.contains('open')) {
+    sidebar.inert = true;
+    document.body.classList.remove('sidebar-collapsed');
+    updateSidebarTrigger(false);
+  }
+}
+syncSidebarMode();
+window.addEventListener('resize', syncSidebarMode);
+
+document.querySelectorAll('.nav-module').forEach((module, index) => {
+  const button = module.querySelector('.nav-group-toggle');
+  const panel = module.querySelector('.nav-module-links');
+  const key = module.dataset.navModule;
+  const active = Boolean(panel.querySelector('.nav-item.active'));
+  const saved = localStorage.getItem(`nav-module-${key}`);
+  const expanded = active || (saved === null ? index === 0 : saved === 'true');
+  button.setAttribute('aria-expanded', String(expanded));
+  panel.hidden = !expanded;
+  button.addEventListener('click', () => {
+    const next = button.getAttribute('aria-expanded') !== 'true';
+    button.setAttribute('aria-expanded', String(next));
+    panel.hidden = !next;
+    localStorage.setItem(`nav-module-${key}`, String(next));
+  });
 });
 
 // ── Theme ───────────────────────────────────────────────────
@@ -82,13 +148,13 @@ function toggleTheme() {
   const next = cur === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
-  document.getElementById('theme-btn-el').textContent = next === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+  document.getElementById('theme-btn-el').textContent = next === 'dark' ? 'Tema claro' : 'Tema escuro';
 }
 (function(){
   const t = localStorage.getItem('theme') || 'dark';
   document.documentElement.setAttribute('data-theme', t);
   const btn = document.getElementById('theme-btn-el');
-  if (btn) btn.textContent = t === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+  if (btn) btn.textContent = t === 'dark' ? 'Tema claro' : 'Tema escuro';
 })();
 
 // ── Date + Clock ─────────────────────────────────────────────

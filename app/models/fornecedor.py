@@ -1,5 +1,6 @@
 """models/fornecedor.py — Modelo de Fornecedor."""
 from datetime import datetime, timezone
+
 from app.extensions import db
 
 
@@ -7,6 +8,7 @@ class Fornecedor(db.Model):
     __tablename__ = "fornecedores"
 
     id        = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome      = db.Column(db.String(200), nullable=False)
     cnpj      = db.Column(db.String(14), index=True)
     telefone  = db.Column(db.String(15))

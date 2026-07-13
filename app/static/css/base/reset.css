@@ -3,7 +3,7 @@
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: "Outfit", sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;

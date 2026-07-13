@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Ordens de Serviço — Zokyo{% endblock %}
 {% block breadcrumb %}Ordens de Serviço{% endblock %}
-{% block topbar_action %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>{% endblock %}
+{% block topbar_action %}{% if nivel_usuario in ('admin', 'operacional') %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -83,16 +83,16 @@
           <td><span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span></td>
           <td class="th-hide-sm"><span class="badge {{ prio_c.get(os.prio,'b-gray') }}"><span class="dot"></span>{{ (os.prio or 'normal')|capitalize }}</span></td>
           <td class="td-mono txt-faint th-hide-sm">{{ os.data_entrada | fmtdata }}</td>
-          <td class="td-mono th-hide-sm" style="color:{{ 'var(--red)' if atrasada else 'var(--text-3)' }}">
+          <td class="td-mono th-hide-sm {{ 'txt-overdue' if atrasada else 'txt-faint' }}">
             {{ os.data_prev | fmtdata if os.data_prev else '—' }}{{ ' ⚠' if atrasada else '' }}
           </td>
           <td class="txt-blue fw7">{{ os.valor_total | moeda }}</td>
           <td data-stop>
             <div class="action-row">
-              <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs">✏</a>
-              <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank">🖨</a>
+              <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs" aria-label="Editar OS">Editar</a>
+              <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank" aria-label="Abrir PDF">PDF</a>
               {% if tel %}
-              <a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank">💬</a>
+              <a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp">WhatsApp</a>
               {% endif %}
             </div>
           </td>
@@ -100,7 +100,6 @@
         {% else %}
         <tr><td colspan="10">
           <div class="empty">
-            <div class="empty-icon">📋</div>
             <div class="empty-title">Nenhuma OS encontrada</div>
           </div>
         </td></tr>

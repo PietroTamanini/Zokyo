@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zokyo-assets-v3';
+const CACHE_NAME = 'zokyo-assets-v7';
 const PRECACHE_ASSETS = [
   '/static/manifest.webmanifest',
   '/static/css/zokyo.css',
@@ -9,6 +9,7 @@ const PRECACHE_ASSETS = [
   '/static/js/ui.js',
   '/static/js/api.js',
   '/static/js/pwa-install.js',
+  '/static/js/pages/login.js',
   '/static/img/zokyo-logo.svg',
   '/static/img/zokyo-favicon.svg',
   '/static/img/icons/zokyo-icon-192.png',

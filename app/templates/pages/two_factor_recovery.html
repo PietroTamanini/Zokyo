@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Codigos de recuperacao - Zokyo{% endblock %}
+{% block breadcrumb %}Codigos de recuperacao{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="page-title">Codigos de recuperacao</div><div class="page-sub">Cada codigo funciona uma unica vez</div></div></div>
+<div class="alert a-amber mb20">Guarde estes codigos em local seguro. Eles nao serao mostrados novamente.</div>
+<div class="card"><div class="card-body"><div class="recovery-code-list">
+{% for code in recovery_codes %}<code class="code-pill">{{ code }}</code>{% endfor %}
+</div><div class="form-actions mt20"><a class="btn btn-primary" href="{{ url_for('auth.two_factor_setup') }}">Concluir</a></div></div></div>
+{% endblock %}

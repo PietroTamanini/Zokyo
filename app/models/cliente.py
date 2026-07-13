@@ -8,6 +8,7 @@ class Cliente(db.Model):
     __tablename__ = "clientes"
 
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome = db.Column(db.String(150), nullable=False)
     cpf = db.Column(db.String(11), index=True, nullable=True)
     cnpj = db.Column(db.String(14), index=True, nullable=True)

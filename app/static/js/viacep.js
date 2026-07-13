@@ -86,22 +86,16 @@ const ViaCEP = (() => {
     if (!icon) {
       icon = document.createElement('span');
       icon.className = 'cep-status';
-      icon.style.cssText =
-        'position:absolute;right:10px;top:50%;transform:translateY(-50%);' +
-        'font-size:14px;pointer-events:none;';
-      // garante position:relative no wrapper
-      if (getComputedStyle(wrapper).position === 'static') {
-        wrapper.style.position = 'relative';
-      }
+      wrapper.classList.add('cep-wrapper');
       wrapper.appendChild(icon);
     }
     if (loading) {
       icon.textContent = '⏳';
       icon.title = 'Buscando CEP...';
-      el.style.paddingRight = '34px';
+      el.classList.add('cep-input-loading');
     } else {
       icon.textContent = '';
-      el.style.paddingRight = '';
+      el.classList.remove('cep-input-loading');
     }
     return icon;
   }
@@ -110,11 +104,11 @@ const ViaCEP = (() => {
     const icon = setLoading(el, false);
     icon.textContent = '✅';
     icon.title = `Endereço encontrado: ${cidade}`;
-    el.style.paddingRight = '34px';
+    el.classList.add('cep-input-loading');
     // Remove ícone após 3 s
     setTimeout(() => {
       icon.textContent = '';
-      el.style.paddingRight = '';
+      el.classList.remove('cep-input-loading');
     }, 3000);
   }
 
@@ -122,12 +116,12 @@ const ViaCEP = (() => {
     const icon = setLoading(el, false);
     icon.textContent = '❌';
     icon.title = msg;
-    el.style.paddingRight = '34px';
+    el.classList.add('cep-input-loading');
     // Mostra toast se disponível
     if (typeof showToast === 'function') showToast(msg, 'amber');
     setTimeout(() => {
       icon.textContent = '';
-      el.style.paddingRight = '';
+      el.classList.remove('cep-input-loading');
     }, 4000);
   }
 
@@ -144,9 +138,8 @@ const ViaCEP = (() => {
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     // Animação sutil de preenchimento
-    el.style.transition = 'background 0.4s';
-    el.style.background = 'var(--green-g, rgba(34,197,94,.08))';
-    setTimeout(() => { el.style.background = ''; }, 1200);
+    el.classList.add('field-autofilled');
+    setTimeout(() => { el.classList.remove('field-autofilled'); }, 1200);
   }
 
   /* ── Busca na API ────────────────────────────────────────── */

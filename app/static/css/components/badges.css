@@ -6,12 +6,16 @@
 .b-green { background: var(--green-g); color: var(--green); }
 .b-green .dot { background: var(--green); }
 .b-red { background: var(--red-g); color: var(--red); }
+[data-theme="dark"] .b-red { color: #f87171; }
+[data-theme="light"] .b-red { color: #b91c1c; }
 .b-red .dot { background: var(--red); }
 .b-amber { background: var(--amber-g); color: var(--amber); }
 .b-amber .dot { background: var(--amber); }
 .b-gray { background: rgba(78,101,137,0.15); color: var(--text-3); }
 .b-gray .dot { background: var(--text-3); }
 .b-sky { background: rgba(14,165,233,0.12); color: var(--sky); }
+[data-theme="dark"] .b-sky { color: #38bdf8; }
+[data-theme="light"] .b-sky { color: #0369a1; }
 .b-sky .dot { background: var(--sky); }
 .b-indigo { background: rgba(99,102,241,0.12); color: var(--indigo); }
 .b-indigo .dot { background: var(--indigo); }

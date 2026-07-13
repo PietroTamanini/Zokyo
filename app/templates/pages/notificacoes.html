@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Notificações{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Notificações</div><div class="page-sub">Histórico de entregas, falhas e novas tentativas</div></div>
+</div>
+
+<form method="GET" class="filter-bar">
+  <label for="status">Status</label>
+  <select id="status" name="status">
+    <option value="">Todos</option>
+    {% for value, label in [('pending','Pendente'),('retry','Aguardando nova tentativa'),('sent','Enviada'),('manual_required','Envio manual'),('failed','Falhou')] %}
+    <option value="{{ value }}" {{ 'selected' if selected_status == value }}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">Filtrar</button>
+</form>
+
+<div class="card"><div class="table-wrap">
+  <table>
+    <thead><tr><th>Data</th><th>Evento</th><th>Canal</th><th>Destino</th><th>Status</th><th>Tentativas</th><th>Erro</th><th></th></tr></thead>
+    <tbody>
+    {% for item in notifications %}
+      <tr>
+        <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ item.event_type }}</td><td>{{ item.channel }}</td>
+        <td>{{ item.recipient[-4:].rjust(item.recipient|length, '*') }}</td>
+        <td><span class="badge b-{{ 'green' if item.status == 'sent' else 'red' if item.status == 'failed' else 'yellow' }}">{{ item.status }}</span></td>
+        <td>{{ item.attempts }}/{{ item.max_attempts }}</td><td>{{ (item.last_error or '-')|truncate(80) }}</td>
+        <td>{% if item.status != 'sent' %}<form method="POST" action="{{ url_for('configuracoes.notificacao_retry', notification_id=item.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-xs" type="submit">Reenviar</button></form>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="8" class="td-empty">Nenhuma notificação encontrada.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div></div>
+{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginacao">{% for number in pagination.iter_pages() %}{% if number %}<a class="btn btn-ghost btn-sm {{ 'active' if number == pagination.page }}" href="{{ url_for('configuracoes.notificacoes', page=number, status=selected_status) }}">{{ number }}</a>{% else %}<span>...</span>{% endif %}{% endfor %}</nav>{% endif %}
+{% endblock %}

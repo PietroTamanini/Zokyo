@@ -1,16 +1,13 @@
-"""
-routes/configuracoes.py — Configurações do sistema e WhatsApp.
+"""Configuracoes administrativas do sistema."""
+import re
 
-Fix: Evolution API removida — usa wpp-server.js.
-     Status endpoint correto para o novo utils/whatsapp.py.
-"""
-from flask import (Blueprint, render_template, request,
-                   redirect, url_for, flash, jsonify)
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+
 from app.extensions import db
-from app.models import Configuracao, registrar
-from app.utils.auth import page_nivel_required, api_login_required
-from app.utils.sanitizers import sanitize_text, sanitize_email, sanitize_cnpj, sanitize_phone
-from app.utils.validators import validar_email, validar_cnpj, validar_telefone
+from app.models import Configuracao, MessageTemplate, Notification, registrar
+from app.utils.auth import nivel_required, page_nivel_required
+from app.utils.sanitizers import sanitize_cnpj, sanitize_email, sanitize_phone, sanitize_text
+from app.utils.validators import validar_cnpj, validar_email, validar_telefone
 
 cfg_bp = Blueprint("configuracoes", __name__)
 
@@ -21,6 +18,41 @@ def index():
     cfg = Configuracao.get()
     return render_template("pages/configuracoes.html",
                            active="configuracoes", cfg=cfg)
+
+
+@cfg_bp.route("/configuracoes/notificacoes")
+@page_nivel_required("admin")
+def notificacoes():
+    status = (request.args.get("status") or "").strip()
+    page = max(request.args.get("page", 1, type=int), 1)
+    query = Notification.query.order_by(Notification.created_at.desc())
+    if status in {"pending", "retry", "sent", "manual_required", "failed"}:
+        query = query.filter_by(status=status)
+    pagination = query.paginate(page=page, per_page=30, error_out=False)
+    return render_template(
+        "pages/notificacoes.html", active="notificacoes",
+        notifications=pagination.items, pagination=pagination, selected_status=status,
+    )
+
+
+@cfg_bp.route("/configuracoes/notificacoes/<int:notification_id>/retry", methods=["POST"])
+@page_nivel_required("admin")
+def notificacao_retry(notification_id):
+    from flask import g
+
+    from app.services.notifications import retry_notification
+
+    try:
+        retry_notification(notification_id, g.organization_id)
+    except LookupError:
+        return ("", 404)
+    except ValueError as exc:
+        flash(str(exc), "warning")
+    else:
+        registrar("retry", "notifications", f"Reenvio solicitado para notificacao #{notification_id}.")
+        db.session.commit()
+        flash("Notificacao colocada novamente na fila.", "success")
+    return redirect(url_for("configuracoes.notificacoes"))
 
 
 @cfg_bp.route("/configuracoes/salvar", methods=["POST"])
@@ -56,11 +88,14 @@ def salvar():
     cfg.endereco        = sanitize_text(data.get("endereco", ""), max_length=300) or None
     cfg.cidade          = sanitize_text(data.get("cidade", ""), max_length=100) or None
     cfg.uf              = sanitize_text(data.get("uf", ""), max_length=2).upper() or None
+    for field, default in (("primary_color", "#2563eb"), ("accent_color", "#6366f1")):
+        value = (data.get(field) or default).strip().lower()
+        if not re.fullmatch(r"#[0-9a-f]{6}", value):
+            flash("Cor de identidade visual invalida.", "error")
+            return redirect(url_for("configuracoes.index"))
+        setattr(cfg, field, value)
     cfg.dados_pagamento = sanitize_text(data.get("dados_pagamento", ""), max_length=2000) or None
     cfg.pix_chave       = sanitize_text(data.get("pix_chave", ""), max_length=200) or None
-    # wkhtmltopdf_path: caminho de sistema — só sanitiza tamanho
-    cfg.wkhtmltopdf_path = sanitize_text(data.get("wkhtmltopdf_path", ""), max_length=500) or None
-
     try:
         cfg.dias_vencimento = int(data.get("dias_vencimento") or 30)
     except (ValueError, TypeError):
@@ -90,11 +125,10 @@ def salvar_dashboard():
     return redirect(url_for("configuracoes.index"))
 
 
-# ── WhatsApp (wpp-server.js) ──────────────────────────────────
 @cfg_bp.route("/configuracoes/whatsapp", methods=["POST"])
 @page_nivel_required("admin")
 def salvar_whatsapp():
-    """Salva URL do wpp-server.js local."""
+    """Salva a URL de um gateway externo explicitamente permitido."""
     cfg = Configuracao.get()
     wpp_url = (request.form.get("wpp_server_url") or "").strip()
     if wpp_url:
@@ -112,15 +146,15 @@ def salvar_whatsapp():
 
 
 @cfg_bp.route("/api/whatsapp/status")
-@api_login_required
+@nivel_required("admin")
 def whatsapp_status():
-    """Verifica se o wpp-server.js está online."""
+    """Verifica se o gateway externo esta online."""
     from app.utils.whatsapp import status_wpp
     return jsonify(status_wpp())
 
 
 @cfg_bp.route("/api/whatsapp/teste", methods=["POST"])
-@api_login_required
+@nivel_required("admin")
 def whatsapp_teste():
     """Envia mensagem de teste para o número informado."""
     from app.utils.whatsapp import enviar_whatsapp
@@ -132,33 +166,38 @@ def whatsapp_teste():
     return jsonify(resultado)
 
 
-@cfg_bp.route("/api/whatsapp/qr")
-@api_login_required
-def whatsapp_qr():
-    """Busca QR code do wpp-server.js para exibir na interface."""
-    from app.utils.whatsapp import _wpp_url, _wpp_headers, _is_safe_wpp_url
-    import requests
-    srv_url = _wpp_url()
-    if not srv_url or not _is_safe_wpp_url(srv_url):
-        return jsonify({"erro": "Servidor WhatsApp não configurado"}), 503
-    try:
-        resp = requests.get(f"{srv_url}/qr", headers=_wpp_headers(), timeout=5, allow_redirects=False)
-        return jsonify(resp.json())
-    except Exception as exc:
-        return jsonify({"erro": str(exc)}), 503
+@cfg_bp.route("/api/message-templates", methods=["GET"])
+@nivel_required("admin")
+def message_templates_list():
+    items = MessageTemplate.query.order_by(
+        MessageTemplate.event_type, MessageTemplate.channel, MessageTemplate.version.desc(),
+    ).all()
+    return jsonify([{
+        "id": item.id, "event_type": item.event_type, "channel": item.channel,
+        "version": item.version, "subject": item.subject, "body": item.body, "active": item.active,
+    } for item in items])
 
 
-@cfg_bp.route("/api/whatsapp/reconectar", methods=["POST"])
-@api_login_required
-def whatsapp_reconectar():
-    """Envia comando de reconexão ao wpp-server.js."""
-    from app.utils.whatsapp import _wpp_url, _wpp_headers, _is_safe_wpp_url
-    import requests
-    srv_url = _wpp_url()
-    if not srv_url or not _is_safe_wpp_url(srv_url):
-        return jsonify({"erro": "Servidor WhatsApp não configurado"}), 503
-    try:
-        resp = requests.post(f"{srv_url}/reconectar", headers=_wpp_headers(), timeout=5, allow_redirects=False)
-        return jsonify(resp.json())
-    except Exception as exc:
-        return jsonify({"erro": str(exc)}), 503
+@cfg_bp.route("/api/message-templates", methods=["POST"])
+@nivel_required("admin")
+def message_templates_create():
+    data = request.get_json(silent=True) or {}
+    event_type = sanitize_text(data.get("event_type", ""), max_length=80)
+    channel = sanitize_text(data.get("channel", ""), max_length=20)
+    subject = sanitize_text(data.get("subject", ""), max_length=200) or None
+    body = sanitize_text(data.get("body", ""), max_length=5000)
+    if not event_type or channel not in {"email", "whatsapp"} or not body:
+        return jsonify({"erro": "Evento, canal valido e mensagem sao obrigatorios"}), 400
+    previous = MessageTemplate.query.filter_by(event_type=event_type, channel=channel).order_by(
+        MessageTemplate.version.desc(),
+    ).first()
+    for old in MessageTemplate.query.filter_by(event_type=event_type, channel=channel, active=True).all():
+        old.active = False
+    item = MessageTemplate(
+        event_type=event_type, channel=channel, version=(previous.version + 1 if previous else 1),
+        subject=subject, body=body,
+    )
+    db.session.add(item)
+    registrar("criacao", "message_templates", f"Template {event_type}/{channel} v{item.version}")
+    db.session.commit()
+    return jsonify({"id": item.id, "version": item.version}), 201

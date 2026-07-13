@@ -1,6 +1,6 @@
 # Permissoes
 
-O projeto ainda usa perfis simples em `usuarios.nivel`. A matriz abaixo registra o comportamento atual e o alvo incremental para RBAC granular.
+O projeto usa uma matriz central em `app/utils/permissions.py`. Perfis fornecem permissoes base e cada usuario pode receber listas persistidas de `permissoes_extra` e `permissoes_negadas`. Permissoes desconhecidas sao recusadas pela API. Administradores mantem acesso total para evitar bloqueio acidental da administracao.
 
 ## Perfis atuais
 
@@ -23,9 +23,7 @@ O projeto ainda usa perfis simples em `usuarios.nivel`. A matriz abaixo registra
 | Duplicar/criar revisao | `admin`, `operacional` |
 | Cancelar | `admin` |
 
-## Pendencia RBAC
-
-Ainda falta transformar perfis em permissoes atomicas persistidas, por exemplo:
+## Permissoes atomicas
 
 - `laudos.view`
 - `laudos.create`
@@ -36,4 +34,4 @@ Ainda falta transformar perfis em permissoes atomicas persistidas, por exemplo:
 - `laudos.cancel`
 - `laudos.admin_templates`
 
-O frontend pode ocultar botoes, mas a decisao de acesso deve continuar no backend.
+O backend usa `has_permission()` e `permission_required()`. O frontend pode ocultar botoes, mas nunca e a fonte da decisao de acesso. A API administrativa de usuarios aceita `permissoes_extra` e `permissoes_negadas` como listas validadas e expoe o catalogo em `GET /api/permissoes`.

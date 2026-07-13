@@ -1,75 +1,26 @@
-# Roadmap para ficar 100% profissional
+# Roadmap profissional
 
-## Critico antes de producao
+Atualizado em 2026-07-12. Evidencias detalhadas ficam em `IMPLEMENTATION_STATUS.md`.
 
-- Criar baseline Alembic completo do schema legado.
-- Remover dependencia de `db.create_all()` tambem em dev/testes.
-- Mover scheduler para processo separado, cron ou worker dedicado.
-- Revisar CSP de producao e remover dependencias CDN do layout autenticado.
-- Implementar recuperacao de senha segura com token de uso unico.
-- Criar RBAC granular persistido por permissao, nao apenas perfis.
-- Ampliar testes de acesso indevido, CSRF, login, logout e usuario inativo.
-- Validar Docker/Compose em ambiente limpo.
-- Automatizar backup e restore com teste real de restauracao.
+## Entregue
 
-## Laudos
+- Numeracao de laudos validada com 24 transacoes simultaneas no MariaDB.
+- Restore integral validado em banco descartavel, com tabelas e contagens comparadas.
+- Compose de producao validado com MariaDB, migracao, Gunicorn, scheduler e Nginx; WhatsApp possui imagem e perfil opcionais proprios.
+- CSP sem `unsafe-inline` para estilos nas respostas HTTP.
+- Templates versionados de laudo e categorias fotograficas obrigatorias.
+- Portal do cliente com token hash, expiracao, revogacao e aprovacao auditada de orcamento.
+- Fila WhatsApp persistente com idempotencia, historico, retry e fallback manual.
+- Relatorios gerenciais e exportacoes CSV, XLSX e PDF protegidos por permissao.
+- Painel global SaaS, planos, limites, assinatura e webhook sandbox idempotente.
+- Exportacao do titular, solicitacoes LGPD, consentimento e anonimizacao conservadora.
 
-- Adicionar QR Code visual ao PDF.
-- Criar thumbnails separados das fotos.
-- Implementar reordenacao visual de fotos.
-- Criar limpeza/deteccao de arquivos orfaos.
-- Adicionar PDF/comprovante marcado como cancelado.
-- Criar templates administraveis de laudo.
-- Ampliar testes de concorrencia da numeracao.
-- Testar limite de fotos, arquivo grande, path traversal e download indevido.
-- Criar API JSON para laudos, se necessario.
+## Situacao
 
-## SaaS e multiempresa
+Nao ha itens internos pendentes neste roadmap.
 
-- Criar tabela `organizacoes`.
-- Adicionar `organization_id` em usuarios, clientes, OS, estoque, financeiro e configuracoes.
-- Fazer backfill seguro para organizacao padrao.
-- Centralizar filtro obrigatorio por tenant.
-- Bloquear `organization_id` enviado pelo navegador sem validacao.
-- Criar testes de vazamento entre empresas.
-- Separar painel global/admin.
+- Onboarding individual, checklist operacional e Central de Ajuda foram entregues.
+- Retencao configuravel foi entregue em modo conservador, inativa por padrao e condicionada a aprovacao explicita.
+- A API de laudos permanece deliberadamente HTML-first: o prompt determina criar contrato JSON somente quando existir consumidor definido.
 
-## Produto
-
-- Portal do cliente.
-- Acompanhamento publico/seguro de OS.
-- Aprovacao de orcamento.
-- Notificacoes.
-- Relatorios gerenciais.
-- Exportacao CSV, Excel e PDF com permissao.
-- Estados vazios, onboarding e ajuda.
-
-## Comercial
-
-- Modelar planos e limites.
-- Criar provider fake/sandbox de cobranca.
-- Preparar webhooks idempotentes.
-- Auditoria de assinatura, upgrade, downgrade e cancelamento.
-- Nao escolher gateway real sem decisao do proprietario.
-
-## Seguranca e LGPD
-
-- 2FA para administradores.
-- Logs estruturados com request ID.
-- Sentry opcional.
-- Metricas basicas.
-- Politica de retencao.
-- Exportacao de dados.
-- Anonimizacao/exclusao quando legalmente possivel.
-- Registro de consentimento.
-- Politica formal para documentos e fotografias.
-
-## Qualidade
-
-- Aumentar cobertura de testes, principalmente rotas legadas.
-- Adicionar testes de migracoes.
-- Auditar dependencias no CI.
-- Secret scanning robusto.
-- Lint gradual mais amplo.
-- Validar PWA/cache para nao guardar dados sensiveis.
-
+Escolhas que dependem do proprietario, assessoria juridica ou fornecedor externo nao sao backlog de engenharia e estao registradas em `DECISOES_EXTERNAS.md`.

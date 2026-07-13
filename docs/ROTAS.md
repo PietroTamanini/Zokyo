@@ -3,6 +3,7 @@
 ## HTML
 
 - `/` - dashboard.
+- `/ajuda` - onboarding, checklist e Central de Ajuda autenticada.
 - `/login` - login.
 - `/primeiro-acesso` - cadastro do primeiro administrador.
 - `/os` - listagem de ordens de servico.
@@ -14,6 +15,8 @@
 - `/financeiro` - financeiro.
 - `/usuarios` - usuarios.
 - `/configuracoes` - configuracoes da empresa.
+- `/configuracoes/notificacoes` - historico e retentativas de notificacoes (administrador).
+- `/privacidade/retencao` - prazos e ativacao aprovada da retencao operacional (administrador).
 - `/logs` - auditoria.
 - `/laudos` - listagem de laudos.
 - `/laudos/novo?os_id=<id>` - novo laudo vinculado a OS.
@@ -35,8 +38,6 @@
 - `/api/defeitos`
 - `/api/logs`
 - `/api/whatsapp/status`
-- `/api/whatsapp/qr`
-- `/api/whatsapp/reconectar`
 - `/api/whatsapp/teste`
 
 Requisicoes mutantes exigem CSRF.

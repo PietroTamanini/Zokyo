@@ -6,12 +6,18 @@
 python scripts/backup_database.py --output-dir backups --keep-days 14
 ```
 
-## Uploads e PDFs
+## Criptografia
 
-Inclua no backup:
+Gere uma chave fora do servidor e guarde-a em um cofre de segredos:
 
-- `instance/uploads/os_fotos`
-- `instance/uploads/reports`
+```bash
+python -c "import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
+export BACKUP_ENCRYPTION_KEY="valor-do-cofre"
+python scripts/backup_crypto.py encrypt backups/arquivo.sql.gz backups/arquivo.sql.gz.enc
+python scripts/backup_crypto.py decrypt backups/arquivo.sql.gz.enc /tmp/arquivo.sql.gz
+```
+
+A criptografia usa AES-256-GCM em blocos autenticados, suporta arquivos grandes e rejeita alteracoes antes de publicar o arquivo restaurado.
 
 ## Restore de banco
 
@@ -37,9 +43,46 @@ Um backup so deve ser considerado valido depois de restaurado em ambiente descar
 - abertura de fotos privadas;
 - login administrativo.
 
-## Pendencias
+## Operacao
 
-- script automatizado de restore em ambiente descartavel;
-- criptografia opcional de backups;
-- envio para storage externo;
-- politicas de retencao por tipo de dado.
+- Agende banco e storage diariamente no scheduler do host.
+- Copie apenas arquivos criptografados para uma conta externa com retencao e imutabilidade.
+- Monitore falhas e a idade do backup mais recente.
+- Execute uma restauracao trimestral conforme `DISASTER_RECOVERY.md`.
+# Storage privado
+
+Crie um backup dos uploads e PDFs com manifesto SHA-256:
+
+```bash
+python scripts/backup_storage.py create --source instance/uploads --output backups/storage.tar.gz
+```
+
+Verifique a integridade sem extrair:
+
+```bash
+python scripts/backup_storage.py restore --archive backups/storage.tar.gz --destination /tmp/zokyo-verify --verify-only
+```
+
+Restaure primeiro em um diretorio vazio e descartavel:
+
+```bash
+python scripts/backup_storage.py restore --archive backups/storage.tar.gz --destination /tmp/zokyo-restore
+```
+
+O restaurador rejeita caminhos fora do destino e links simbolicos. O teste automatizado `test_backup_storage_verifica_e_restaura` valida criacao, hashes e restauracao byte a byte.
+
+## Banco de dados
+
+Todo backup novo inclui tamanho e SHA-256 no metadata sidecar. Verifique antes de restaurar:
+
+```bash
+python scripts/restore_database.py --backup backups/zokyo_banco_DATA.sql.gz --verify-only
+```
+
+Restaure somente em banco descartavel ou durante janela de manutencao confirmada:
+
+```bash
+python scripts/restore_database.py --backup backups/zokyo_banco_DATA.sql.gz
+```
+
+O comando le `DATABASE_URL`, usa arquivo temporario de credenciais com permissao restrita e nao inclui senha nos argumentos do processo. Backups corrompidos ou com metadata divergente sao rejeitados antes da conexao ao banco.

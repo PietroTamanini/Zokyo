@@ -3,7 +3,7 @@
 {% block breadcrumb %}Usuários{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">👤 Usuários</div><div class="page-sub">Gerenciamento de contas e perfis de acesso</div></div>
+  <div><div class="page-title">Usuários</div><div class="page-sub">Contas, perfis de acesso e segurança da equipe</div></div>
   <button class="btn btn-primary" data-action="usuario-novo">+ Novo Usuário</button>
 </div>
 
@@ -14,20 +14,20 @@
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Cadastro</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th class="th-hide-sm">E-mail</th><th>Perfil</th><th>Status</th><th class="th-hide-sm">Cadastro</th><th></th></tr></thead>
       <tbody>
         {% for u in usuarios %}
         <tr class="tr-static">
           <td><div class="td-strong">{{ u.nome }}</div></td>
-          <td class="td-mono muted-sm">{{ u.email }}</td>
+          <td class="td-mono muted-sm td-hide-sm">{{ u.email }}</td>
           <td>
             {% set pcls = {'admin':'b-red','operacional':'b-blue','financeiro':'b-green','cadastro':'b-amber','consulta':'b-gray'}[u.nivel] if u.nivel in ['admin','operacional','financeiro','cadastro','consulta'] else 'b-gray' %}
             <span class="badge {{ pcls }}"><span class="dot"></span>{{ u.nivel }}</span>
           </td>
           <td><span class="badge {{ 'b-green' if u.ativo else 'b-gray' }}"><span class="dot"></span>{{ 'Ativo' if u.ativo else 'Inativo' }}</span></td>
-          <td class="td-mono muted-xs">{{ u.criado_em | fmtdata }}</td>
+          <td class="td-mono muted-xs td-hide-sm">{{ u.criado_em | fmtdata }}</td>
           <td>
-            <button class="btn btn-ghost btn-xs" data-action="usuario-editar" data-user='{{ u.to_dict()|tojson }}'>✏</button>
+            <button class="btn btn-ghost btn-xs" data-action="usuario-editar" data-user='{{ u.to_dict()|tojson }}'>Editar</button>
           </td>
         </tr>
         {% endfor %}
@@ -86,8 +86,10 @@
     <div class="form-group"><label>Status</label>
       <select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select>
     </div>
+    <div class="alert a-amber mb16 muted-sm">Revogue as sessoes em caso de perda de dispositivo ou suspeita de acesso.</div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" data-action="usuario-deletar">Remover</button>
+      <button class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessoes</button>
       <button class="btn btn-ghost" data-action="usuario-editar-fechar">Cancelar</button>
       <button class="btn btn-primary" data-action="usuario-salvar">Salvar</button>
     </div>
@@ -146,6 +148,13 @@ async function deletarUsuario() {
   location.reload();
 }
 
+async function revogarSessoes() {
+  if (!confirm('Encerrar todas as sessoes deste usuario?')) return;
+  const id = document.getElementById('e-id').value;
+  const r = await fetch(`/api/usuarios/${id}/revogar-sessoes`, {method:'POST', headers:{'X-CSRFToken':CSRF}});
+  if (r.ok) location.reload();
+}
+
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
@@ -167,6 +176,7 @@ document.addEventListener('click', (e) => {
   }
   if (action === 'usuario-salvar') return salvarUsuario();
   if (action === 'usuario-deletar') return deletarUsuario();
+  if (action === 'usuario-revogar') return revogarSessoes();
 
   if (action === 'usuario-editar') {
     const payload = el.getAttribute('data-user');

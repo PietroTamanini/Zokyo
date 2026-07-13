@@ -8,6 +8,7 @@ Configura logging para produção:
   - Formato JSON em produção para ingestão por SIEM
   - Rotação de arquivo de log
 """
+import json
 import logging
 import logging.handlers
 import os
@@ -15,6 +16,7 @@ import re
 import sys
 from pathlib import Path
 
+from flask import g, has_request_context
 
 # Padrões para mascaramento
 _MASK_PATTERNS = [
@@ -51,7 +53,22 @@ class MaskingFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.msg     = _mask(str(record.msg))
         record.args    = tuple(_mask(str(a)) for a in record.args) if record.args else ()
+        record.request_id = getattr(g, "request_id", None) if has_request_context() else None
         return True
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        payload = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", None),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=True)
 
 
 def configure_logging(app):
@@ -67,15 +84,13 @@ def configure_logging(app):
     app.logger.handlers.clear()
 
     fmt_simple = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
-    fmt_detail = "[%(asctime)s] %(levelname)s %(name)s [%(filename)s:%(lineno)d]: %(message)s"
-
-    formatter  = logging.Formatter(fmt_detail if is_prod else fmt_simple,
-                                   datefmt="%Y-%m-%dT%H:%M:%S")
+    formatter = JsonFormatter() if is_prod else logging.Formatter(fmt_simple, datefmt="%Y-%m-%dT%H:%M:%S")
 
     mask_filter = MaskingFilter()
 
     # Handler stderr
     stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler._zokyo_handler = True
     stderr_handler.setFormatter(formatter)
     stderr_handler.addFilter(mask_filter)
     app.logger.addHandler(stderr_handler)
@@ -91,6 +106,7 @@ def configure_logging(app):
                 backupCount=10,
                 encoding="utf-8",
             )
+            file_handler._zokyo_handler = True
             file_handler.setFormatter(formatter)
             file_handler.addFilter(mask_filter)
             app.logger.addHandler(file_handler)
@@ -102,7 +118,11 @@ def configure_logging(app):
     # Propaga para loggers dos módulos internos
     for logger_name in ("app", "sqlalchemy.engine", "werkzeug"):
         lg = logging.getLogger(logger_name)
-        lg.setLevel(log_level)
-        if logger_name != "sqlalchemy.engine" or not is_prod:
+        lg.handlers = [handler for handler in lg.handlers if not getattr(handler, "_zokyo_handler", False)]
+        if logger_name == "sqlalchemy.engine":
+            lg.setLevel(logging.INFO if app.config.get("SQLALCHEMY_ECHO", False) else logging.WARNING)
+        else:
+            lg.setLevel(log_level)
+        if logger_name != "sqlalchemy.engine" or app.config.get("SQLALCHEMY_ECHO", False):
             lg.addHandler(stderr_handler)
             lg.addFilter(mask_filter)

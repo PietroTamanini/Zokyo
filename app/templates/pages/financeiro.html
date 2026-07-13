@@ -6,10 +6,15 @@
 
 <div class="page-header">
   <div>
-    <div class="page-title">💰 Financeiro</div>
+    <div class="page-title">Financeiro</div>
     <div class="page-sub">Receitas, despesas e fluxo de caixa · {{ periodo_label }}</div>
   </div>
-  <button class="btn btn-primary" data-action="transacao-nova">+ Nova Transação</button>
+  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('transacoes.contabilidade_csv') }}">Exportar contabilidade</a><button class="btn btn-primary" data-action="transacao-nova">+ Nova Transação</button></div>
+</div>
+
+<div class="g2 mb20">
+  <div class="card"><div class="card-body txt-c"><div class="fin-label">Comissoes provisionadas</div><div class="fin-val">{{ comissoes|moeda }}</div></div></div>
+  <div class="card"><div class="card-body txt-c"><div class="fin-label">Resultado apos comissoes</div><div class="fin-val {{ 'txt-green' if lucro - comissoes >= 0 else 'txt-red' }}">{{ (lucro - comissoes)|moeda }}</div></div></div>
 </div>
 
 <!-- Seletor de período -->
@@ -116,6 +121,7 @@
           <td class="td-strong muted-sm">
             {{ t.descricao }}
             {% if t.os_id %}<span class="chip chip-spaced">OS #{{ '%04d'|format(t.os_id) }}</span>{% endif %}
+            {% if t.parcela_total > 1 %}<span class="chip chip-spaced">{{ t.parcela_numero }}/{{ t.parcela_total }}</span>{% endif %}
           </td>
           <td class="td-hide-sm"><span class="chip">{{ t.categoria or '—' }}</span></td>
           <td>
@@ -145,10 +151,13 @@
                 <button type="submit" class="btn btn-success btn-xs">✓</button>
               </form>
               {% endif %}
+              {% if not t.conciliado_em %}<form method="POST" action="{{ url_for('pages.transacao_conciliar', id=t.id) }}" class="inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="referencia" value="manual-{{ t.id }}"><button type="submit" class="btn btn-outline btn-xs" title="Conciliar">C</button>
+              </form>{% else %}<span class="badge b-blue" title="{{ t.conciliacao_ref }}">Conciliada</span>{% endif %}
               <form method="POST" action="{{ url_for('pages.transacao_deletar', id=t.id) }}"
                     data-confirm="Cancelar/excluir esta transação?">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs">🗑</button>
+                <button type="submit" class="btn btn-danger btn-xs" aria-label="Excluir transação">Excluir</button>
               </form>
             </div>
           </td>
@@ -176,6 +185,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/financeiro.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/financeiro.js') }}"></script>
 {% endblock %}
 

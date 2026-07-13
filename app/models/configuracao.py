@@ -129,7 +129,8 @@ def _decrypt(token: str) -> str | None:
 class Configuracao(db.Model):
     __tablename__ = "configuracoes"
 
-    id              = db.Column(db.Integer, primary_key=True, default=1)
+    id              = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, unique=True)
     nome_empresa    = db.Column(db.String(200), default="Zokyo Platform")
     cnpj            = db.Column(db.String(18))
     telefone        = db.Column(db.String(20))
@@ -137,6 +138,8 @@ class Configuracao(db.Model):
     endereco        = db.Column(db.String(300))
     cidade          = db.Column(db.String(100), default="Joinville")
     uf              = db.Column(db.String(2), default="SC")
+    primary_color   = db.Column(db.String(7), default="#2563eb")
+    accent_color    = db.Column(db.String(7), default="#6366f1")
 
     dias_vencimento       = db.Column(db.Integer, default=30)
     dados_pagamento       = db.Column(db.Text)
@@ -147,7 +150,6 @@ class Configuracao(db.Model):
     alerta_estoque_minimo = db.Column(db.Integer, default=5)
     alerta_vencimento_dias= db.Column(db.Integer, default=5)
 
-    wkhtmltopdf_path = db.Column(db.String(500))
     wpp_server_url   = db.Column(db.String(300))
 
     # H06: campos sensíveis armazenados criptografados

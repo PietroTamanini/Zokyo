@@ -18,7 +18,7 @@ function abrirModalNovaPeca() {
         <div class="form-group"><label>Margem %</label><input type="number" name="margem" value="0" step="0.01" min="0"></div>
       </div>
       <div class="form-group"><label>Custo (R$)</label><input type="number" name="custo" value="0" step="0.01" min="0"></div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
       </div>
@@ -42,11 +42,35 @@ function abrirModalMovimentacao(id) {
         </div>
         <div class="form-group"><label>Quantidade *</label><input type="number" name="quantidade" min="0" value="1" required></div>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="form-group"><label>Justificativa *</label><input type="text" name="justificativa" minlength="5" maxlength="300" required placeholder="Compra, perda, inventario..."></div>
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="submit" class="btn btn-primary">Confirmar</button>
       </div>
     </form>`);
+}
+
+function abrirModalLote(id) {
+  const p = PECAS_DATA.find(x => x.id === id);
+  if (!p) return;
+  openModal(`Receber lote - ${p.nome}`, `
+    <div class="form-row fr2"><div class="form-group"><label>Codigo do lote *</label><input id="lot-code" maxlength="100" required></div><div class="form-group"><label>Localizacao</label><input id="lot-location" maxlength="100"></div></div>
+    <div class="form-row fr3"><div class="form-group"><label>Quantidade *</label><input id="lot-quantity" type="number" min="1" value="1"></div><div class="form-group"><label>Custo unitario *</label><input id="lot-cost" type="number" min="0" step="0.01" value="${p.custo || 0}"></div><div class="form-group"><label>Validade</label><input id="lot-expiry" type="date"></div></div>
+    <div class="form-group"><label>Justificativa *</label><input id="lot-reason" minlength="5" maxlength="300" value="Entrada de mercadoria"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" data-action="close-modal">Cancelar</button><button class="btn btn-primary" data-action="peca-lote-salvar" data-id="${id}">Receber lote</button></div>`);
+}
+
+async function salvarLote(id) {
+  const payload = {
+    codigo: document.getElementById('lot-code')?.value || '',
+    localizacao: document.getElementById('lot-location')?.value || '',
+    quantidade: parseInt(document.getElementById('lot-quantity')?.value || 0),
+    custo_unitario: parseFloat(document.getElementById('lot-cost')?.value || 0),
+    validade: document.getElementById('lot-expiry')?.value || '',
+    justificativa: document.getElementById('lot-reason')?.value || '',
+  };
+  const result = await apiFetch('POST', `/api/pecas/${id}/lotes`, payload);
+  if (result) location.reload();
 }
 
 document.addEventListener('click', (e) => {
@@ -58,4 +82,6 @@ document.addEventListener('click', (e) => {
     const id = parseInt(el.getAttribute('data-id'));
     if (id) return abrirModalMovimentacao(id);
   }
+  if (action === 'peca-lote') return abrirModalLote(parseInt(el.getAttribute('data-id')));
+  if (action === 'peca-lote-salvar') return salvarLote(parseInt(el.getAttribute('data-id')));
 });

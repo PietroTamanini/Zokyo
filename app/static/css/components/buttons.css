@@ -1,13 +1,13 @@
 ﻿.btn {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 8px 18px; border: none; border-radius: 8px;
-  font-family: "Outfit", sans-serif; font-size: 13px; font-weight: 600;
+  font-family: inherit; font-size: 13px; font-weight: 650;
   cursor: pointer; transition: all 0.15s; white-space: nowrap;
   text-decoration: none !important;
 }
-.btn-primary { background: var(--blue); color: #fff; box-shadow: 0 2px 8px var(--blue-ring); }
-.btn-primary:hover { background: var(--blue-dk); transform: translateY(-1px); box-shadow: 0 4px 14px var(--blue-ring); }
-.btn-outline { background: transparent; color: var(--blue); border: 1.5px solid var(--blue); }
+.btn-primary { background: #1d4ed8; color: #fff; box-shadow: 0 2px 8px rgba(29,78,216,.3); }
+.btn-primary:hover { background: #1e40af; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(29,78,216,.3); }
+.btn-outline { background: transparent; color: var(--blue-text); border: 1.5px solid var(--blue); }
 .btn-outline:hover { background: var(--blue-glow); }
 .btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border2); }
 .btn-ghost:hover { border-color: var(--text-2); color: var(--text); background: var(--surface2); }

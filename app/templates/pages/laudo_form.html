@@ -53,10 +53,23 @@
             </select>
           </div>
         </div>
+        <div class="form-group">
+          <label>Template do documento</label>
+          {% if modo == 'novo' %}
+          <select name="template_id">
+            <option value="">Padrao do sistema ou automatico pelo tipo</option>
+            {% for template in template_options %}
+            <option value="{{ template.id }}">{{ template.nome }} v{{ template.versao }} - {{ tipo_labels.get(template.tipo_laudo, template.tipo_laudo) }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <input type="text" value="{{ obj.template.nome ~ ' v' ~ obj.template.versao if obj.template else 'Padrao do sistema' }}" disabled>
+          {% endif %}
+        </div>
         <div class="form-row fr3">
-          <div class="form-group"><label>Tecnico responsavel</label><input name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
+          <div class="form-group"><label>Tecnico responsavel</label><input type="text" name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
           <div class="form-group"><label>Data da analise</label><input type="date" name="analisado_em" value="{{ obj.analisado_em.strftime('%Y-%m-%d') if obj and obj.analisado_em else '' }}"></div>
-          <div class="form-group"><label>Estado final *</label><input name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120"></div>
+          <div class="form-group"><label>Estado final *</label><input type="text" name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120"></div>
         </div>
       </div>
 
@@ -81,7 +94,7 @@
         <div class="form-group">
           <label>{{ label }}{% if required %} *{% endif %}</label>
           {% if field == 'garantia' %}
-          <input name="{{ field }}" value="{{ obj|attr(field) if obj else '' }}" maxlength="200">
+          <input type="text" name="{{ field }}" value="{{ obj|attr(field) if obj else '' }}" maxlength="200">
           {% else %}
           <textarea name="{{ field }}" rows="4" maxlength="12000" {% if required %}required{% endif %}>{{ obj|attr(field) if obj else '' }}</textarea>
           <div class="field-hint"><span data-count-for="{{ field }}">0</span>/12000</div>
@@ -117,10 +130,14 @@
         </form>
         <div class="photo-grid mt20">
           {% for foto in obj.fotos|sort(attribute='ordem') %}
-          <div class="photo-card">
-            <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank"><img src="{{ url_for('laudos.foto', foto_id=foto.id) }}" alt="{{ foto.legenda or foto.tipo }}"></a>
+          <div class="photo-card" data-photo-id="{{ foto.id }}">
+            <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank"><img src="{{ url_for('laudos.foto', foto_id=foto.id, thumbnail=1) }}" alt="{{ foto.legenda or foto.tipo }}"></a>
             <div class="muted-sm">{{ foto_labels.get(foto.tipo, foto.tipo) }}</div>
             <div class="td-strong">{{ foto.legenda or '-' }}</div>
+            <div class="form-actions">
+              <button class="btn btn-secondary btn-xs photo-move" type="button" data-direction="up" aria-label="Mover foto para cima">&#8593;</button>
+              <button class="btn btn-secondary btn-xs photo-move" type="button" data-direction="down" aria-label="Mover foto para baixo">&#8595;</button>
+            </div>
             <form method="POST" action="{{ url_for('laudos.excluir_foto', foto_id=foto.id) }}" data-confirm="Remover esta foto?">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-danger btn-xs" type="submit">Remover</button>
@@ -130,6 +147,9 @@
           <div class="empty-state">Adicione as cinco fotos obrigatorias antes de finalizar.</div>
           {% endfor %}
         </div>
+        <form id="photo-order-form" method="POST" action="{{ url_for('laudos.reordenar_fotos_rota', id=obj.id) }}" hidden>
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        </form>
       </div>
     </div>
     {% endif %}
@@ -178,6 +198,26 @@
     if (!dirty) return;
     event.preventDefault();
     event.returnValue = '';
+  });
+  document.querySelectorAll('.photo-move').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('.photo-card');
+      const sibling = button.dataset.direction === 'up' ? card.previousElementSibling : card.nextElementSibling;
+      if (!sibling || !sibling.classList.contains('photo-card')) return;
+      if (button.dataset.direction === 'up') card.parentNode.insertBefore(card, sibling);
+      else card.parentNode.insertBefore(sibling, card);
+      const orderForm = document.getElementById('photo-order-form');
+      orderForm.querySelectorAll('input[name="foto_ids"]').forEach((input) => input.remove());
+      document.querySelectorAll('.photo-card').forEach((photo) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'foto_ids';
+        input.value = photo.dataset.photoId;
+        orderForm.appendChild(input);
+      });
+      dirty = false;
+      orderForm.submit();
+    });
   });
 })();
 </script>

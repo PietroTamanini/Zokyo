@@ -1,7 +1,7 @@
 """
 gunicorn.conf.py — Configuração hardened do Gunicorn para produção.
 
-Uso: gunicorn -c gunicorn.conf.py app:app
+Uso: gunicorn -c gunicorn.conf.py wsgi:app
 
 Fix H03: workers suficientes para não afetar rate limiting de login.
 V-13 FIX: post_fork() descarta conexões MySQL herdadas do processo master
@@ -28,8 +28,7 @@ import os
 
 # ── Workers ────────────────────────────────────────────────────────────────
 # Fórmula recomendada: (2 * CPUs) + 1
-workers = int(os.environ.get("GUNICORN_WORKERS",
-                             (2 * multiprocessing.cpu_count()) + 1))
+workers = int(os.environ.get("GUNICORN_WORKERS", min((2 * multiprocessing.cpu_count()) + 1, 4)))
 worker_class    = "sync"
 worker_connections = 1000
 threads         = 1
@@ -84,7 +83,9 @@ def post_fork(server, worker):
     """
     try:
         from app.extensions import db
-        db.engine.dispose()
+        flask_app = worker.app.wsgi()
+        with flask_app.app_context():
+            db.engine.dispose()
         server.log.info("Worker %s: pool de conexões MySQL reinicializado (post_fork).", worker.pid)
     except Exception as exc:
         server.log.warning("Worker %s: erro no post_fork dispose: %s", worker.pid, exc)

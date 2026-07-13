@@ -19,43 +19,55 @@ from requests.exceptions import RequestException
 
 logger = logging.getLogger(__name__)
 
-# Hosts permitidos para o wpp-server (além de localhost/127.0.0.1)
-# Adicione entradas se seu servidor WPP estiver em outra máquina da rede interna.
 _WPP_ALLOWED_HOSTS = {"localhost", "127.0.0.1"}
+_META_GRAPH_URL = "https://graph.facebook.com"
+
+
+def _allowed_hosts() -> set[str]:
+    configured = {
+        item.strip().lower()
+        for item in os.environ.get("WPP_ALLOWED_HOSTS", "").split(",")
+        if item.strip()
+    }
+    return _WPP_ALLOWED_HOSTS | configured
 
 
 def _is_safe_wpp_url(url: str) -> bool:
     """
-    H05: Valida que a URL do wpp-server é segura.
-    Rejeita URLs que apontem para serviços internos inesperados.
+    Valida um gateway externo contra SSRF e configuracoes ambiguas.
     """
     try:
         parsed = urllib.parse.urlparse(url)
     except Exception:
         return False
 
-    if parsed.scheme not in ("http", "https"):
+    if parsed.scheme not in ("http", "https") or parsed.username or parsed.password:
         return False
 
-    hostname = parsed.hostname or ""
-    if not hostname:
+    hostname = (parsed.hostname or "").lower()
+    if not hostname or parsed.query or parsed.fragment:
         return False
 
-    # Permite hosts explicitamente whitelistados
-    if hostname.lower() in _WPP_ALLOWED_HOSTS:
-        return True
+    allowed_hosts = _allowed_hosts()
+    if hostname not in allowed_hosts:
+        logger.warning("[WhatsApp] Host nao permitido: %s", hostname)
+        return False
 
-    # Resolve o hostname e rejeita IPs privados/reservados
+    is_localhost = hostname in _WPP_ALLOWED_HOSTS
+    if parsed.scheme != "https" and not is_localhost:
+        logger.warning("[WhatsApp] HTTPS obrigatorio para gateway remoto: %s", hostname)
+        return False
+
     try:
-        addr = socket.getaddrinfo(hostname, None)[0][4][0]
-        ip   = ipaddress.ip_address(addr)
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast):
-            logger.warning("[WPP] URL rejeitada (IP privado/reservado): %s → %s", url, addr)
-            return False
+        addresses = {item[4][0] for item in socket.getaddrinfo(hostname, parsed.port)}
+        for addr in addresses:
+            ip = ipaddress.ip_address(addr)
+            blocked = ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
+            if blocked and not is_localhost:
+                logger.warning("[WhatsApp] Endereco bloqueado para %s: %s", hostname, addr)
+                return False
     except (socket.gaierror, ValueError):
-        # Não conseguiu resolver → rejeita por segurança
-        logger.warning("[WPP] URL rejeitada (não resolveu): %s", url)
+        logger.warning("[WhatsApp] Host nao resolvido: %s", hostname)
         return False
 
     return True
@@ -90,21 +102,65 @@ def _wpp_headers() -> dict:
     headers = {"Content-Type": "application/json"}
     if secret:
         headers["X-Wpp-Token"] = secret
-    else:
-        logger.warning("[WPP] WPP_SECRET não configurado.")
     return headers
+
+
+def _cloud_config() -> tuple[str, str, str] | None:
+    token = os.environ.get("WHATSAPP_CLOUD_API_TOKEN", "").strip()
+    phone_id = os.environ.get("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "").strip()
+    version = os.environ.get("WHATSAPP_CLOUD_API_VERSION", "").strip()
+    if not token or not phone_id or not re.fullmatch(r"v\d+\.\d+", version):
+        return None
+    if not phone_id.isdigit():
+        return None
+    return token, phone_id, version
+
+
+def _send_cloud_api(numero: str, mensagem: str, link: str) -> dict:
+    token, phone_id, version = _cloud_config()
+    try:
+        response = requests.post(
+            f"{_META_GRAPH_URL}/{version}/{phone_id}/messages",
+            json={
+                "messaging_product": "whatsapp",
+                "recipient_type": "individual",
+                "to": _normalizar_numero(numero),
+                "type": "text",
+                "text": {"preview_url": False, "body": mensagem},
+            },
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            timeout=10,
+            allow_redirects=False,
+        )
+        if response.status_code in (200, 201):
+            payload = response.json()
+            message_id = ((payload.get("messages") or [{}])[0]).get("id")
+            return {"modo": "whatsapp_cloud", "sucesso": True, "link": link, "message_id": message_id}
+        logger.error("[WhatsApp Cloud] Falha HTTP %s", response.status_code)
+        return {
+            "modo": "whatsapp_cloud", "sucesso": False, "link": link,
+            "erro": f"WhatsApp Cloud API retornou HTTP {response.status_code}.",
+        }
+    except (RequestException, ValueError, TypeError) as exc:
+        logger.warning("[WhatsApp Cloud] Envio indisponivel: %s", type(exc).__name__)
+        return {
+            "modo": "fallback", "sucesso": False, "link": link,
+            "aviso": "WhatsApp Cloud API indisponivel. Use o link para envio manual.",
+        }
 
 
 def enviar_whatsapp(numero: str, mensagem: str) -> dict:
     link    = _wa_me_link(numero, mensagem)
+    if _cloud_config():
+        return _send_cloud_api(numero, mensagem, link)
     srv_url = _wpp_url()
 
-    if not srv_url:
+    if not srv_url or not os.environ.get("WPP_SECRET", "").strip():
         return {
             "modo":    "simulacao",
             "sucesso": False,
             "link":    link,
-            "aviso":   "Servidor WhatsApp não configurado. Use o link para envio manual.",
+            "aviso":   "Gateway seguro nao configurado. Use o link para envio manual.",
         }
 
     # H05: valida a URL antes de fazer a requisição
@@ -128,18 +184,18 @@ def enviar_whatsapp(numero: str, mensagem: str) -> dict:
         data = resp.json()
 
         if resp.status_code == 200 and data.get("ok"):
-            return {"modo": "wpp-server", "sucesso": True, "link": link}
+            return {"modo": "gateway", "sucesso": True, "link": link}
 
         logger.error("[WPP] Erro do servidor: %s", data)
         return {
-            "modo":    "wpp-server",
+            "modo":    "gateway",
             "sucesso": False,
             "link":    link,
             "erro":    data.get("erro", str(data)),
         }
 
     except RequestException as exc:
-        logger.warning("[WPP] wpp-server offline (%s)", exc)
+        logger.warning("[WhatsApp] Gateway offline (%s)", exc)
         return {
             "modo":    "fallback",
             "sucesso": False,
@@ -152,12 +208,14 @@ def enviar_whatsapp(numero: str, mensagem: str) -> dict:
 
 
 def status_wpp() -> dict:
+    if _cloud_config():
+        return {"status": "configurado", "modo": "whatsapp_cloud"}
     srv_url = _wpp_url()
-    if not srv_url:
+    if not srv_url or not os.environ.get("WPP_SECRET", "").strip():
         return {"status": "desconectado", "modo": "simulacao"}
 
     if not _is_safe_wpp_url(srv_url):
-        return {"status": "erro", "modo": "wpp-server",
+        return {"status": "erro", "modo": "gateway",
                 "erro": "URL bloqueada por política de segurança."}
 
     try:
@@ -168,12 +226,12 @@ def status_wpp() -> dict:
             allow_redirects=False,
         )
         data = resp.json()
-        return {"status": data.get("status", "desconhecido"), "modo": "wpp-server"}
+        return {"status": data.get("status", "desconhecido"), "modo": "gateway"}
     except RequestException:
-        return {"status": "offline", "modo": "wpp-server",
+        return {"status": "offline", "modo": "gateway",
                 "erro": f"Servidor não responde em {srv_url}"}
     except Exception as exc:
-        return {"status": "erro", "modo": "wpp-server", "erro": str(exc)}
+        return {"status": "erro", "modo": "gateway", "erro": str(exc)}
 
 
 def mensagem_os_pronta(os) -> str:

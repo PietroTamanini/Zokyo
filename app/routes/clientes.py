@@ -1,9 +1,11 @@
 """routes/clientes.py - CRUD de clientes (API JSON)."""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request, session
 
 from app.extensions import db
-from app.models import Cliente, OrdemServico, registrar
-from app.utils.auth import api_login_required as login_required, nivel_required
+from app.models import Cliente, Usuario, registrar
+from app.services.billing import assert_limit, assert_write_allowed
+from app.utils.auth import api_login_required as login_required
+from app.utils.auth import nivel_required
 from app.utils.request_data import get_request_data
 from app.utils.sanitizers import (
     sanitize_cep,
@@ -20,6 +22,13 @@ from app.utils.validators import (
 )
 
 clientes_bp = Blueprint("clientes", __name__)
+
+
+def _check_client_limit():
+    user = db.session.get(Usuario, session.get("usuario_id"))
+    organization_id = user.organization_id if user else -1
+    assert_write_allowed(organization_id)
+    assert_limit(organization_id, "max_clients", Cliente.query.filter_by(organization_id=organization_id).count())
 
 
 def _escape_like(q: str) -> str:
@@ -151,8 +160,12 @@ def obter(id):
 
 
 @clientes_bp.route("/api/clientes", methods=["POST"])
-@login_required
+@nivel_required("admin", "operacional", "cadastro")
 def criar():
+    try:
+        _check_client_limit()
+    except PermissionError as exc:
+        return jsonify({"success": False, "erro": str(exc)}), 403
     data, _ = get_request_data()
     d, erros = _validar_e_sanitizar(data)
     if erros:
@@ -170,8 +183,12 @@ def criar():
 
 
 @clientes_bp.route("/api/clientes/quick-create", methods=["POST"])
-@login_required
+@nivel_required("admin", "operacional", "cadastro")
 def quick_create():
+    try:
+        _check_client_limit()
+    except PermissionError as exc:
+        return jsonify({"success": False, "erro": str(exc)}), 403
     data, _ = get_request_data()
     d, erros = _validar_e_sanitizar(data)
     if erros:
@@ -189,7 +206,7 @@ def quick_create():
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["PUT"])
-@login_required
+@nivel_required("admin", "operacional", "cadastro")
 def atualizar(id):
     c = db.get_or_404(Cliente, id)
     data, _ = get_request_data()
@@ -223,15 +240,7 @@ def atualizar(id):
 @nivel_required("admin")
 def deletar(id):
     c = db.get_or_404(Cliente, id)
-    os_ativas = OrdemServico.query.filter_by(
-        cliente_id=c.id
-    ).filter(OrdemServico.deletado_em.is_(None)).count()
-    if os_ativas > 0:
-        return jsonify({
-            "success": False,
-            "erro": f"Cliente possui {os_ativas} OS ativa(s). Encerre ou cancele as OS antes de remover."
-        }), 400
-    registrar("exclusao", "clientes", f"Cliente removido: {c.nome}")
-    db.session.delete(c)
+    c.ativo = False
+    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; historico preservado.")
     db.session.commit()
-    return jsonify({"success": True, "mensagem": "Cliente removido"})
+    return jsonify({"success": True, "mensagem": "Cliente arquivado; historico preservado"})

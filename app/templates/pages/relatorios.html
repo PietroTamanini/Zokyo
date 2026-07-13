@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Relatorios - Zokyo{% endblock %}
+{% block breadcrumb %}Relatorios{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Relatorios gerenciais</div><div class="page-sub">Periodo maximo de 366 dias</div></div>
+  <div class="flex-gap">
+    <a class="btn btn-outline btn-sm" href="{{ url_for('relatorios.ordens_csv', inicio=dados.inicio, fim=dados.fim) }}">CSV</a>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('relatorios.gerencial_xlsx', inicio=dados.inicio, fim=dados.fim) }}">Excel</a>
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('relatorios.gerencial_pdf', inicio=dados.inicio, fim=dados.fim) }}">PDF</a>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card c-green"><div class="stat-label">Margem estimada</div><div class="stat-value stat-money">{{ dados.margem_estimada|moeda }}</div></div>
+  <div class="stat-card c-blue"><div class="stat-label">Tempo medio</div><div class="stat-value">{{ '%.1f'|format(dados.tempo_medio_horas) }} h</div></div>
+  <div class="stat-card c-amber"><div class="stat-label">Conversao de orcamentos</div><div class="stat-value">{{ '%.1f'|format(dados.conversao_orcamento) }}%</div></div>
+  <div class="stat-card c-red"><div class="stat-label">OS em garantia</div><div class="stat-value">{{ dados.os_em_garantia }}</div></div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card c-blue"><div class="stat-label">Clientes recorrentes</div><div class="stat-value">{{ dados.clientes_recorrentes }}</div></div>
+  <div class="stat-card c-amber"><div class="stat-label">Clientes inativos (90 dias)</div><div class="stat-value">{{ dados.clientes_inativos }}</div></div>
+</div>
+
+<form method="GET" class="card filter-card">
+  <div class="card-body form-row fr3">
+    <div class="form-group"><label>Inicio</label><input type="date" name="inicio" value="{{ dados.inicio }}"></div>
+    <div class="form-group"><label>Fim</label><input type="date" name="fim" value="{{ dados.fim }}"></div>
+    <div class="form-group form-end"><button class="btn btn-primary" type="submit">Aplicar periodo</button></div>
+  </div>
+</form>
+
+<div class="card mb20"><div class="card-header"><div class="card-title">Filtros salvos e agendamentos</div></div><div class="card-body">
+  <form method="POST" action="{{ url_for('relatorios.save_report') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="inicio" value="{{ dados.inicio }}"><input type="hidden" name="fim" value="{{ dados.fim }}"><div class="form-row fr3"><div class="form-group"><label>Nome</label><input name="nome" required maxlength="120"></div><div class="form-group"><label>Frequencia</label><select name="frequencia"><option value="">Somente salvar filtro</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select></div><div class="form-group"><label>E-mail do agendamento</label><input type="email" name="destinatario"></div></div><button class="btn btn-primary btn-sm" type="submit">Salvar</button></form>
+  {% if saved_reports %}<div class="table-wrap mt16"><table><thead><tr><th>Nome</th><th>Periodo</th><th>Frequencia</th><th>Proxima execucao</th><th></th></tr></thead><tbody>{% for item in saved_reports %}<tr class="tr-static"><td class="td-strong">{{ item.name }}</td><td>{{ item.filters.inicio }} a {{ item.filters.fim }}</td><td>{{ item.frequency or 'manual' }}</td><td>{{ item.next_run_at|fmtdata if item.next_run_at else '-' }}</td><td><form method="POST" action="{{ url_for('relatorios.delete_saved_report', report_id=item.id) }}" data-confirm="Remover este filtro?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger btn-xs" type="submit">Remover</button></form></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+</div></div>
+
+<div class="stats-grid">
+  <div class="stat-card c-blue"><div class="stat-label">Ordens</div><div class="stat-value">{{ dados.ordens|length }}</div></div>
+  <div class="stat-card c-green"><div class="stat-label">Receitas</div><div class="stat-value stat-money">{{ dados.receitas|moeda }}</div></div>
+  <div class="stat-card c-red"><div class="stat-label">Despesas</div><div class="stat-value stat-money">{{ dados.despesas|moeda }}</div></div>
+  <div class="stat-card c-amber"><div class="stat-label">Saldo</div><div class="stat-value stat-money">{{ dados.saldo|moeda }}</div></div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Ordens no periodo</div></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>OS</th><th>Entrada</th><th>Cliente</th><th>Equipamento</th><th>Status</th><th>Total</th></tr></thead>
+    <tbody>{% for os in dados.ordens %}<tr data-href="{{ url_for('pages.os_detalhe', id=os.id) }}"><td class="td-mono">#{{ '%04d' % os.id }}</td><td>{{ os.data_entrada|fmtdata }}</td><td class="td-strong">{{ os.cliente.nome if os.cliente else '-' }}</td><td>{{ os.tipo_aparelho }} {{ os.marca }} {{ os.modelo }}</td><td>{{ status_labels.get(os.status, os.status) }}</td><td class="td-mono">{{ os.valor_total|moeda }}</td></tr>{% else %}<tr><td colspan="6" class="td-empty">Nenhuma OS no periodo.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

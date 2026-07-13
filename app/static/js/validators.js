@@ -41,14 +41,14 @@ const DJValidators = (() => {
       el.parentElement.appendChild(hint);
     }
     hint.textContent = msg;
-    hint.style.display = 'block';
+    hint.classList.remove('hidden');
   }
 
   function clearError(el) {
     el.classList.remove('input-error');
     el.classList.add('input-ok');
     const hint = el.parentElement.querySelector('.field-error');
-    if (hint) hint.style.display = 'none';
+    if (hint) hint.classList.add('hidden');
   }
 
   function getLabel(el) {
@@ -137,9 +137,8 @@ const DJValidators = (() => {
     const erros = validarSenha(senha);
     const force = Math.max(0, 5 - erros.length);
     const labels = ['', 'Muito fraca', 'Fraca', 'Razoável', 'Boa', 'Forte'];
-    const colors = ['', '#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'];
     indicator.textContent = senha ? labels[force] : '';
-    indicator.style.color = senha ? colors[force] : '';
+    indicator.className = `password-strength${senha ? ` strength-${force}` : ''}`;
   }
 
   /* ── Validar um campo individual ─────────────────────────────── */
@@ -313,30 +312,6 @@ const DJValidators = (() => {
   });
 
   /* ── CSS dinâmico para os indicadores ───────────────────────── */
-  const style = document.createElement('style');
-  style.textContent = `
-    .input-error {
-      border-color: var(--red, #ef4444) !important;
-      box-shadow: 0 0 0 2px rgba(239,68,68,.15) !important;
-    }
-    .input-ok {
-      border-color: var(--green, #22c55e) !important;
-    }
-    .field-error {
-      display: block;
-      color: var(--red, #ef4444);
-      font-size: 11px;
-      margin-top: 3px;
-      font-weight: 500;
-    }
-    .password-strength {
-      font-size: 11px;
-      font-weight: 600;
-      margin-top: 3px;
-    }
-  `;
-  document.head.appendChild(style);
-
   return { validate, validateField };
 })();
 

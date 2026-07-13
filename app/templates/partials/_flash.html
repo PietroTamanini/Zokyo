@@ -1,13 +1,13 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
-    <div id="flash-container" class="flash-container">
+    <div id="flash-container" class="flash-container" aria-live="polite" aria-atomic="true">
       {% for category, message in messages %}
-        <div class="alert flash-message a-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}">
-          <span>{{ '✅' if category == 'success' else '❌' if category == 'error' else 'ℹ️' }}</span>
+        <div class="alert flash-message a-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+          <span aria-hidden="true">{{ '✓' if category == 'success' else '!' if category == 'error' else 'i' }}</span>
           <div>{{ message }}</div>
         </div>
       {% endfor %}
     </div>
-    <script nonce="{{ csp_nonce }}">setTimeout(()=>{const el=document.getElementById('flash-container');if(el){el.style.transition='opacity .4s';el.style.opacity='0';setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},450);}},3000);</script>
+    <script nonce="{{ csp_nonce }}">setTimeout(()=>{const el=document.getElementById('flash-container');if(el){el.classList.add('fade-out');setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},450);}},7000);</script>
   {% endif %}
 {% endwith %}
