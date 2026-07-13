@@ -13,10 +13,10 @@ V-02 FIX: register_fail usa INSERT … ON DUPLICATE KEY UPDATE atômico no MySQL
           requisições paralelas (múltiplos workers Gunicorn lendo falhas=4 ao
           mesmo tempo, ambos incrementando para 5 e commitando sem bloquear).
 """
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import request, jsonify, abort
+from flask import abort, jsonify, request
 from sqlalchemy import text
 
 from app.extensions import db
@@ -94,6 +94,25 @@ def register_fail(ip: str, max_fails: int = 5, window_minutes: int = 5,
     Retorna segundos de bloqueio se atingiu o limite, 0 caso contrário.
     """
     now = _now()
+
+    if db.session.get_bind().dialect.name == "sqlite":
+        rec = db.session.get(LoginAttempt, ip)
+        if not rec:
+            rec = LoginAttempt(ip=ip, falhas=1, ultima_falha=now)
+            db.session.add(rec)
+        else:
+            ultima = rec.ultima_falha
+            if ultima and ultima.tzinfo is None:
+                ultima = ultima.replace(tzinfo=timezone.utc)
+            rec.falhas = 1 if not ultima or now - ultima > timedelta(minutes=window_minutes) else rec.falhas + 1
+            rec.ultima_falha = now
+        db.session.commit()
+        if rec.falhas >= max_fails:
+            rec.bloqueado_ate = now + timedelta(seconds=lock_seconds)
+            rec.falhas = 0
+            db.session.commit()
+            return lock_seconds
+        return 0
 
     # Incremento atômico: se o registro já existe, incrementa falhas apenas
     # se a última falha for dentro da janela; caso contrário reinicia para 1.
@@ -192,7 +211,7 @@ def limpar_rate_limit_antigos():
     V-06 FIX: remove registros antigos das tabelas de rate limit para
     evitar crescimento indefinido e degradação de performance.
 
-    Chamado periodicamente via APScheduler em app/__init__.py.
+    Chamado periodicamente pelo processo de scheduler dedicado.
     """
     cutoff_7d = _now() - timedelta(days=7)
 

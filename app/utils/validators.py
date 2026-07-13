@@ -10,7 +10,6 @@ import re
 from datetime import datetime
 from typing import Optional
 
-
 # ── Email ─────────────────────────────────────────────────────────────────────
 
 # RFC 5322 simplificado — muito mais robusto que a regex anterior

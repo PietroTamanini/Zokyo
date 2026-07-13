@@ -23,6 +23,8 @@ build/
 
 # Node
 node_modules/
+playwright-report/
+test-results/
 
 # WhatsApp/WPPConnect local browser session
 tokens/
@@ -33,6 +35,8 @@ tokens/
 *.sql
 *.sql.gz
 backups/
+/Banco cplus/
+/instance/
 
 # Logs
 *.log

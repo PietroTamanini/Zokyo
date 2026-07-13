@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import os
 import shutil
@@ -23,7 +24,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 from urllib.parse import unquote, urlparse
-
 
 SUPPORTED_SCHEMES = {
     "mysql",
@@ -135,16 +135,16 @@ def build_dump_command(mysqldump: str, defaults_file: Path, db: DatabaseConfig, 
         "--triggers",
         "--events",
         "--hex-blob",
-        "--databases",
         db.database,
         *extra_args,
     ]
 
 
 def run_dump(command: list[str], output_path: Path, compress: bool) -> None:
-    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
-        assert proc.stdout is not None
-        assert proc.stderr is not None
+    # O executavel vem de shutil.which/configuracao local e os argumentos sao uma lista, sem shell.
+    with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:  # nosec B603
+        if proc.stdout is None or proc.stderr is None:
+            raise RuntimeError("Nao foi possivel abrir os pipes do mysqldump.")
 
         if compress:
             with gzip.open(output_path, "wb", compresslevel=6) as out:
@@ -162,6 +162,10 @@ def run_dump(command: list[str], output_path: Path, compress: bool) -> None:
 
 
 def write_metadata(path: Path, db: DatabaseConfig, output_path: Path, started_at: datetime, finished_at: datetime) -> None:
+    digest = hashlib.sha256()
+    with output_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
     metadata = {
         "application": "Zokyo",
         "kind": "database-backup",
@@ -171,6 +175,7 @@ def write_metadata(path: Path, db: DatabaseConfig, output_path: Path, started_at
         "scheme": db.scheme,
         "output_file": output_path.name,
         "output_size_bytes": output_path.stat().st_size,
+        "output_sha256": digest.hexdigest(),
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "duration_seconds": round((finished_at - started_at).total_seconds(), 3),

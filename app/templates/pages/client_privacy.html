@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Privacidade do cliente - Zokyo{% endblock %}
+{% block breadcrumb %}Clientes / Privacidade{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="page-title">Privacidade do titular</div><div class="page-sub">{{ cliente.nome }} - operacoes administrativas auditadas</div></div><a class="btn btn-outline" href="{{ url_for('privacy.export', client_id=cliente.id) }}">Exportar dados</a></div>
+<div class="g64">
+  <section class="card">
+    <div class="card-header"><div class="card-title">Registrar consentimento</div></div>
+    <form method="POST" action="{{ url_for('privacy.consent', client_id=cliente.id) }}" class="card-body parts-body">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label>Finalidade</label><select name="purpose"><option value="service_updates">Atualizacoes do servico</option><option value="marketing">Marketing</option><option value="data_processing">Tratamento adicional</option></select></div>
+      <div class="form-group"><label>Decisao</label><select name="granted"><option value="true">Concedido</option><option value="false">Revogado</option></select></div>
+      <button class="btn btn-primary" type="submit">Registrar</button>
+    </form>
+  </section>
+  <section class="card">
+    <div class="card-header"><div class="card-title">Anonimizacao</div></div>
+    <div class="card-body parts-body"><div class="alert a-amber">A operacao sera recusada se existirem OS ou laudos sujeitos a retencao.</div><form method="POST" action="{{ url_for('privacy.anonymize', client_id=cliente.id) }}" data-confirm="Anonimizar permanentemente os dados deste cliente?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger" type="submit">Anonimizar quando permitido</button></form></div>
+  </section>
+</div>
+<div class="card"><div class="card-header"><div class="card-title">Historico de consentimentos</div></div><div class="table-wrap"><table><thead><tr><th>Finalidade</th><th>Decisao</th><th>Origem</th><th>Data</th></tr></thead><tbody>{% for item in consents %}<tr class="tr-static"><td>{{ item.purpose }}</td><td>{{ 'Concedido' if item.granted else 'Revogado' }}</td><td>{{ item.source }}</td><td>{{ item.registrado_em|fmtdata }}</td></tr>{% else %}<tr><td colspan="4" class="td-empty">Sem registros.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

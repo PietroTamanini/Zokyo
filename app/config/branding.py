@@ -37,7 +37,7 @@ DEFAULT_COUNTRY   = "Brasil"
 
 # ── Email remetente padrão ────────────────────────────────────────────────
 MAIL_SENDER_NAME  = APP_NAME
-MAIL_SENDER_ADDR  = f"noreply@zokyo.app"
+MAIL_SENDER_ADDR  = "noreply@zokyo.app"
 
 # ── Infra / deploy ────────────────────────────────────────────────────────
 APP_DOMAIN        = "zokyo.app"
@@ -89,5 +89,9 @@ def get_branding(cfg=None) -> dict:
             brand["APP_NAME"]       = cfg.nome_empresa
             brand["APP_SHORT_NAME"] = cfg.nome_empresa
             brand["APP_COMPANY"]    = cfg.nome_empresa
+        if getattr(cfg, "primary_color", None):
+            brand["PRIMARY_COLOR"] = cfg.primary_color
+        if getattr(cfg, "accent_color", None):
+            brand["ACCENT_COLOR"] = cfg.accent_color
 
     return brand

@@ -8,12 +8,27 @@ Fixes:
 """
 import time
 
-from flask import (Blueprint, current_app, request, session,
-                   redirect, url_for, render_template, flash)
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+
 from app.extensions import db
 from app.models import Usuario, registrar
-from app.utils.auth import validar_senha_forte  # V-01: importação necessária
-from app.utils.sanitizers import sanitize_text, sanitize_email
+from app.services.password_reset import consumir_token, criar_token, enviar_link, localizar_token
+from app.services.two_factor import (
+    consume_recovery_code,
+    decrypt_secret,
+    encrypt_secret,
+    generate_recovery_codes,
+    new_secret,
+    provisioning_uri,
+    qr_data_uri,
+    verify_totp,
+)
+from app.utils.auth import (
+    page_nivel_required,
+    validar_senha_forte,  # V-01: importação necessária
+)
+from app.utils.rate_limit import rate_limit_route
+from app.utils.sanitizers import sanitize_email, sanitize_text
 from app.utils.validators import validar_email
 
 auth_bp = Blueprint("auth", __name__)
@@ -23,6 +38,23 @@ SENHA_MIN = 8
 def _ip():
     """IP real — ProxyFix já processou X-Forwarded-For de forma segura."""
     return request.remote_addr or "unknown"
+
+
+def _login_user(usuario):
+    session.clear()
+    session.permanent = True
+    session["usuario_id"] = usuario.id
+    session["nivel"] = usuario.nivel
+    session["perfil"] = usuario.nivel
+    session["usuario_nome"] = usuario.nome
+    session["security_version"] = usuario.security_version
+    session["_last_active"] = time.time()
+    from app.services.user_sessions import create_session_record
+    create_session_record(usuario)
+    registrar("login", "sistema", f"Login: {usuario.nome}", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    db.session.commit()
+    destination = "pages.dashboard" if usuario.onboarding_completed else "pages.ajuda"
+    return redirect(url_for(destination, onboarding=1))
 
 
 # ── Rotas ──────────────────────────────────────────────────────────────────────
@@ -36,7 +68,7 @@ def login_page():
 
 @auth_bp.route("/login", methods=["POST"])
 def login_post():
-    from app.utils.rate_limit import check_lock, register_fail, clear_fails
+    from app.utils.rate_limit import check_lock, clear_fails, register_fail
     ip = _ip()
 
     bloqueado, remaining = check_lock(ip)
@@ -66,29 +98,185 @@ def login_post():
         return render_template("pages/login.html", email=email)
 
     clear_fails(ip)
-    session.clear()
-    session.permanent       = True
-    session["usuario_id"]   = usuario.id
-    session["nivel"]        = usuario.nivel
-    session["perfil"]       = usuario.nivel
-    session["usuario_nome"] = usuario.nome
-    session["_last_active"] = time.time()   # M06: inicializa timestamp de atividade
+    if usuario.nivel == "admin" and usuario.totp_enabled:
+        session.clear()
+        session["2fa_user_id"] = usuario.id
+        session["2fa_expires"] = time.time() + 300
+        return redirect(url_for("auth.two_factor_challenge"))
+    return _login_user(usuario)
 
-    registrar("login", "sistema", f"Login: {usuario.nome}",
-              usuario_id=usuario.id, usuario_nome=usuario.nome)
+
+@auth_bp.route("/2fa", methods=["GET", "POST"])
+@rate_limit_route(max_hits=10, window_seconds=300)
+def two_factor_challenge():
+    user_id = session.get("2fa_user_id")
+    if not user_id or session.get("2fa_expires", 0) < time.time():
+        session.clear()
+        return redirect(url_for("auth.login_page"))
+    usuario = db.session.get(Usuario, user_id)
+    secret = decrypt_secret(usuario.totp_secret_encrypted) if usuario else None
+    if not usuario or not usuario.ativo or not usuario.totp_enabled or not secret:
+        session.clear()
+        return redirect(url_for("auth.login_page"))
+    if request.method == "POST":
+        code = request.form.get("codigo", "").strip().lower()
+        if verify_totp(secret, code) or consume_recovery_code(usuario, code):
+            registrar("login", "sistema", "Segundo fator validado.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+            db.session.commit()
+            return _login_user(usuario)
+        registrar("falha_login", "sistema", "Segundo fator invalido.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+        db.session.commit()
+        flash("Codigo invalido.", "error")
+    return render_template("pages/two_factor_challenge.html")
+
+
+@auth_bp.route("/seguranca/2fa", methods=["GET", "POST"])
+@page_nivel_required("admin")
+def two_factor_setup():
+    usuario = db.session.get(Usuario, session["usuario_id"])
+    if request.method == "POST":
+        secret = decrypt_secret(usuario.totp_secret_encrypted)
+        if not secret or not verify_totp(secret, request.form.get("codigo", "")):
+            flash("Codigo TOTP invalido. Confira o horario do dispositivo.", "error")
+            return redirect(url_for("auth.two_factor_setup"))
+        codes, hashes = generate_recovery_codes()
+        usuario.totp_enabled = True
+        usuario.recovery_codes_hash = hashes
+        registrar("seguranca", "usuarios", "2FA ativado.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+        db.session.commit()
+        return render_template("pages/two_factor_recovery.html", recovery_codes=codes)
+    if usuario.totp_enabled:
+        return render_template("pages/two_factor_setup.html", enabled=True)
+    secret = new_secret()
+    usuario.totp_secret_encrypted = encrypt_secret(secret)
     db.session.commit()
-    return redirect(url_for("pages.dashboard"))
+    uri = provisioning_uri(secret, usuario.email)
+    return render_template("pages/two_factor_setup.html", enabled=False, secret=secret, qr=qr_data_uri(uri))
+
+
+@auth_bp.route("/seguranca/2fa/desativar", methods=["POST"])
+@page_nivel_required("admin")
+def two_factor_disable():
+    usuario = db.session.get(Usuario, session["usuario_id"])
+    secret = decrypt_secret(usuario.totp_secret_encrypted)
+    if not usuario.check_senha(request.form.get("senha", "")) or not secret or not verify_totp(secret, request.form.get("codigo", "")):
+        flash("Senha ou codigo TOTP invalido.", "error")
+        return redirect(url_for("auth.two_factor_setup"))
+    usuario.totp_enabled = False
+    usuario.totp_secret_encrypted = None
+    usuario.recovery_codes_hash = None
+    registrar("seguranca", "usuarios", "2FA desativado.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    db.session.commit()
+    flash("2FA desativado.", "success")
+    return redirect(url_for("auth.two_factor_setup"))
 
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
     uid, uname = session.get("usuario_id"), session.get("usuario_nome", "—")
     if uid:
+        from app.services.user_sessions import current_session_record, revoke_record
+        record = current_session_record(uid)
+        if record:
+            revoke_record(record, "logout")
         registrar("logout", "sistema", f"Logout: {uname}",
                   usuario_id=uid, usuario_nome=uname)
         db.session.commit()
     session.clear()
     return redirect(url_for("auth.login_page"))
+
+
+@auth_bp.route("/seguranca/sessoes")
+@page_nivel_required("admin")
+def sessions_page():
+    from app.models import UserSession
+    usuario = db.session.get(Usuario, session["usuario_id"])
+    records = UserSession.query.filter_by(user_id=usuario.id).order_by(UserSession.last_seen_at.desc()).limit(100).all()
+    current = session.get("session_token")
+    from app.services.user_sessions import _hash
+    current_hash = _hash(current) if current else None
+    return render_template(
+        "pages/security_sessions.html",
+        active="security_sessions",
+        records=records,
+        current_hash=current_hash,
+    )
+
+
+@auth_bp.route("/seguranca/sessoes/<int:record_id>/revogar", methods=["POST"])
+@page_nivel_required("admin")
+def session_revoke(record_id):
+    from app.models import UserSession
+    from app.services.user_sessions import current_session_record, revoke_record
+    record = UserSession.query.filter_by(id=record_id, user_id=session["usuario_id"]).first_or_404()
+    current_record = current_session_record(session["usuario_id"])
+    revoke_record(record, "revogacao pelo usuario")
+    registrar("seguranca", "sessoes", f"Sessao #{record.id} revogada.")
+    db.session.commit()
+    if current_record and current_record.id == record.id:
+        session.clear()
+        return redirect(url_for("auth.login_page"))
+    flash("Sessao encerrada.", "success")
+    return redirect(url_for("auth.sessions_page"))
+
+
+@auth_bp.route("/seguranca/sessoes/revogar-outras", methods=["POST"])
+@page_nivel_required("admin")
+def sessions_revoke_others():
+    from app.services.user_sessions import current_session_record, revoke_all
+    current_record = current_session_record(session["usuario_id"])
+    count = revoke_all(
+        session["usuario_id"],
+        "revogacao de outras sessoes",
+        except_id=current_record.id if current_record else None,
+    )
+    registrar("seguranca", "sessoes", f"{count} outra(s) sessao(oes) revogada(s).")
+    db.session.commit()
+    flash(f"{count} outra(s) sessao(oes) encerrada(s).", "success")
+    return redirect(url_for("auth.sessions_page"))
+
+
+@auth_bp.route("/recuperar-senha", methods=["GET", "POST"])
+@rate_limit_route(max_hits=5, window_seconds=3600)
+def recuperar_senha():
+    if request.method == "POST":
+        email = sanitize_email(request.form.get("email", ""))
+        usuario = Usuario.query.filter_by(email=email, ativo=True).first() if validar_email(email) else None
+        if usuario:
+            _token, raw_token = criar_token(usuario, _ip())
+            db.session.commit()
+            try:
+                enviar_link(usuario, raw_token)
+            except Exception:
+                current_app.logger.error("Falha ao enviar recuperacao de senha.", exc_info=True)
+        time.sleep(0.3)
+        flash("Se o e-mail estiver cadastrado, enviaremos as instrucoes de recuperacao.", "success")
+        return redirect(url_for("auth.login_page"))
+    return render_template("pages/password_forgot.html")
+
+
+@auth_bp.route("/redefinir-senha/<token>", methods=["GET", "POST"])
+def redefinir_senha(token):
+    reset_token = localizar_token(token)
+    if not reset_token:
+        flash("Link invalido ou expirado. Solicite uma nova recuperacao.", "error")
+        return redirect(url_for("auth.recuperar_senha"))
+    if request.method == "POST":
+        senha = request.form.get("senha", "")
+        if senha != request.form.get("confirmar_senha", ""):
+            flash("As senhas nao coincidem.", "error")
+            return render_template("pages/password_reset.html", token=token)
+        erros = validar_senha_forte(senha)
+        if erros:
+            for erro in erros:
+                flash(erro, "error")
+            return render_template("pages/password_reset.html", token=token)
+        consumir_token(reset_token, senha)
+        db.session.commit()
+        session.clear()
+        flash("Senha redefinida. Entre com sua nova senha.", "success")
+        return redirect(url_for("auth.login_page"))
+    return render_template("pages/password_reset.html", token=token)
 
 
 @auth_bp.route("/primeiro-acesso", methods=["GET"])
@@ -141,7 +329,16 @@ def primeiro_acesso_post():
         if not nome_admin or len(nome_admin) < 2:
             flash("Nome deve ter pelo menos 2 caracteres.", "error")
             return render_template("pages/register.html")
-        admin = Usuario(nome=nome_admin, email=email, nivel="admin")
+        from app.models import Organization
+        organization = Organization.query.filter_by(slug="default").first()
+        if not organization:
+            organization = Organization(nome=data.get("empresa_nome") or "Organizacao padrao", slug="default")
+            db.session.add(organization)
+            db.session.flush()
+        admin = Usuario(
+            nome=nome_admin, email=email, nivel="admin",
+            organization_id=organization.id, onboarding_completed=False,
+        )
         admin.set_senha(data["senha"])
         db.session.add(admin)
 

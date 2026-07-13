@@ -45,7 +45,12 @@ function abrirModalNovaTransacao() {
           </select>
         </div>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="form-row fr3">
+        <div class="form-group"><label>Parcelas</label><input type="number" name="parcelas" value="1" min="1" max="60"></div>
+        <div class="form-group"><label>Recorrencia</label><select name="recorrencia"><option value="">Nao recorrente</option><option value="mensal">Mensal</option></select></div>
+        <div class="form-group"><label>Comissao %</label><input type="number" name="comissao_percentual" value="0" min="0" max="100" step="0.01"></div>
+      </div>
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
       </div>

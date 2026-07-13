@@ -4,7 +4,8 @@
 
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">⚙️ Configurações</div><div class="page-sub">Sistema, Dashboard e WhatsApp</div></div>
+  <div><div class="page-title">Configurações</div><div class="page-sub">Empresa, indicadores e comunicação</div></div>
+  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Seguranca da conta</a>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -15,9 +16,9 @@
 
 <!-- Tabs -->
 <div class="tabs">
-  <button class="tab-btn active" data-action="cfg-tab" data-tab="geral">🏢 Empresa</button>
-  <button class="tab-btn" data-action="cfg-tab" data-tab="dashboard">📊 Dashboard & Alertas</button>
-  <button class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">💬 WhatsApp</button>
+  <button class="tab-btn active" data-action="cfg-tab" data-tab="geral">Empresa</button>
+  <button class="tab-btn" data-action="cfg-tab" data-tab="dashboard">Dashboard e alertas</button>
+  <button class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">WhatsApp</button>
 </div>
 
 <!-- TAB: GERAL -->
@@ -53,16 +54,11 @@
           <div class="form-group"><label>Chave PIX</label>
             <input type="text" name="pix_chave" value="{{ cfg.pix_chave or '' }}"></div>
         </div>
-        <div class="form-group"><label>Caminho do wkhtmltopdf</label>
-          <input type="text" name="wkhtmltopdf_path" value="{{ cfg.wkhtmltopdf_path or '' }}" placeholder="Ex: C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe">
-          <div class="input-hint">Deixe vazio para usar o caminho detectado automaticamente. Necessário para gerar PDF.</div>
-        </div>
-        <div class="hidden"><!-- dummy div closed above -->
-        </div>
         <div class="form-group"><label>Dados de Pagamento / Observações</label>
           <textarea name="dados_pagamento" rows="3">{{ cfg.dados_pagamento or '' }}</textarea></div>
+        <div class="form-row fr2"><div class="form-group"><label>Cor principal</label><input type="color" name="primary_color" value="{{ cfg.primary_color or '#2563eb' }}"></div><div class="form-group"><label>Cor de destaque</label><input type="color" name="accent_color" value="{{ cfg.accent_color or '#6366f1' }}"></div></div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+          <button type="submit" class="btn btn-primary">Salvar alterações</button>
         </div>
       </form>
     </div>
@@ -93,7 +89,7 @@
             <div class="input-hint">Avisa com X dias de antecedência</div></div>
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+          <button type="submit" class="btn btn-primary">Salvar alterações</button>
         </div>
       </form>
     </div>
@@ -104,11 +100,7 @@
 <div id="tab-whatsapp" class="tab-content hidden">
 
   <div class="alert a-blue mb20">
-    <div>
-      <strong>Sem Docker, sem Meta API, sem custo.</strong><br>
-      Instale o Node.js, rode <code>node wpp-server.js</code> na pasta do projeto, escaneie o QR e pronto.<br>
-      <a href="WPP_SETUP.md" class="link-blue">Ver instruções completas → WPP_SETUP.md</a>
-    </div>
+    <div><strong>Envio protegido.</strong><br>Sem gateway configurado, o sistema abre uma conversa no WhatsApp com a mensagem pronta. O envio automático exige um gateway HTTPS autenticado e autorizado no ambiente.</div>
   </div>
 
   <div class="g2 mb20">
@@ -119,70 +111,37 @@
         <div id="wpp-badge" class="badge b-gray"><span class="dot"></span> Verificando...</div>
       </div>
       <div class="card-body txt-c wpp-panel">
-        <div id="wpp-qr-area" class="hidden">
-          <div id="wpp-qr-img" class="wpp-qr"></div>
-          <div class="muted-sm">Abra o WhatsApp → Dispositivos conectados → Escanear QR</div>
-        </div>
         <div id="wpp-status-msg" class="wpp-status">Verificando...</div>
         <div class="wpp-actions">
           <button class="btn btn-ghost btn-sm" data-action="wpp-status">🔍 Verificar Status</button>
-          <button class="btn btn-ghost btn-sm" data-action="wpp-qr">📷 Mostrar QR</button>
-          <button class="btn btn-danger btn-sm" data-action="wpp-reconnect">🔄 Reconectar</button>
         </div>
       </div>
     </div>
 
     <!-- Configuração -->
     <div class="card">
-      <div class="card-header"><span class="card-title">⚙️ Configuração</span></div>
+      <div class="card-header"><span class="card-title">Configuração</span></div>
       <div class="card-body">
         <form method="POST" action="{{ url_for('configuracoes.salvar_whatsapp') }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="form-group mb16">
-            <label>URL do wpp-server</label>
+            <label>URL do gateway</label>
             <input type="url" name="wpp_server_url"
                    value="{{ cfg.wpp_server_url or '' }}"
-                   placeholder="http://localhost:3333">
-            <div class="input-hint">Padrão: http://localhost:3333 · Deixe vazio para modo simulação (wa.me)</div>
+                   placeholder="https://gateway.exemplo.com">
+            <div class="input-hint">O host deve estar em WPP_ALLOWED_HOSTS e usar HTTPS. Deixe vazio para envio manual.</div>
           </div>
           <div class="alert a-amber mb16 muted-sm">
             <div>
-              Modo simulação (URL vazia): botão WhatsApp abre o wa.me com mensagem pré-preenchida.<br>
-              Modo automático (URL preenchida): mensagem enviada direto sem clicar em nada.
+              O token de autenticação fica somente em WPP_SECRET no ambiente e nunca é salvo no banco.
             </div>
           </div>
-          <button type="submit" class="btn btn-primary">💾 Salvar</button>
+          <button type="submit" class="btn btn-primary">Salvar alterações</button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Instruções rápidas -->
-  <div class="card">
-    <div class="card-header"><span class="card-title">🚀 Como configurar em 3 passos</span></div>
-    <div class="card-body">
-      <div class="setup-steps">
-        <div class="setup-step step-blue">
-          <div class="setup-num">1</div>
-          <div class="fw7 setup-title">Instalar Node.js</div>
-          <div class="setup-copy">Baixe em <strong>nodejs.org</strong> e instale. Depois rode na pasta do projeto:<br><br>
-          <code class="code-pill">npm install</code></div>
-        </div>
-        <div class="setup-step step-sky">
-          <div class="setup-num">2</div>
-          <div class="fw7 setup-title">Iniciar o servidor</div>
-          <div class="setup-copy">No terminal, na pasta do projeto:<br><br>
-          <code class="code-pill">node wpp-server.js</code><br><br>
-          Abra <strong>http://localhost:3333</strong> no navegador</div>
-        </div>
-        <div class="setup-step step-green">
-          <div class="setup-num">3</div>
-          <div class="fw7 setup-title">Escanear o QR</div>
-          <div class="muted-sm">Abra o WhatsApp no celular →<br>Dispositivos conectados →<br>Escanear QR Code<br><br>Pronto! ✅ Mensagens automáticas</div>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
 
@@ -206,44 +165,20 @@ async function verificarWpp() {
       badge.className = 'badge b-green';
       badge.innerHTML = '<span class="dot"></span> Conectado';
       msg.textContent = '✅ WhatsApp conectado! Mensagens automáticas ativas.';
-      document.getElementById('wpp-qr-area').classList.add('hidden');
-    } else if (d.status === 'qr_pronto') {
-      badge.className = 'badge b-amber';
-      badge.innerHTML = '<span class="dot"></span> Aguardando QR';
-      msg.textContent = '📷 Escaneie o QR Code abaixo com seu WhatsApp.';
-      buscarQR();
+      msg.textContent = 'Gateway conectado. Mensagens automáticas ativas.';
+    } else if (d.status === 'desconectado') {
+      badge.className = 'badge b-gray';
+      badge.innerHTML = '<span class="dot"></span> Manual';
+      msg.textContent = 'Envio manual por link seguro ativo.';
     } else {
       badge.className = 'badge b-red';
       badge.innerHTML = '<span class="dot"></span> Desconectado';
-      msg.textContent = '❌ Servidor desconectado. Rode: node wpp-server.js';
+      msg.textContent = 'Gateway indisponível. O envio manual continua ativo.';
     }
   } catch {
     badge.className = 'badge b-gray';
     badge.innerHTML = '<span class="dot"></span> Offline';
-    msg.textContent = 'Servidor não encontrado. Rode: node wpp-server.js';
-  }
-}
-
-async function buscarQR() {
-  try {
-    const r = await fetch('/api/whatsapp/qr', {credentials:'include'});
-    const d = await r.json();
-    const area = document.getElementById('wpp-qr-area');
-    const img  = document.getElementById('wpp-qr-img');
-    if (d.qr) {
-      area.classList.remove('hidden');
-      img.innerHTML = `<img src="${d.qr}" class="wpp-qr-img" alt="QR Code do WhatsApp">`;
-    }
-  } catch {}
-}
-
-async function reconectarWpp() {
-  try {
-    await fetch('/api/whatsapp/reconectar', {method:'POST', credentials:'include', headers:{'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || '', 'Content-Type':'application/json'}});
-    showToast('Reconectando... aguarde.', 'blue');
-    setTimeout(verificarWpp, 3000);
-  } catch {
-    showToast('Servidor offline. Rode: node wpp-server.js', 'red');
+    msg.textContent = 'Não foi possível consultar o gateway.';
   }
 }
 
@@ -258,8 +193,6 @@ document.addEventListener('click', (e) => {
     return showTab(el.getAttribute('data-tab'), el);
   }
   if (action === 'wpp-status') return verificarWpp();
-  if (action === 'wpp-qr') return buscarQR();
-  if (action === 'wpp-reconnect') return reconectarWpp();
 });
 </script>
 {% endblock %}

@@ -16,33 +16,104 @@ Fixes aplicados:
 
 import json
 import re as _re
+from datetime import date, datetime, timedelta, timezone
+from functools import wraps
 from pathlib import Path
 
-def _safe_json(data):
-    """json.dumps seguro para embedding em HTML: escapa </ para evitar </script> breakout."""
-    raw = json.dumps(data, ensure_ascii=False)
-    return _re.sub(r'</', r'<\/', raw)
-from datetime import date, datetime, timezone, timedelta
-from functools import wraps
-
-from flask import (Blueprint, abort, current_app, render_template, session, redirect,
-                   url_for, request, flash, g, make_response, send_from_directory)
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    g,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import (OrdemServico, Cliente, Peca, Fornecedor, Transacao,
-                        Usuario, OSHistorico, Configuracao, ColetaAgendada,
-                        OSFoto, STATUS_COLETA_LABELS, registrar, LaudoTecnico,
-                        LAUDO_STATUS_LABELS, LAUDO_TIPOS_LABELS)
+from app.models import (
+    LAUDO_STATUS_LABELS,
+    LAUDO_TIPOS_LABELS,
+    STATUS_COLETA_LABELS,
+    Cliente,
+    ColetaAgendada,
+    Configuracao,
+    Fornecedor,
+    InventoryMovement,
+    LaudoTecnico,
+    OrdemServico,
+    OSFoto,
+    OSHistorico,
+    Peca,
+    Transacao,
+    Usuario,
+    registrar,
+)
 from app.models.ordem_servico import STATUS_OS, STATUS_OS_LABELS
+from app.services.billing import assert_limit, assert_write_allowed
+from app.services.finance import create_installments
+from app.services.inventory import record_movement
 from app.utils.auth import page_nivel_required
-from app.utils.sanitizers import sanitize_text, sanitize_email, sanitize_cpf, sanitize_cpf_cnpj, sanitize_phone, sanitize_cep
-from app.utils.validators import validar_email, validar_cpf, validar_cpf_cnpj, validar_telefone, validar_cep, validar_uf
+from app.utils.sanitizers import sanitize_cep, sanitize_cpf_cnpj, sanitize_email, sanitize_phone, sanitize_text
 from app.utils.security import gerar_uuid_filename, validar_upload
+from app.utils.validators import validar_cep, validar_cpf_cnpj, validar_email, validar_telefone, validar_uf
+
+
+def _safe_json(data):
+    """Serializa dados para script HTML sem permitir fechamento da tag."""
+    raw = json.dumps(data, ensure_ascii=False)
+    return _re.sub(r"</", r"<\/", raw)
+
+
+def _check_order_limit():
+    user = db.session.get(Usuario, session.get("usuario_id"))
+    assert_write_allowed(user.organization_id)
+    open_count = OrdemServico.query.filter(
+        OrdemServico.deletado_em.is_(None), ~OrdemServico.status.in_(["entregue", "cancelado"]),
+    ).count()
+    assert_limit(user.organization_id, "max_open_orders", open_count)
 
 pages_bp = Blueprint("pages", __name__)
 STATUS_MAP = STATUS_OS_LABELS
+
+
+@pages_bp.route("/ajuda")
+@page_nivel_required("admin", "operacional", "cadastro", "consulta", "financeiro")
+def ajuda():
+    user = db.session.get(Usuario, session["usuario_id"])
+    cfg = Configuracao.get()
+    checklist = [
+        ("Primeiro cliente", Cliente.query.count() > 0, url_for("pages.clientes")),
+        ("Primeira OS", OrdemServico.query.filter(OrdemServico.deletado_em.is_(None)).count() > 0, url_for("pages.os_nova")),
+        ("Primeiro laudo", LaudoTecnico.query.count() > 0, url_for("laudos.novo")),
+    ]
+    if user.nivel == "admin":
+        checklist[0:0] = [
+            ("Empresa", bool(cfg and cfg.nome_empresa and cfg.cnpj), url_for("configuracoes.index")),
+            ("Seguranca 2FA", bool(user.totp_enabled), url_for("auth.two_factor_setup")),
+        ]
+    return render_template(
+        "pages/ajuda.html", active="ajuda", checklist=checklist,
+        onboarding=request.args.get("onboarding") == "1" and not user.onboarding_completed,
+    )
+
+
+@pages_bp.route("/ajuda/concluir", methods=["POST"])
+@page_nivel_required("admin", "operacional", "cadastro", "consulta", "financeiro")
+def ajuda_concluir():
+    user = db.session.get(Usuario, session["usuario_id"])
+    user.onboarding_completed = True
+    registrar("onboarding", "usuarios", "Onboarding concluido.")
+    db.session.commit()
+    flash("Configuracao inicial concluida. A Central de Ajuda continua disponivel no menu.", "success")
+    return redirect(url_for("pages.dashboard"))
 
 
 # ── helpers ───────────────────────────────────────────────────
@@ -449,8 +520,10 @@ def os_lista():
     query = (OrdemServico.query
              .filter(OrdemServico.deletado_em.is_(None))
              .options(joinedload(OrdemServico.cliente)))
-    if status_filtro: query = query.filter_by(status=status_filtro)
-    if prio_filtro:   query = query.filter_by(prio=prio_filtro)
+    if status_filtro:
+        query = query.filter_by(status=status_filtro)
+    if prio_filtro:
+        query = query.filter_by(prio=prio_filtro)
     if q:
         qe = _escape_like(q)
         digitos = sanitize_cpf_cnpj(q)
@@ -495,7 +568,7 @@ def coleta():
 
 
 @pages_bp.route("/coleta/agendar", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def coleta_agendar():
     data = request.form.to_dict()
     payload, erros = _coleta_cliente_payload(data)
@@ -524,7 +597,7 @@ def coleta_agendar():
 
 
 @pages_bp.route("/coletas/<int:id>/cancelar", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def coleta_cancelar(id):
     coleta_obj = db.get_or_404(ColetaAgendada, id)
     if coleta_obj.status == "concluida":
@@ -574,7 +647,7 @@ def _render_coleta_concluir_error(coleta_obj, form_data, form_errors):
 
 
 @pages_bp.route("/coletas/<int:id>/concluir", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def coleta_concluir_post(id):
     coleta_obj = (
         ColetaAgendada.query
@@ -627,6 +700,12 @@ def coleta_concluir_post(id):
     if coleta_obj.endereco_completo:
         observacoes = (observacoes + "\n\n" if observacoes else "") + f"Endereco da coleta: {coleta_obj.endereco_completo}"
 
+    try:
+        _check_order_limit()
+    except PermissionError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("pages.coleta"))
+
     os_obj = OrdemServico(
         cliente_id=coleta_obj.cliente_id,
         usuario_id=session["usuario_id"],
@@ -666,9 +745,15 @@ def coleta_concluir_post(id):
 
 
 @pages_bp.route("/os/nova", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def os_criar():
     data = request.form
+
+    try:
+        _check_order_limit()
+    except PermissionError as exc:
+        flash(str(exc), "error")
+        return _render_os_form_error("Limite do plano atingido.", "geral", data)
 
     # Bug #5: validação segura de cliente_id
     cliente_id_raw = data.get("cliente_id", "").strip()
@@ -747,7 +832,7 @@ def os_editar(id):
 
 
 @pages_bp.route("/os/<int:id>/editar", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def os_atualizar(id):
     os_obj = OrdemServico.query.filter_by(id=id).filter(
         OrdemServico.deletado_em.is_(None)).first_or_404()
@@ -852,9 +937,11 @@ def os_detalhe(id):
 
 
 @pages_bp.route("/os/<int:id>/status", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def os_status(id):
-    from app.utils.whatsapp import enviar_whatsapp, mensagem_os_pronta
+    from app.services.message_templates import render_template as render_message_template
+    from app.services.notifications import enqueue_email, enqueue_whatsapp, process_notification
+    from app.utils.whatsapp import mensagem_os_pronta
     os_obj  = OrdemServico.query.filter_by(id=id).filter(
         OrdemServico.deletado_em.is_(None)).first_or_404()
     novo_st = request.form.get("status")
@@ -894,25 +981,57 @@ def os_status(id):
             ).fetchall()
             for row in rows:
                 p = db.session.get(Peca, row.peca_id)
-                if p: p.quantidade += row.quantidade
+                if p:
+                    p.quantidade += row.quantidade
 
         registrar("status", "os",
                   f"OS #{os_obj.id:04d}: {antigo} → {novo_st}")
         db.session.commit()
 
+        if os_obj.cliente and os_obj.cliente.email:
+            event_type = f"os_status_{novo_st}"
+            context = {
+                "cliente": os_obj.cliente.nome,
+                "os_id": f"{os_obj.id:04d}",
+                "status": STATUS_OS_LABELS.get(novo_st, novo_st),
+                "equipamento": " ".join(filter(None, [os_obj.tipo_aparelho, os_obj.marca, os_obj.modelo])),
+                "total": f"R$ {os_obj.valor_total:.2f}",
+                "empresa": Configuracao.get().nome_empresa,
+            }
+            subject, body = render_message_template(
+                event_type, "email", context,
+                default_subject=f"Atualizacao da OS #{os_obj.id:04d}",
+                default_body=(
+                    f"Ola, {os_obj.cliente.nome}.\n\n"
+                    f"A OS #{os_obj.id:04d} agora esta em: {STATUS_OS_LABELS.get(novo_st, novo_st)}.\n"
+                    "Entre em contato com a assistencia em caso de duvidas."
+                ),
+            )
+            history_count = OSHistorico.query.filter_by(os_id=os_obj.id).count()
+            email_notification, _ = enqueue_email(
+                os_obj.organization_id, os_obj.cliente.email, subject, body,
+                event_type, f"os-email-{os_obj.id}-{history_count}",
+            )
+            process_notification(email_notification.id)
+
         # Notificação WhatsApp ao marcar pronto
         if novo_st == "pronto" and antigo != "pronto":
             if os_obj.cliente and os_obj.cliente.telefone:
-                resultado = enviar_whatsapp(
+                notification, _created = enqueue_whatsapp(
+                    os_obj.organization_id,
                     os_obj.cliente.telefone,
                     mensagem_os_pronta(os_obj),
+                    "os_ready",
+                    f"os-ready-{os_obj.id}",
                 )
+                notification = process_notification(notification.id)
+                resultado = notification.payload.get("last_result", {})
                 if resultado["sucesso"]:
                     flash("Status atualizado! Cliente notificado via WhatsApp.", "success")
                 elif resultado.get("modo") == "simulacao":
                     flash(
                         f'Status atualizado! <a href="{resultado["link"]}" '
-                        f'target="_blank" style="color:var(--green)">Enviar WhatsApp manualmente →</a>',
+                        f'target="_blank">Enviar WhatsApp manualmente →</a>',
                         "success",
                     )
                 else:
@@ -933,7 +1052,9 @@ def os_status(id):
 @login_required
 def os_pdf(id):
     import io
+
     from flask import send_file
+
     from app.utils.pdf_gen import gerar_pdf_os
     os_obj = OrdemServico.query.filter_by(id=id).filter(
         OrdemServico.deletado_em.is_(None)).first_or_404()
@@ -960,7 +1081,7 @@ def os_foto(foto_id):
 
 
 @pages_bp.route("/os/<int:id>/deletar", methods=["POST"])
-@login_required
+@page_nivel_required("admin")
 def os_deletar(id):
     os_obj = OrdemServico.query.filter_by(id=id).filter(
         OrdemServico.deletado_em.is_(None)).first_or_404()
@@ -975,7 +1096,8 @@ def os_deletar(id):
     ).fetchall()
     for row in rows:
         p = db.session.get(Peca, row.peca_id)
-        if p: p.quantidade += row.quantidade
+        if p:
+            p.quantidade += row.quantidade
 
     registrar("exclusao", "os", f"OS #{os_obj.id:04d} excluída")
     os_obj.deletado_em = _now()
@@ -1014,8 +1136,10 @@ def _render_clientes_page(cliente_form_state=None, status=200):
         query = query.filter(db.or_(
             *filtros
         ))
-    if ativo_filtro == "1": query = query.filter_by(ativo=True)
-    if ativo_filtro == "0": query = query.filter_by(ativo=False)
+    if ativo_filtro == "1":
+        query = query.filter_by(ativo=True)
+    if ativo_filtro == "0":
+        query = query.filter_by(ativo=False)
     pag  = query.order_by(Cliente.nome).paginate(
         page=page, per_page=25, error_out=False)
     lista = pag.items
@@ -1068,7 +1192,7 @@ def _render_cliente_form_error(mode, form_data, form_errors, edit_id=None):
 
 
 @pages_bp.route("/clientes/novo", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional", "cadastro")
 def cliente_criar():
     from app.routes.clientes import _duplicidade_cliente, _validar_e_sanitizar
 
@@ -1090,7 +1214,7 @@ def cliente_criar():
 
 
 @pages_bp.route("/clientes/<int:id>/editar", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional", "cadastro")
 def cliente_editar(id):
     from app.routes.clientes import _duplicidade_cliente, _validar_e_sanitizar
 
@@ -1113,44 +1237,13 @@ def cliente_editar(id):
 
 
 @pages_bp.route("/clientes/<int:id>/deletar", methods=["POST"])
-@login_required
+@page_nivel_required("admin")
 def cliente_deletar(id):
-    from app.models import OSHistorico, Transacao
-    from sqlalchemy import text as _text
-
     c = db.get_or_404(Cliente, id)
-
-    # Bloqueia se houver OS ativas (não arquivadas)
-    os_ativas = OrdemServico.query.filter_by(
-        cliente_id=c.id
-    ).filter(OrdemServico.deletado_em.is_(None)).count()
-    if os_ativas > 0:
-        flash(
-            f"Não é possível remover {c.nome}: possui {os_ativas} OS ativa(s). "
-            "Encerre ou cancele as OS antes de remover o cliente.",
-            "error"
-        )
-        return redirect(url_for("pages.clientes"))
-
-    # Remove em cascata: historico → transações → os_pecas → OS arquivadas → cliente
-    os_ids = [row.id for row in
-              OrdemServico.query.filter_by(cliente_id=c.id).with_entities(OrdemServico.id).all()]
-
-    if os_ids:
-        # 1. Histórico de status
-        OSHistorico.query.filter(OSHistorico.os_id.in_(os_ids)).delete(synchronize_session=False)
-        # 2. Transações vinculadas às OS
-        Transacao.query.filter(Transacao.os_id.in_(os_ids)).delete(synchronize_session=False)
-        # 3. Peças das OS (tabela associativa)
-        for os_id in os_ids:
-            db.session.execute(_text("DELETE FROM os_pecas WHERE os_id = :id"), {"id": os_id})
-        # 4. As próprias OS
-        OrdemServico.query.filter(OrdemServico.cliente_id == c.id).delete(synchronize_session=False)
-
-    registrar("exclusao", "clientes", f"Cliente removido: {c.nome} (com {len(os_ids)} OS arquivadas)")
-    db.session.delete(c)
+    c.ativo = False
+    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; historico preservado.")
     db.session.commit()
-    flash("Cliente removido.", "success")
+    flash("Cliente arquivado. OS, laudos e financeiro foram preservados.", "success")
     return redirect(url_for("pages.clientes"))
 
 
@@ -1171,8 +1264,10 @@ def estoque():
             Peca.nome.ilike(f"%{qe}%"),
             Peca.codigo.ilike(f"%{qe}%"),
         ))
-    if cat_filtro:     query = query.filter_by(categoria=cat_filtro)
-    if critico_filtro: query = query.filter(Peca.quantidade <= Peca.estoque_minimo)
+    if cat_filtro:
+        query = query.filter_by(categoria=cat_filtro)
+    if critico_filtro:
+        query = query.filter(Peca.quantidade <= Peca.estoque_minimo)
     pag = query.order_by(Peca.nome).paginate(
         page=page, per_page=30, error_out=False)
     categorias  = [r[0] for r in db.session.query(
@@ -1192,8 +1287,26 @@ def estoque():
         q=q, cat_filtro=cat_filtro, critico_filtro=critico_filtro)
 
 
+@pages_bp.route("/estoque/movimentacoes")
+@page_nivel_required("admin", "operacional")
+def estoque_movimentacoes():
+    page = max(request.args.get("page", 1, type=int), 1)
+    pagination = InventoryMovement.query.order_by(InventoryMovement.created_at.desc()).paginate(
+        page=page, per_page=50, error_out=False,
+    )
+    suggestions = [
+        {"part": part, "quantity": max(part.estoque_minimo * 2 - part.quantidade_disponivel, 0)}
+        for part in Peca.query.order_by(Peca.nome).all()
+        if part.quantidade_disponivel <= part.estoque_minimo
+    ]
+    return render_template(
+        "pages/estoque_movimentacoes.html", active="estoque",
+        movements=pagination.items, pagination=pagination, suggestions=suggestions,
+    )
+
+
 @pages_bp.route("/estoque/nova", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def peca_criar():
     data = request.form
     nome_peca = sanitize_text(data.get("nome", ""), max_length=200)
@@ -1222,6 +1335,9 @@ def peca_criar():
         margem=margem_v,
     )
     db.session.add(p)
+    db.session.flush()
+    if qtd:
+        record_movement(p, session["usuario_id"], "initial", 0, qtd, "Estoque inicial")
     registrar("criacao", "estoque", f"Peça criada: {nome_peca}")
     db.session.commit()
     flash("Peça salva!", "success")
@@ -1229,7 +1345,7 @@ def peca_criar():
 
 
 @pages_bp.route("/estoque/<int:id>/movimentacao", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def peca_movimentar(id):
     p    = db.get_or_404(Peca, id)
     tipo = request.form.get("tipo", "")
@@ -1247,6 +1363,11 @@ def peca_movimentar(id):
     if qt > 999_999:
         flash("Quantidade excede o limite máximo.", "error")
         return redirect(url_for("pages.estoque"))
+    reason = sanitize_text(request.form.get("justificativa", ""), max_length=300)
+    if len(reason) < 5:
+        flash("Informe uma justificativa com pelo menos 5 caracteres.", "error")
+        return redirect(url_for("pages.estoque"))
+    before = p.quantidade
     if tipo == "entrada":
         p.quantidade = min(999_999, p.quantidade + qt)
     elif tipo == "saida":
@@ -1256,6 +1377,7 @@ def peca_movimentar(id):
         p.quantidade -= qt
     elif tipo == "ajuste":
         p.quantidade = qt
+    record_movement(p, session["usuario_id"], tipo, before, p.quantidade, reason)
     registrar("edicao", "estoque", f"Estoque {tipo}: {p.nome} ({qt})")
     db.session.commit()
     flash("Estoque atualizado!", "success")
@@ -1263,9 +1385,12 @@ def peca_movimentar(id):
 
 
 @pages_bp.route("/estoque/<int:id>/deletar", methods=["POST"])
-@login_required
+@page_nivel_required("admin")
 def peca_deletar(id):
     p = db.get_or_404(Peca, id)
+    if p.ordens:
+        flash("Esta peca ja foi usada em uma OS e deve ser preservada no historico.", "error")
+        return redirect(url_for("pages.estoque"))
     registrar("exclusao", "estoque", f"Peça removida: {p.nome}")
     db.session.delete(p)
     db.session.commit()
@@ -1281,7 +1406,7 @@ def peca_deletar(id):
 def fornecedores():
     q    = request.args.get("q", "").strip()
     page = request.args.get("page", 1, type=int)
-    query = Fornecedor.query
+    query = Fornecedor.query.filter_by(ativo=True)
     if q:
         qe = _escape_like(q)
         query = query.filter(db.or_(
@@ -1303,10 +1428,10 @@ def fornecedores():
 
 
 @pages_bp.route("/fornecedores/novo", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def fornecedor_criar():
-    from app.utils.validators import validar_cnpj
     from app.utils.sanitizers import sanitize_cnpj
+    from app.utils.validators import validar_cnpj
     data = request.form
     nome = sanitize_text(data.get("nome", ""), max_length=200)
     if not nome or len(nome) < 2:
@@ -1341,10 +1466,10 @@ def fornecedor_criar():
 
 
 @pages_bp.route("/fornecedores/<int:id>/editar", methods=["POST"])
-@login_required
+@page_nivel_required("admin", "operacional")
 def fornecedor_editar(id):
-    from app.utils.validators import validar_cnpj
     from app.utils.sanitizers import sanitize_cnpj
+    from app.utils.validators import validar_cnpj
     f    = db.get_or_404(Fornecedor, id)
     data = request.form
     nome = sanitize_text(data.get("nome", ""), max_length=200)
@@ -1377,13 +1502,13 @@ def fornecedor_editar(id):
 
 
 @pages_bp.route("/fornecedores/<int:id>/deletar", methods=["POST"])
-@login_required
+@page_nivel_required("admin")
 def fornecedor_deletar(id):
     f = db.get_or_404(Fornecedor, id)
-    registrar("exclusao", "fornecedores", f"Fornecedor removido: {f.nome}")
-    db.session.delete(f)
+    f.ativo = False
+    registrar("arquivamento", "fornecedores", f"Fornecedor arquivado: {f.nome}")
     db.session.commit()
-    flash("Fornecedor removido.", "success")
+    flash("Fornecedor arquivado; pecas e historico foram preservados.", "success")
     return redirect(url_for("pages.fornecedores"))
 
 
@@ -1424,8 +1549,10 @@ def financeiro():
         Transacao.criado_em >= dt_ini,
         Transacao.criado_em <= dt_fim,
     )
-    if tipo_filtro:   query = query.filter_by(tipo=tipo_filtro)
-    if status_filtro: query = query.filter_by(status=status_filtro)
+    if tipo_filtro:
+        query = query.filter_by(tipo=tipo_filtro)
+    if status_filtro:
+        query = query.filter_by(status=status_filtro)
     pag = query.order_by(Transacao.criado_em.desc()).paginate(
         page=page, per_page=25, error_out=False)
 
@@ -1450,13 +1577,17 @@ def financeiro():
         lucro=_s("receita", "pago") - _s("despesa", "pago"),
         a_receber=_s("receita", "pendente"),
         a_pagar=_s("despesa", "pendente"),
+        comissoes=float(db.session.query(_coalesce_sum(Transacao.comissao_valor)).filter(
+            Transacao.status == "pago", Transacao.criado_em >= dt_ini, Transacao.criado_em <= dt_fim,
+        ).scalar() or 0),
+        usuarios_comissao=Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all(),
     )
 
 
 @pages_bp.route("/financeiro/nova", methods=["POST"])
 @page_nivel_required("admin", "financeiro")
 def transacao_criar():
-    from app.models.transacao import TIPOS_TRANSACAO, STATUS_TRANSACAO
+    from app.models.transacao import STATUS_TRANSACAO, TIPOS_TRANSACAO
     data = request.form
     try:
         valor = float(data["valor"])
@@ -1479,19 +1610,50 @@ def transacao_criar():
     if valor > 9_999_999.99:
         flash("Valor excede o limite máximo permitido.", "error")
         return redirect(url_for("pages.financeiro"))
-    t = Transacao(
-        tipo=data["tipo"],
-        categoria=sanitize_text(data.get("categoria", ""), max_length=100) or None,
-        descricao=descricao_t,
-        valor=valor,
-        status=status,
-        data_vencimento=_safe_date(data.get("data_vencimento")),
-    )
-    db.session.add(t)
+    try:
+        parcelas = int(data.get("parcelas") or 1)
+        comissao_percentual = float(data.get("comissao_percentual") or 0)
+        comissao_usuario_id = int(data["comissao_usuario_id"]) if data.get("comissao_usuario_id") else None
+        if comissao_usuario_id and not Usuario.query.filter_by(id=comissao_usuario_id, ativo=True).first():
+            raise ValueError("Usuario de comissao invalido.")
+        create_installments(
+            organization_id=g.organization_id,
+            installments=parcelas,
+            recurrence=data.get("recorrencia"),
+            tipo=data["tipo"],
+            categoria=sanitize_text(data.get("categoria", ""), max_length=100) or None,
+            descricao=descricao_t,
+            valor=valor,
+            status=status,
+            data_vencimento=_safe_date(data.get("data_vencimento")),
+            forma_pagamento=sanitize_text(data.get("forma_pagamento", ""), max_length=50) or None,
+            comissao_usuario_id=comissao_usuario_id,
+            comissao_percentual=comissao_percentual,
+        )
+    except (TypeError, ValueError) as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("pages.financeiro"))
     registrar("criacao", "financeiro",
               f"Transação criada: {data.get('descricao', '')} R$ {valor}")
     db.session.commit()
     flash("Transação salva!", "success")
+    return redirect(url_for("pages.financeiro"))
+
+
+@pages_bp.route("/financeiro/<int:id>/conciliar", methods=["POST"])
+@page_nivel_required("admin", "financeiro")
+def transacao_conciliar(id):
+    t = db.get_or_404(Transacao, id)
+    reference = sanitize_text(request.form.get("referencia", ""), max_length=120)
+    if len(reference) < 3:
+        flash("Informe uma referencia para conciliacao.", "error")
+        return redirect(url_for("pages.financeiro"))
+    t.conciliado_em = _now()
+    t.conciliado_por_id = session["usuario_id"]
+    t.conciliacao_ref = reference
+    registrar("conciliacao", "financeiro", f"Transacao #{id} conciliada: {reference}")
+    db.session.commit()
+    flash("Transacao conciliada.", "success")
     return redirect(url_for("pages.financeiro"))
 
 

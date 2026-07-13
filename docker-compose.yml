@@ -26,6 +26,7 @@ services:
       GUNICORN_BIND: 0.0.0.0:8000
       GUNICORN_ACCESSLOG: "-"
       GUNICORN_ERRORLOG: "-"
+      GUNICORN_WORKERS: "2"
     depends_on:
       db:
         condition: service_healthy

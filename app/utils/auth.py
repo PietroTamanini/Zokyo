@@ -6,7 +6,7 @@ Fix L04: política de senha forte com verificação de senhas comuns.
 import re
 from functools import wraps
 
-from flask import session, jsonify, redirect, url_for, flash
+from flask import flash, jsonify, redirect, session, url_for
 
 # Top-50 senhas mais comuns — expandir conforme necessário
 _SENHAS_COMUNS = frozenset({

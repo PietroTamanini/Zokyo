@@ -1,5 +1,0 @@
-{% set sc = {
-  'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red',
-  'em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'
-}[os.status] if os.status else 'b-gray' %}
-<span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span>

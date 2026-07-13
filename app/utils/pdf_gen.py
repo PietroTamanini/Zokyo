@@ -1,83 +1,17 @@
-"""
-utils/pdf_gen.py — Geração de PDF da OS.
-
-Fix M05: validação de wkhtmltopdf_path contra path injection/traversal.
-  - Aceita apenas caminhos absolutos dentro de uma allowlist de diretórios.
-  - Verifica que o binário existe e é executável.
-  - Não interpola input do usuário no caminho.
-"""
+"""Geracao deterministica do PDF de ordem de servico com ReportLab."""
 import io
 import logging
-import os
-from pathlib import Path
-
-from flask import render_template, current_app
+from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
 
-# Diretórios onde o wkhtmltopdf pode estar instalado legitimamente
-_WKHTMLTOPDF_ALLOWED_DIRS = {
-    "/usr/bin",
-    "/usr/local/bin",
-    "/snap/bin",
-    "/opt/wkhtmltopdf/bin",
-}
-
-
-def _validar_wkhtmltopdf_path(path: str) -> str | None:
-    """
-    M05: Valida o caminho do wkhtmltopdf.
-    Retorna o caminho se for seguro, None caso contrário.
-    """
-    if not path:
-        return None
-
-    try:
-        p = Path(path).resolve()
-    except (ValueError, OSError):
-        logger.warning("[PDF] Caminho inválido: %r", path)
-        return None
-
-    # Deve ser absoluto
-    if not p.is_absolute():
-        logger.warning("[PDF] Caminho não absoluto rejeitado: %r", path)
-        return None
-
-    # Deve estar em um diretório permitido
-    if str(p.parent) not in _WKHTMLTOPDF_ALLOWED_DIRS:
-        logger.warning("[PDF] Diretório não autorizado: %r", str(p.parent))
-        return None
-
-    # Deve existir e ser executável
-    if not p.exists():
-        logger.warning("[PDF] Arquivo não existe: %r", str(p))
-        return None
-
-    if not os.access(str(p), os.X_OK):
-        logger.warning("[PDF] Arquivo não é executável: %r", str(p))
-        return None
-
-    return str(p)
-
-
-def _pdf_via_pdfkit(html: str, wkhtmltopdf_path: str, options: dict) -> bytes:
-    import pdfkit
-    config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-    # Garante que opções de segurança estejam sempre presentes
-    opts = dict(options)
-    opts.setdefault("disable-local-file-access", None)
-    opts.setdefault("no-background", None)
-    return pdfkit.from_string(html, False, options=opts, configuration=config)
-
-
 def _pdf_via_reportlab(os_obj) -> bytes:
-    """Fallback: PDF simples com reportlab."""
-    from reportlab.lib.pagesizes import A4, landscape
+    """Gera PDF A4 sem depender de binario, shell, rede ou template HTML."""
     from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer,
-                                    Table, TableStyle)
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
@@ -105,8 +39,8 @@ def _pdf_via_reportlab(os_obj) -> bytes:
     total   = float(os_obj.valor_total or 0)
 
     def row(label, value):
-        return [Paragraph(label, label_style),
-                Paragraph(str(value or "—"), value_style)]
+        return [Paragraph(escape(str(label)), label_style),
+                Paragraph(escape(str(value or "—")), value_style)]
 
     def section_header(text):
         t = Table([[Paragraph(text, section_style)]], colWidths=[260 * mm])
@@ -119,9 +53,9 @@ def _pdf_via_reportlab(os_obj) -> bytes:
         return t
 
     story = [
-        Paragraph(cfg.nome_empresa or "Zokyo Platform", title_style),
+        Paragraph(escape(cfg.nome_empresa or "Zokyo Platform"), title_style),
         Paragraph(
-            f"Ordem de Serviço #{os_obj.id:04d}  |  Status: {os_obj.status}  |  "
+            escape(f"Ordem de Serviço #{os_obj.id:04d}  |  Status: {os_obj.status}  |  ") +
             f"Entrada: {os_obj.data_entrada.strftime('%d/%m/%Y') if os_obj.data_entrada else '—'}",
             sub_style,
         ),
@@ -147,11 +81,11 @@ def _pdf_via_reportlab(os_obj) -> bytes:
 
     story += [
         section_header("Defeito Alegado pelo Cliente"),
-        Paragraph(os_obj.defeito_alegado or "—", value_style),
+        Paragraph(escape(os_obj.defeito_alegado or "—"), value_style),
         Spacer(1, 3 * mm),
         section_header("Defeito Encontrado / Solução"),
-        Paragraph(os_obj.defeito_encontrado or "—", value_style),
-        Paragraph(os_obj.solucao or "—", value_style),
+        Paragraph(escape(os_obj.defeito_encontrado or "—"), value_style),
+        Paragraph(escape(os_obj.solucao or "—"), value_style),
         Spacer(1, 5 * mm),
     ]
 
@@ -175,6 +109,32 @@ def _pdf_via_reportlab(os_obj) -> bytes:
     ]))
     story.append(fin)
 
+    checklist = getattr(os_obj, "checklist_snapshot", None) or []
+    answers = getattr(os_obj, "checklist_answers", None) or {}
+    if checklist:
+        story += [Spacer(1, 4 * mm), section_header("Checklist tecnico")]
+        checklist_rows = [
+            [Paragraph("OK" if answers.get(item) is True else "Pendente", label_style), Paragraph(escape(item), value_style)]
+            for item in checklist
+        ]
+        checklist_table = Table(checklist_rows, colWidths=[30 * mm, 230 * mm])
+        checklist_table.setStyle(TableStyle([
+            ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.white, cinza]),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(checklist_table)
+
+    accepted_at = getattr(os_obj, "authorization_accepted_at", None)
+    accepted_by = getattr(os_obj, "authorization_accepted_by", None)
+    term = (
+        "O cliente autoriza o diagnostico e a execucao dos servicos aprovados, "
+        "ciente de que dados importantes devem possuir copia de seguranca previa."
+    )
+    story += [Spacer(1, 4 * mm), section_header("Termo de autorizacao"), Paragraph(term, value_style)]
+    if accepted_at:
+        accepted_text = f"Aceite registrado por {accepted_by or 'responsavel'} em {accepted_at.strftime('%d/%m/%Y %H:%M')}."
+        story.append(Paragraph(escape(accepted_text), label_style))
+
     story.append(Spacer(1, 12 * mm))
     ass = Table([
         ["", ""],
@@ -193,36 +153,10 @@ def _pdf_via_reportlab(os_obj) -> bytes:
 
 
 def gerar_pdf_os(os_obj) -> bytes:
-    from app.models import Configuracao
-    cfg = Configuracao.get()
-
-    raw_path = (cfg.wkhtmltopdf_path or "").strip() or \
-               current_app.config.get("PDFKIT_WKHTMLTOPDF")
-
-    # M05: valida antes de usar o caminho
-    wkhtmltopdf_path = _validar_wkhtmltopdf_path(raw_path) if raw_path else None
-
-    if wkhtmltopdf_path:
-        try:
-            html = render_template(
-                "os_pdf.html",
-                os=os_obj,
-                cliente=os_obj.cliente,
-                empresa=Configuracao.get(),
-                tecnico=os_obj.usuario,
-            )
-            options = dict(current_app.config.get("PDFKIT_OPTIONS", {}))
-            return _pdf_via_pdfkit(html, wkhtmltopdf_path, options)
-        except Exception as exc:
-            logger.warning("pdfkit falhou (%s), usando fallback reportlab", exc)
-
     try:
         return _pdf_via_reportlab(os_obj)
     except ImportError:
-        raise RuntimeError(
-            "Nem wkhtmltopdf nem reportlab estão disponíveis. "
-            "Instale: pip install reportlab"
-        )
+        raise RuntimeError("ReportLab nao esta disponivel. Instale as dependencias do projeto.")
     except Exception as exc:
-        logger.error("Erro no fallback reportlab: %s", exc)
+        logger.error("Erro ao gerar PDF de OS: %s", exc)
         raise RuntimeError(f"Erro ao gerar PDF: {exc}") from exc

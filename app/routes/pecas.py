@@ -6,11 +6,16 @@ Segurança:
   - LIKE injection: escapa %, _
   - quantidade e custo não podem ser negativos
 """
-from flask import Blueprint, request, jsonify
+from datetime import datetime
+
+from flask import Blueprint, jsonify, request, session
+
 from app.extensions import db
-from app.models import Peca, registrar
-from app.utils.auth import api_login_required as login_required, nivel_required
-from app.utils.sanitizers import sanitize_text, sanitize_search_query
+from app.models import Fornecedor, InventoryLot, Peca, registrar
+from app.services.inventory import receive_lot, record_movement
+from app.utils.auth import api_login_required as login_required
+from app.utils.auth import nivel_required
+from app.utils.sanitizers import sanitize_search_query, sanitize_text
 
 pecas_bp = Blueprint("pecas", __name__)
 
@@ -43,7 +48,7 @@ def obter(id):
 
 
 @pecas_bp.route("/api/pecas", methods=["POST"])
-@nivel_required("admin", "tecnico")
+@nivel_required("admin", "operacional")
 def criar():
     data = request.get_json(silent=True) or {}
 
@@ -74,19 +79,25 @@ def criar():
 
     codigo = sanitize_text(data.get("codigo", ""), max_length=50) or None
 
+    fornecedor_id = data.get("fornecedor_id") or None
+    if fornecedor_id and not Fornecedor.query.filter_by(id=fornecedor_id, ativo=True).first():
+        return jsonify({"success": False, "erro": "Fornecedor invalido para esta organizacao"}), 400
     peca = Peca(
         nome=nome, codigo=codigo,
         quantidade=quantidade, custo=custo, margem=margem,
-        fornecedor_id=data.get("fornecedor_id"),
+        fornecedor_id=fornecedor_id,
     )
     db.session.add(peca)
+    db.session.flush()
+    if quantidade:
+        record_movement(peca, session["usuario_id"], "initial", 0, quantidade, "Estoque inicial")
     registrar("criacao", "estoque", f"Peça criada: {nome}")
     db.session.commit()
     return jsonify(peca.to_dict()), 201
 
 
 @pecas_bp.route("/api/pecas/<int:id>", methods=["PUT"])
-@nivel_required("admin", "tecnico")
+@nivel_required("admin", "operacional")
 def atualizar(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
     data = request.get_json(silent=True) or {}
@@ -101,7 +112,6 @@ def atualizar(id):
         peca.codigo = sanitize_text(data["codigo"], max_length=50) or None
 
     for campo_num, min_v, max_v in (
-        ("quantidade", 0, 999_999),
         ("custo",      0, _MAX_CUSTO),
         ("margem",     0, _MAX_MARGEM),
     ):
@@ -122,7 +132,10 @@ def atualizar(id):
             setattr(peca, campo_num, val)
 
     if "fornecedor_id" in data:
-        peca.fornecedor_id = data["fornecedor_id"]
+        fornecedor_id = data["fornecedor_id"] or None
+        if fornecedor_id and not Fornecedor.query.filter_by(id=fornecedor_id, ativo=True).first():
+            return jsonify({"success": False, "erro": "Fornecedor invalido para esta organizacao"}), 400
+        peca.fornecedor_id = fornecedor_id
 
     db.session.commit()
     return jsonify(peca.to_dict())
@@ -132,13 +145,15 @@ def atualizar(id):
 @nivel_required("admin")
 def deletar(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
+    if peca.ordens:
+        return jsonify({"success": False, "erro": "Peca usada em OS deve ser preservada"}), 409
     db.session.delete(peca)
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Peça removida"})
 
 
 @pecas_bp.route("/api/pecas/<int:id>/ajuste-estoque", methods=["POST"])
-@nivel_required("admin", "tecnico")
+@nivel_required("admin", "operacional")
 def ajuste_estoque(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
     data = request.get_json(silent=True) or {}
@@ -147,7 +162,11 @@ def ajuste_estoque(id):
     except (ValueError, TypeError):
         return jsonify({"success": False, "erro": "delta deve ser inteiro"}), 400
 
-    nova_qtd = peca.quantidade + delta
+    reason = sanitize_text(data.get("justificativa", ""), max_length=300)
+    if len(reason) < 5:
+        return jsonify({"success": False, "erro": "Justificativa deve ter pelo menos 5 caracteres"}), 400
+    before = peca.quantidade
+    nova_qtd = before + delta
     if nova_qtd < 0:
         return jsonify({"success": False,
                         "erro": f"Estoque insuficiente. Disponível: {peca.quantidade}"}), 400
@@ -155,5 +174,49 @@ def ajuste_estoque(id):
         return jsonify({"success": False, "erro": "Quantidade excede o limite máximo"}), 400
 
     peca.quantidade = nova_qtd
+    record_movement(peca, session["usuario_id"], "adjustment", before, nova_qtd, reason)
     db.session.commit()
     return jsonify(peca.to_dict())
+
+
+@pecas_bp.route("/api/pecas/<int:id>/lotes", methods=["GET"])
+@login_required
+def listar_lotes(id):
+    Peca.query.filter_by(id=id).first_or_404()
+    lots = InventoryLot.query.filter_by(part_id=id).order_by(
+        InventoryLot.expires_at.is_(None), InventoryLot.expires_at, InventoryLot.received_at,
+    ).all()
+    return jsonify([lot.to_dict() for lot in lots])
+
+
+@pecas_bp.route("/api/pecas/<int:id>/lotes", methods=["POST"])
+@nivel_required("admin", "operacional")
+def receber_lote(id):
+    part = Peca.query.filter_by(id=id).with_for_update().first_or_404()
+    data = request.get_json(silent=True) or {}
+    code = sanitize_text(data.get("codigo", ""), max_length=100)
+    reason = sanitize_text(data.get("justificativa", ""), max_length=300)
+    location = sanitize_text(data.get("localizacao", ""), max_length=100) or None
+    try:
+        quantity = int(data.get("quantidade"))
+        unit_cost = float(data.get("custo_unitario"))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "Quantidade e custo unitario devem ser numericos"}), 400
+    supplier_id = data.get("fornecedor_id") or None
+    if supplier_id and not Fornecedor.query.filter_by(id=supplier_id, ativo=True).first():
+        return jsonify({"erro": "Fornecedor invalido"}), 400
+    try:
+        expires_at = datetime.fromisoformat(str(data["validade"])[:10]) if data.get("validade") else None
+    except ValueError:
+        return jsonify({"erro": "Validade invalida"}), 400
+    if len(code) < 2:
+        return jsonify({"erro": "Codigo do lote e obrigatorio"}), 400
+    try:
+        lot = receive_lot(
+            part, session["usuario_id"], code, quantity, unit_cost, reason,
+            supplier_id=supplier_id, location=location, expires_at=expires_at,
+        )
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+    db.session.commit()
+    return jsonify({"lote": lot.to_dict(), "peca": part.to_dict()}), 201

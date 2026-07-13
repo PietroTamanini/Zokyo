@@ -9,15 +9,16 @@ Execute APÓS fazer backup do banco:
 
 O script é idempotente — pode ser executado múltiplas vezes com segurança.
 """
-import sys
 import os
+import sys
 
 # Garante import do app
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from sqlalchemy import text
+
 from app import create_app
 from app.extensions import db
-from sqlalchemy import text, inspect
 
 
 def run_safe(conn, sql: str, desc: str):
@@ -37,8 +38,6 @@ def migrate():
     app = create_app()
 
     with app.app_context():
-        inspector = inspect(db.engine)
-
         with db.engine.connect() as conn:
             print("\n── Índices na tabela clientes ──────────────────────────")
 

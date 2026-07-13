@@ -20,7 +20,6 @@ import re
 import unicodedata
 from typing import Any
 
-
 # ── Constantes ────────────────────────────────────────────────────────────────
 
 _SCRIPT_RE   = re.compile(r'<script[\s\S]*?>[\s\S]*?</script>', re.IGNORECASE)

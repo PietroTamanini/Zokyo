@@ -2,3 +2,4 @@
 
 # WSGI de producao
 gunicorn>=22.0,<24.0
+sentry-sdk[flask]>=2.20,<3.0

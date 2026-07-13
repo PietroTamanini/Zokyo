@@ -2,7 +2,8 @@
 
 Fix: LIKE injection — escapa % e _ nos campos de busca.
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
+
 from app.extensions import db
 from app.models import DefeitoPadrao
 from app.utils.auth import api_login_required, nivel_required

@@ -12,6 +12,7 @@
   <div class="flex-gap">
     {% if laudo.status == 'draft' %}<a href="{{ url_for('laudos.editar', id=laudo.id) }}" class="btn btn-primary btn-sm">Editar rascunho</a>{% endif %}
     {% if laudo.pdf_path %}<a href="{{ url_for('laudos.baixar_pdf', id=laudo.id) }}" class="btn btn-ghost btn-sm">Baixar PDF</a>{% endif %}
+    {% if laudo.status == 'cancelled' %}<a href="{{ url_for('laudos.comprovante_cancelamento', id=laudo.id) }}" class="btn btn-outline btn-sm">Comprovante de cancelamento</a>{% endif %}
     <form method="POST" action="{{ url_for('laudos.duplicar', id=laudo.id) }}">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-ghost btn-sm" type="submit">Duplicar</button>

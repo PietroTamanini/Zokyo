@@ -5,10 +5,11 @@ Fixes:
   - usuario_id validado como inteiro
   - Endpoint de API JSON adicionado: GET /api/logs
 """
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, jsonify, render_template, request
+
 from app.extensions import db
 from app.models import EventoLog, Usuario
-from app.utils.auth import page_nivel_required, nivel_required
+from app.utils.auth import nivel_required, page_nivel_required
 
 logs_bp = Blueprint("logs", __name__)
 

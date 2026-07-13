@@ -10,15 +10,15 @@
 .inline-form { display: inline; }
 .input-search { max-width: 280px; }
 .input-search-sm { max-width: 260px; }
-.input-date { width: 160px; }
+.input-date { width: min(160px, 100%); }
 .select-auto { width: auto; }
-.select-sm { width: 130px; }
-.select-md { width: 140px; }
+.select-sm { width: min(130px, 100%); }
+.select-md { width: min(140px, 100%); }
 .form-group-compact { margin-bottom: 0; }
 .hidden { display: none; }
 .soft-hidden { display: none; }
 .link-blue { color: var(--blue-lt); }
-.muted-sm { color: var(--text-3); font-size: 12px; }
+.muted-sm { color: var(--text-2); font-size: 12px; }
 .muted-xs { color: var(--text-3); font-size: 11px; }
 .mono-xs { font-family: "JetBrains Mono", monospace; font-size: 10px; }
 .mono-sm { font-family: "JetBrains Mono", monospace; font-size: 11px; }
@@ -32,6 +32,7 @@
 .txt-c{text-align:center} .txt-r{text-align:right}
 .txt-blue{color:var(--blue)} .txt-green{color:var(--green)} .txt-red{color:var(--red)}
 .txt-amber{color:var(--amber)} .txt-dim{color:var(--text-2)} .txt-faint{color:var(--text-3)}
+.txt-overdue{color:var(--red)}
 .div-line { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
 /* ── Scrollbar ── */

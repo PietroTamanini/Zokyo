@@ -1,14 +1,14 @@
 """create laudos module tables
 
 Revision ID: 20260711_0001
-Revises:
+Revises: 20260710_0000
 Create Date: 2026-07-11
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "20260711_0001"
-down_revision = None
+down_revision = "20260710_0000"
 branch_labels = None
 depends_on = None
 

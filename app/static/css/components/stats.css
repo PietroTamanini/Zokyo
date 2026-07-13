@@ -4,23 +4,24 @@
 }
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; padding: 20px; cursor: pointer;
+  border-radius: 8px; padding: 20px; cursor: pointer;
   transition: all 0.2s; position: relative; overflow: hidden;
 }
 .stat-card::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
 }
-.stat-card.c-blue::before { background: linear-gradient(90deg,var(--blue),var(--indigo)); }
+.stat-card.c-blue::before { background: var(--blue); }
 .stat-card.c-green::before { background: var(--green); }
 .stat-card.c-red::before { background: var(--red); }
 .stat-card.c-amber::before { background: var(--amber); }
 .stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
-.stat-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 14px; background: var(--blue-glow); }
+.stat-icon { width: 40px; height: 40px; border-radius: 7px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; background: var(--blue-glow); }
+.stat-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .stat-card.c-green .stat-icon { background: var(--green-g); }
 .stat-card.c-red .stat-icon { background: var(--red-g); }
 .stat-card.c-amber .stat-icon { background: var(--amber-g); }
-.stat-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-.stat-value { font-size: 36px; font-weight: 800; color: var(--blue); line-height: 1; letter-spacing: -1px; }
+.stat-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px; }
+.stat-value { font-size: 36px; font-weight: 800; color: var(--blue); line-height: 1; }
 .stat-card.c-green .stat-value { color: var(--green); }
 .stat-card.c-red .stat-value { color: var(--red); }
 .stat-card.c-amber .stat-value { color: var(--amber); }

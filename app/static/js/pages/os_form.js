@@ -29,13 +29,13 @@ if (input) {
     const q = this.value.trim().toLowerCase();
     const qDigits = _soDigitos(q);
     if (q.length < 2 && qDigits.length < 2) {
-      dropdown.style.display = 'none';
+      dropdown.classList.remove('show');
       return;
     }
 
     const matches = (CLIENTES_DATA || []).filter(c => clienteMatches(c, q, qDigits));
     if (!matches.length) {
-      dropdown.style.display = 'none';
+      dropdown.classList.remove('show');
       return;
     }
 
@@ -46,19 +46,19 @@ if (input) {
            data-nome="${encodeURIComponent(c.nome || '')}"
            data-tel="${encodeURIComponent(c.telefone || '')}"
            data-doc="${encodeURIComponent(docFmt)}"
-           style="padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px">
+           class="dropdown-result">
         <strong>${_safe(c.nome)}</strong>
-        <span style="color:var(--text-3);font-size:11px;margin-left:8px">
+        <span class="dropdown-meta">
           ${_safe(c.telefone)} ${docFmt ? ' - ' + _safe(docFmt) : ''}
         </span>
       </div>`;
     }).join('');
-    dropdown.style.display = 'block';
+    dropdown.classList.add('show');
   });
 
   document.addEventListener('click', e => {
     if (!e.target.closest('#cliente-busca') && !e.target.closest('#cliente-dropdown')) {
-      dropdown.style.display = 'none';
+      dropdown.classList.remove('show');
     }
   });
 }
@@ -66,16 +66,16 @@ if (input) {
 function selecionarCliente(id, nome, tel, doc) {
   hiddenId.value = id;
   input.value = nome;
-  dropdown.style.display = 'none';
-  document.getElementById('cliente-card').style.display = 'block';
+  dropdown.classList.remove('show');
+  document.getElementById('cliente-card').classList.remove('is-hidden');
   document.getElementById('cliente-info').innerHTML =
-    `<strong>${_safe(nome)}</strong> - ${_safe(tel || '-')} - <span style="font-family:'JetBrains Mono',monospace;font-size:11px">${_safe(doc || '')}</span>`;
+    `<strong>${_safe(nome)}</strong> - ${_safe(tel || '-')} - <span class="mono-inline">${_safe(doc || '')}</span>`;
 }
 
 function trocarCliente() {
   hiddenId.value = '';
   input.value = '';
-  document.getElementById('cliente-card').style.display = 'none';
+  document.getElementById('cliente-card').classList.add('is-hidden');
   input.focus();
 }
 
@@ -118,7 +118,7 @@ function quickClientHtml() {
         <div class="form-group"><label>Cidade</label><input type="text" name="cidade"></div>
         <div class="form-group"><label>UF</label><input type="text" name="uf" maxlength="2"></div>
       </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+      <div class="modal-actions">
         <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
         <button type="button" class="btn btn-primary" data-action="quick-client-save">Criar cliente</button>
       </div>
@@ -149,7 +149,7 @@ function quickError(form, field, message) {
     inputEl.parentElement.appendChild(hint);
   }
   hint.textContent = message;
-  hint.style.display = 'block';
+  hint.classList.remove('hidden');
   inputEl.focus();
 }
 
@@ -232,14 +232,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-document.addEventListener('mouseover', (e) => {
-  const el = e.target.closest('[data-action="os-cliente-select"]');
-  if (el) el.style.background = 'var(--blue-glow)';
-});
-document.addEventListener('mouseout', (e) => {
-  const el = e.target.closest('[data-action="os-cliente-select"]');
-  if (el) el.style.background = '';
-});
 document.addEventListener('input', (e) => {
   if (e.target && e.target.matches('[data-action="os-total-recalc"]')) calcTotal();
 });

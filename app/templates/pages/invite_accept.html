@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>{{ APP_NAME }} - Aceitar convite</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-box" aria-labelledby="invite-title">
+      <div class="auth-head">
+        <div class="auth-brand-lockup"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>{{ APP_SHORT_NAME }}</span></div>
+        <h1 id="invite-title">{{ 'Convite indisponível' if invalid else 'Crie sua conta' }}</h1>
+        {% if not invalid %}<p class="auth-subtitle-lg">{{ organization.nome }} convidou você pelo e-mail {{ invite.email }}.</p>{% endif %}
+      </div>
+      {% include 'partials/_flash.html' %}
+      {% if invalid %}
+      <div class="alert a-red">Este convite expirou, foi revogado ou já foi utilizado.</div>
+      {% else %}
+      <form method="POST">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group"><label for="invite-name">Nome</label><input id="invite-name" name="nome" required maxlength="120" autocomplete="name"></div>
+        <div class="form-group"><label for="invite-password">Senha</label><input id="invite-password" type="password" name="senha" required minlength="8" autocomplete="new-password"></div>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">Criar conta</button>
+      </form>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

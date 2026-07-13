@@ -8,7 +8,7 @@ input[type="text"], input[type="number"], input[type="email"],
 input[type="date"], input[type="datetime-local"], input[type="password"],
 input[type="file"], select, textarea {
   width: 100%; background: var(--surface2); border: 1.5px solid var(--border2);
-  border-radius: 8px; color: var(--text); font-family: "Outfit", sans-serif;
+  border-radius: 6px; color: var(--text); font-family: inherit;
   font-size: 14px; padding: 9px 13px;
   transition: border-color 0.15s, box-shadow 0.15s; outline: none;
 }
@@ -20,8 +20,13 @@ textarea { resize: vertical; min-height: 80px; }
 input.input-error, select.input-error, textarea.input-error {
   border-color: var(--red) !important; box-shadow: 0 0 0 3px var(--red-g) !important;
 }
-.input-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; font-family: "JetBrains Mono", monospace; }
+.input-hint { font-size: 12px; color: var(--text-3); margin-top: 5px; }
 .input-hint.error { color: var(--red); }
+.field-error { display:block; color:var(--red); font-size:11px; margin-top:3px; font-weight:500; }
+.password-strength { font-size:11px; font-weight:600; margin-top:3px; }
+.strength-1 { color:#ef4444; } .strength-2 { color:#f97316; } .strength-3 { color:#ca8a04; }
+.strength-4 { color:#22c55e; } .strength-5 { color:#16a34a; }
+.field-autofilled { background:var(--green-g) !important; transition:background .4s; }
 
 .code-output {
   max-height: 560px;

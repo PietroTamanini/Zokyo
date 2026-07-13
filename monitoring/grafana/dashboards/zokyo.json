@@ -1,0 +1,17 @@
+{
+  "title": "Zokyo - Operacao",
+  "uid": "zokyo-operation",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Disponibilidade", "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4}, "targets": [{"expr": "up{job=\"zokyo\"}", "refId": "A"}]},
+    {"id": 2, "type": "stat", "title": "HTTP 5xx / 5 min", "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4}, "targets": [{"expr": "sum(increase(zokyo_http_requests_total{status=~\"5..\"}[5m]))", "refId": "A"}]},
+    {"id": 3, "type": "stat", "title": "Disco livre", "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4}, "fieldConfig": {"defaults": {"unit": "bytes"}}, "targets": [{"expr": "zokyo_disk_free_bytes", "refId": "A"}]},
+    {"id": 4, "type": "stat", "title": "Alertas criticos", "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4}, "targets": [{"expr": "zokyo_alerts_open{severity=\"critical\"}", "refId": "A"}]},
+    {"id": 5, "type": "timeseries", "title": "Requisicoes por status", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "targets": [{"expr": "sum by (status) (rate(zokyo_http_requests_total[5m]))", "legendFormat": "{{status}}", "refId": "A"}]},
+    {"id": 6, "type": "timeseries", "title": "Latencia p95", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(zokyo_http_request_duration_seconds_bucket[5m])))", "refId": "A"}]},
+    {"id": 7, "type": "timeseries", "title": "Fila de notificacoes", "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8}, "targets": [{"expr": "zokyo_notification_queue", "legendFormat": "{{status}}", "refId": "A"}]},
+    {"id": 8, "type": "timeseries", "title": "Heartbeats", "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"expr": "zokyo_job_heartbeat_age_seconds", "legendFormat": "{{job}}", "refId": "A"}]}
+  ]
+}

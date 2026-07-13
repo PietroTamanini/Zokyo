@@ -11,9 +11,9 @@
     <div class="page-sub">{{ os.tipo_aparelho }} {{ os.marca }} {{ os.modelo }} · {{ os.cliente.nome if os.cliente else '—' }}</div>
   </div>
   <div class="flex-gap">
-    <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank">🖨 PDF</a>
-    <button id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">💬 WhatsApp</button>
-    <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-primary btn-sm">✏ Editar</a>
+    <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank">PDF</a>
+    <button id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">WhatsApp</button>
+    <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-primary btn-sm">Editar OS</a>
   </div>
 </div>
 
@@ -159,6 +159,33 @@
       </div>
     </div>
 
+    {% if os.checklist_snapshot %}
+    <div class="card">
+      <div class="card-header"><div class="card-title">Checklist tecnico</div></div>
+      <div class="card-body">
+        {% for item in os.checklist_snapshot %}<label class="check-inline mb8"><input type="checkbox" data-checklist-item="{{ item|e }}" {{ 'checked' if os.checklist_answers and os.checklist_answers.get(item) is sameas true }}> {{ item }}</label>{% endfor %}
+        <div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-checklist-salvar">Salvar checklist</button></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Termo de autorizacao</div></div>
+      <div class="card-body">
+        {% if os.authorization_accepted_at %}<div class="alert a-green">Aceito por {{ os.authorization_accepted_by }} em {{ os.authorization_accepted_at|fmtdata }}.</div>
+        {% else %}<div class="form-group"><label>Responsavel pelo aceite</label><input id="authorization-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><label class="check-inline"><input id="authorization-accepted" type="checkbox"> Autorizo diagnostico e reparo conforme o orcamento aprovado.</label><div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-autorizacao-salvar">Registrar aceite</button></div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Assinatura do cliente</div></div>
+      <div class="card-body">
+        {% set active_signature = os.signatures|selectattr('revoked_at', 'none')|list|first %}
+        {% if active_signature %}<img class="signature-preview" src="{{ url_for('os.baixar_assinatura', id=os.id) }}" alt="Assinatura de {{ active_signature.signer_name }}"><div class="muted-sm">{{ active_signature.signer_name }} - {{ active_signature.created_at|fmtdata }} - SHA-256 {{ active_signature.sha256[:12] }}...</div>
+        {% else %}<div class="form-group"><label>Nome do signatario</label><input id="signature-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><canvas id="signature-canvas" class="signature-canvas" width="600" height="180" aria-label="Area para assinatura"></canvas><div class="form-actions"><button class="btn btn-ghost btn-sm" data-action="os-assinatura-limpar">Limpar</button><button class="btn btn-primary btn-sm" data-action="os-assinatura-salvar">Registrar assinatura</button></div>{% endif %}
+      </div>
+    </div>
+
     <!-- Histórico -->
     <div class="card">
       <div class="card-header"><div class="card-title">⏱ Histórico de Status</div></div>
@@ -197,10 +224,26 @@
   <!-- COLUNA LATERAL -->
   <div class="os-column">
 
+    <div class="card">
+      <div class="card-header"><div class="card-title">Portal do cliente</div></div>
+      <div class="card-body parts-body">
+        <form method="POST" action="{{ url_for('portal.gerar_link', os_id=os.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="purpose" value="tracking">
+          <button class="btn btn-ghost btn-sm btn-full-start" type="submit">Gerar acompanhamento</button>
+        </form>
+        <form method="POST" action="{{ url_for('portal.gerar_link', os_id=os.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="purpose" value="budget">
+          <button class="btn btn-outline btn-sm btn-full-start" type="submit">Gerar aprovacao de orcamento</button>
+        </form>
+      </div>
+    </div>
+
     <!-- Financeiro -->
     <div class="card card-accent-green">
       <div class="card-header card-header-soft-green">
-        <div class="card-title txt-green">💰 Financeiro</div>
+        <div class="card-title txt-green">Financeiro</div>
       </div>
       <div class="card-body">
         <div class="d-row"><div class="d-label">Mão de Obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
@@ -267,7 +310,7 @@
           data-confirm="Excluir esta OS permanentemente?">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-danger btn-sm btn-full">
-        🗑 Excluir OS
+        Excluir OS
       </button>
     </form>
     {% endif %}
@@ -338,8 +381,49 @@ async function removerPeca(osId, pecaId) {
   if (r) location.reload();
 }
 
+async function salvarChecklist() {
+  const respostas = {};
+  document.querySelectorAll('[data-checklist-item]').forEach(item => { respostas[item.dataset.checklistItem] = item.checked; });
+  const r = await apiFetch('PUT', `/api/os/${OS_DATA.id}/checklist`, {respostas});
+  if (r) showToast('Checklist salvo', 'green');
+}
+
+async function salvarAutorizacao() {
+  const aceito = document.getElementById('authorization-accepted')?.checked === true;
+  const aceitoPor = document.getElementById('authorization-name')?.value || '';
+  const r = await apiFetch('POST', `/api/os/${OS_DATA.id}/autorizacao`, {aceito, aceito_por: aceitoPor});
+  if (r) location.reload();
+}
+
+const signatureCanvas = document.getElementById('signature-canvas');
+if (signatureCanvas) {
+  const context = signatureCanvas.getContext('2d');
+  context.fillStyle = '#ffffff'; context.fillRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+  context.strokeStyle = '#111827'; context.lineWidth = 3; context.lineCap = 'round';
+  let drawing = false;
+  const point = event => { const rect = signatureCanvas.getBoundingClientRect(); const source = event.touches?.[0] || event; return [(source.clientX-rect.left)*signatureCanvas.width/rect.width, (source.clientY-rect.top)*signatureCanvas.height/rect.height]; };
+  const start = event => { event.preventDefault(); drawing = true; const [x,y]=point(event); context.beginPath(); context.moveTo(x,y); };
+  const move = event => { if (!drawing) return; event.preventDefault(); const [x,y]=point(event); context.lineTo(x,y); context.stroke(); };
+  const stop = () => { drawing = false; };
+  signatureCanvas.addEventListener('pointerdown', start); signatureCanvas.addEventListener('pointermove', move);
+  signatureCanvas.addEventListener('pointerup', stop); signatureCanvas.addEventListener('pointerleave', stop);
+}
+
+function limparAssinatura() {
+  if (!signatureCanvas) return;
+  const context = signatureCanvas.getContext('2d'); context.fillStyle='#ffffff'; context.fillRect(0,0,signatureCanvas.width,signatureCanvas.height);
+}
+
+async function salvarAssinatura() {
+  if (!signatureCanvas) return;
+  const blob = await new Promise(resolve => signatureCanvas.toBlob(resolve, 'image/png'));
+  const form = new FormData(); form.append('assinatura', blob, 'assinatura.png'); form.append('signatario', document.getElementById('signature-name')?.value || '');
+  const response = await fetch(`/api/os/${OS_DATA.id}/assinatura`, {method:'POST', credentials:'include', headers:{'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''}, body:form});
+  if (response.ok) location.reload(); else { const data=await response.json(); showToast(data.erro || 'Falha ao registrar assinatura','red'); }
+}
+
 function abrirModalPagamento() {
-  openModal('💰 Registrar Recebimento', `
+  openModal('Registrar recebimento', `
     <div class="payment-preview">
       <div class="payment-preview-label">Valor Total da OS</div>
       <div class="payment-preview-value">{{ os.valor_total | moeda }}</div>
@@ -375,6 +459,10 @@ document.addEventListener('click', (e) => {
   if (action === 'os-peca-confirmar') return confirmarAdicionarPeca();
   if (action === 'os-pagamento-abrir') return abrirModalPagamento();
   if (action === 'os-pagamento-confirmar') return confirmarPagamento();
+  if (action === 'os-checklist-salvar') return salvarChecklist();
+  if (action === 'os-autorizacao-salvar') return salvarAutorizacao();
+  if (action === 'os-assinatura-limpar') return limparAssinatura();
+  if (action === 'os-assinatura-salvar') return salvarAssinatura();
   if (action === 'os-peca-remover') {
     const osId = parseInt(el.getAttribute('data-os-id'));
     const pecaId = parseInt(el.getAttribute('data-peca-id'));
@@ -389,6 +477,6 @@ document.addEventListener('change', (e) => {
 {% endblock %}
 
 {% block extra_scripts %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/os_detalhe.js') }}" nonce="{{ csp_nonce }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/os_detalhe.js') }}"></script>
 {% endblock %}
 

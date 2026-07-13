@@ -2,19 +2,17 @@
   "name": "zokyo",
   "version": "1.0.0",
   "description": "Sistema web para gestão de ordens de serviço de assistência técnica em informática. Multi-usuário, com controle de estoque, financeiro, emissão de PDF e envio de WhatsApp.",
-  "main": "wpp-server.js",
   "scripts": {
-    "test": "node --check wpp-server.js"
+    "test": "node scripts/check-js.js",
+    "test:e2e": "playwright test"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "private": true,
   "type": "commonjs",
-  "dependencies": {
-    "@wppconnect-team/wppconnect": "^2.2.0",
-    "dotenv": "^16.6.1",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.5.2",
-    "helmet": "^8.2.0"
+  "dependencies": {},
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1"
   }
 }

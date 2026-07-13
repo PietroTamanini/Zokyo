@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, render_template, request, session
 
+from app.extensions import db
 from app.models import Usuario, registrar
 from app.services.cplus_firebird_importer import (
     CPlusFirebirdImporter,
@@ -79,7 +80,7 @@ def cplus_commit():
         }), 400
 
     try:
-        admin = Usuario.query.get(session.get("usuario_id"))
+        admin = db.session.get(Usuario, session.get("usuario_id"))
         admin_name = admin.email if admin else str(session.get("usuario_id"))
         result = CPlusFirebirdImporter(creds).commit(
             admin_user=admin_name,

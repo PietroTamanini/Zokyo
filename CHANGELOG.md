@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Revisao geral removeu entrypoints, templates, assets e utilitarios sem uso comprovado.
+- PDFs de OS foram consolidados em ReportLab, com escape de conteudo; `pdfkit`/wkhtmltopdf foram removidos.
+- Cryptography e Pillow foram atualizados para versoes sem vulnerabilidades conhecidas; `pip-audit` passou sem achados.
+- Arquivamento de clientes e fornecedores passou a preservar OS, laudos, pecas, financeiro e auditoria.
+- APIs agora rejeitam chaves estrangeiras de outro tenant e perfis somente consulta nao executam mutacoes.
+- Ruff foi ampliado para imports, nomes e estilo estrutural; Bandit, pip-audit e detect-secrets foram adicionados a CI.
+- Bancos Firebird, uploads e logs locais deixaram de ser versionados, sem apagar os arquivos locais.
 - Adicionado modulo de laudos tecnicos com rascunho, finalizacao, PDF privado, hash, fotos, revisoes e cancelamento.
 - Integracao de laudos com ordens de servico.
 - Adicionados healthchecks `/healthz` e `/readyz`.

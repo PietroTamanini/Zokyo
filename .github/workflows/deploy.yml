@@ -1,0 +1,100 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy
+        required: true
+        default: main
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/zokyo
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - id: meta
+        run: echo "tag=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build immutable image
+        run: docker build --label org.opencontainers.image.revision="${{ steps.meta.outputs.tag }}" -t "$IMAGE:${{ steps.meta.outputs.tag }}" .
+      - name: Publish image
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:${{ steps.meta.outputs.tag }}"
+
+  staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy and verify staging
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          ssh "$USER@$HOST" "cd '$APP_DIR' && printf '%s' '$IMAGE:$IMAGE_TAG' > .deploy-image && APP_IMAGE='$IMAGE:$IMAGE_TAG' docker compose -f docker-compose.prod.yml pull app scheduler migrate && APP_IMAGE='$IMAGE:$IMAGE_TAG' docker compose -f docker-compose.prod.yml up -d --no-build --wait"
+          curl --fail --retry 10 --retry-delay 3 "${{ vars.HEALTHCHECK_URL }}/readyz"
+
+  production:
+    needs: [build, staging]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Deploy production with automatic rollback
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          APP_DIR: ${{ vars.APP_DIR }}
+          HEALTHCHECK_URL: ${{ vars.HEALTHCHECK_URL }}
+          IMAGE_TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          previous=$(ssh "$USER@$HOST" "cat '$APP_DIR/.deploy-image' 2>/dev/null || true")
+          image="$IMAGE:$IMAGE_TAG"
+          ssh "$USER@$HOST" "cd '$APP_DIR' && APP_IMAGE='$image' docker compose -f docker-compose.prod.yml pull app scheduler migrate && APP_IMAGE='$image' docker compose -f docker-compose.prod.yml up -d --no-build --wait"
+          if curl --fail --retry 10 --retry-delay 3 "$HEALTHCHECK_URL/readyz"; then
+            ssh "$USER@$HOST" "printf '%s' '$image' > '$APP_DIR/.deploy-image'"
+          elif [ -n "$previous" ]; then
+            ssh "$USER@$HOST" "cd '$APP_DIR' && APP_IMAGE='$previous' docker compose -f docker-compose.prod.yml up -d --no-build --wait"
+            exit 1
+          else
+            exit 1
+          fi

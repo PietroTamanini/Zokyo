@@ -1,6 +1,6 @@
 ﻿.card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 12px; overflow: hidden;
+  border-radius: 8px; overflow: hidden;
   transition: background 0.25s, border-color 0.25s;
 }
 .card-header {
@@ -22,9 +22,7 @@
   border-color: rgba(239,68,68,0.4);
 }
 
-.card-header-gradient {
-  background: linear-gradient(135deg, var(--blue), var(--indigo));
-}
+.card-header-gradient { background: #1d4ed8; }
 
 .card-header-soft-green {
   background: var(--green-g);

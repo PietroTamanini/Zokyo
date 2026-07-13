@@ -14,7 +14,8 @@ async function apiFetch(method, path, body) {
   if (body) opts.body = JSON.stringify(body);
   try {
     const r    = await fetch(path, opts);
-    const data = await r.json().catch(() => null);
+    const contentType = r.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await r.json().catch(() => null) : null;
     if (!r.ok) {
       if (r.status === 401) {
         if (typeof showToast === 'function') showToast('Sessão expirada. Faça login novamente.', 'amber');
@@ -30,7 +31,9 @@ async function apiFetch(method, path, body) {
         if (typeof showToast === 'function') showToast(`Muitas requisições.${retry}`, 'amber');
         return null;
       }
-      if (typeof showToast === 'function') showToast(data?.erro || `Erro ${r.status}`, 'red');
+      const requestId = r.headers.get('X-Request-ID');
+      const suffix = requestId && r.status >= 500 ? ` Referência: ${requestId}.` : '';
+      if (typeof showToast === 'function') showToast(`${data?.erro || 'Não foi possível concluir a operação.'}${suffix}`, 'red');
       return null;
     }
     return data;
