@@ -4,6 +4,6 @@
 ruff>=0.8,<1.0
 coverage>=7.0,<8.0
 pytest>=9.0.3,<10.0
-bandit>=1.8,<2.0
+bandit>=1.9.4,<2.0
 pip-audit>=2.9,<3.0
 detect-secrets>=1.5,<2.0
