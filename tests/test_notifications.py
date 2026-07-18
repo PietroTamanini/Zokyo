@@ -28,6 +28,43 @@ def test_enqueue_whatsapp_e_idempotente():
         assert Notification.query.count() == 1
 
 
+def test_enqueue_notification_cobre_colisao_de_idempotencia(monkeypatch):
+    app = _app()
+    with app.app_context():
+        existing = Notification(
+            organization_id=1,
+            channel="email",
+            recipient="cliente@example.test",
+            event_type="test",
+            idempotency_key="race",
+            payload={"message": "existente"},
+        )
+
+        class FakeQuery:
+            def execution_options(self, **_kwargs):
+                return self
+
+            def filter_by(self, **_kwargs):
+                return self
+
+            def first(self):
+                return None
+
+            def one(self):
+                return existing
+
+        monkeypatch.setattr(notifications.Notification, "query", FakeQuery(), raising=False)
+        monkeypatch.setattr(
+            notifications.db.session,
+            "commit",
+            lambda: (_ for _ in ()).throw(notifications.IntegrityError("insert", {}, Exception("duplicate"))),
+        )
+        monkeypatch.setattr(notifications.db.session, "rollback", lambda: None)
+        item, created = notifications.enqueue_notification(1, "email", "cliente@example.test", {}, "test", "race")
+        assert item is existing
+        assert created is False
+
+
 def test_process_notification_registra_sucesso(monkeypatch):
     app = _app()
     monkeypatch.setattr(notifications, "enviar_whatsapp", lambda *_: {"sucesso": True, "modo": "gateway"})
@@ -89,6 +126,14 @@ def test_retry_manual_reinicia_estado_e_respeita_tenant():
             pass
         else:
             raise AssertionError("retry entre tenants deveria falhar")
+        item.status = "sent"
+        db.session.commit()
+        try:
+            notifications.retry_notification(item.id, 1)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("retry de notificacao entregue deveria falhar")
 
 
 def test_email_transacional_usa_mesma_fila_auditavel():

@@ -77,12 +77,12 @@
     <!-- Laudos -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">Laudos tecnicos</div>
+        <div class="card-title">Laudos técnicos</div>
         <a class="btn btn-primary btn-sm" href="{{ url_for('laudos.novo', os_id=os.id) }}">Criar laudo</a>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Numero</th><th>Tipo</th><th>Status</th><th>Versao</th><th>Emissao</th><th></th></tr></thead>
+          <thead><tr><th>Número</th><th>Tipo</th><th>Status</th><th>Versão</th><th>Emissão</th><th></th></tr></thead>
           <tbody>
             {% for laudo in laudos %}
             <tr>

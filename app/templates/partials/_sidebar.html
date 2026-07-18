@@ -1,7 +1,11 @@
 <aside id="sidebar" aria-label="Menu lateral">
+  {% set nav_active = active|default(request.endpoint, true) %}
+  {% set nav_endpoint = request.endpoint or '' %}
+  {% set nav_path = request.path or '' %}
+  {% set brand_name = cfg.nome_empresa if cfg else APP_NAME %}
   <div class="logo-area">
     <div class="logo-content">
-      <div class="logo-brand">{{ cfg.nome_empresa if cfg else APP_NAME }}</div>
+      <div class="logo-brand" title="{{ brand_name }}">{{ brand_name }}</div>
       <div class="logo-tag">Assistência técnica</div>
     </div>
     <button class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">✕</button>
@@ -12,12 +16,12 @@
     <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-principal"><span>Principal</span><span class="nav-chevron" aria-hidden="true">⌄</span></button>
     <div class="nav-module-links" id="nav-principal">
 
-    <a class="nav-item {{ 'active' if active == 'pages.dashboard' }}" href="{{ url_for('pages.dashboard') }}">
+    <a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path == '/' }}" href="{{ url_for('pages.dashboard') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
       Dashboard
     </a>
 
-    <a class="nav-item {{ 'active' if active and 'os' in active and 'os_' in active }}" href="{{ url_for('pages.os_lista') }}">
+    <a class="nav-item {{ 'active' if nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or nav_path.startswith('/os') }}" href="{{ url_for('pages.os_lista') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
       Ordens de Serviço
     </a>
@@ -64,7 +68,7 @@
     </a>
     <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg></span>
-      Relatorios
+      Relatórios
     </a>
     </div></section>
     {% endif %}
@@ -87,12 +91,12 @@
 
     <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>
-      Notificacoes
+      Notificações
     </a>
 
     <a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6"/><path d="M10 11v5m4-5v5"/></svg></span>
-      Retencao de dados
+      Retenção de dados
     </a>
 
     <a class="nav-item {{ 'active' if active and 'logs' in active }}" href="{{ url_for('logs.index') }}">
@@ -102,7 +106,7 @@
 
     <a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.cplus_page') }}">
       <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
-      Importacao CPlus
+      Importação CPlus
     </a>
     </div></section>
     {% endif %}

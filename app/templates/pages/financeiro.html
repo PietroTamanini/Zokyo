@@ -13,8 +13,8 @@
 </div>
 
 <div class="g2 mb20">
-  <div class="card"><div class="card-body txt-c"><div class="fin-label">Comissoes provisionadas</div><div class="fin-val">{{ comissoes|moeda }}</div></div></div>
-  <div class="card"><div class="card-body txt-c"><div class="fin-label">Resultado apos comissoes</div><div class="fin-val {{ 'txt-green' if lucro - comissoes >= 0 else 'txt-red' }}">{{ (lucro - comissoes)|moeda }}</div></div></div>
+  <div class="card"><div class="card-body txt-c"><div class="fin-label">Comissões provisionadas</div><div class="fin-val">{{ comissoes|moeda }}</div></div></div>
+  <div class="card"><div class="card-body txt-c"><div class="fin-label">Resultado após comissões</div><div class="fin-val {{ 'txt-green' if lucro - comissoes >= 0 else 'txt-red' }}">{{ (lucro - comissoes)|moeda }}</div></div></div>
 </div>
 
 <!-- Seletor de período -->
@@ -104,10 +104,10 @@
     <table>
       <thead>
         <tr>
-          <th>Vencimento</th>
+          <th class="th-hide-sm">Vencimento</th>
           <th>Descrição</th>
           <th class="th-hide-sm">Categoria</th>
-          <th>Tipo</th>
+          <th class="th-hide-sm">Tipo</th>
           <th>Valor</th>
           <th>Status</th>
           <th class="th-hide-sm">Pagamento</th>
@@ -117,14 +117,14 @@
       <tbody>
         {% for t in transacoes %}
         <tr class="tr-static">
-          <td class="td-mono txt-faint">{{ t.data_vencimento | fmtdata if t.data_vencimento else '—' }}</td>
+          <td class="td-mono txt-faint td-hide-sm">{{ t.data_vencimento | fmtdata if t.data_vencimento else '—' }}</td>
           <td class="td-strong muted-sm">
             {{ t.descricao }}
             {% if t.os_id %}<span class="chip chip-spaced">OS #{{ '%04d'|format(t.os_id) }}</span>{% endif %}
             {% if t.parcela_total > 1 %}<span class="chip chip-spaced">{{ t.parcela_numero }}/{{ t.parcela_total }}</span>{% endif %}
           </td>
           <td class="td-hide-sm"><span class="chip">{{ t.categoria or '—' }}</span></td>
-          <td>
+          <td class="td-hide-sm">
             {% if t.tipo == 'receita' %}
               <span class="badge b-green"><span class="dot"></span>Receita</span>
             {% else %}

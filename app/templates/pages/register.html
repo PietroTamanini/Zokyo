@@ -19,34 +19,52 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pwa-install.css') }}">
 </head>
 <body class="auth-page">
-<div class="auth-shell">
-
-  {% with msgs = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in msgs %}
-      <div class="alert a-{{ 'red' if cat == 'error' else 'green' if cat == 'success' else 'blue' }} mb16">
-        <span aria-hidden="true">{{ '!' if cat == 'error' else '✓' if cat == 'success' else 'i' }}</span>
-        <div>{{ msg }}</div>
-      </div>
-    {% endfor %}
-  {% endwith %}
-
-  <div class="card auth-card">
-    <div class="auth-head">
-      <div class="auth-brand">{{ APP_NAME }}</div>
-      <div class="auth-subtitle">Configuração inicial — crie o administrador</div>
+<main class="login-shell register-shell">
+  <aside class="login-brand-panel" aria-label="{{ APP_NAME }}">
+    <div class="login-brand-mark"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
+    <div class="login-brand-copy">
+      <p class="login-eyebrow">Configuração inicial</p>
+      <h2>Prepare o ambiente da assistência</h2>
+      <p>Crie a empresa e o primeiro administrador para liberar o painel operacional.</p>
     </div>
+    <div class="login-feature-list" aria-label="Etapas do primeiro acesso">
+      <div>
+        <strong>Empresa</strong>
+        <span>Identidade usada em telas e documentos</span>
+      </div>
+      <div>
+        <strong>Admin</strong>
+        <span>Conta com permissão total</span>
+      </div>
+      <div>
+        <strong>Segurança</strong>
+        <span>Senha forte desde o início</span>
+      </div>
+    </div>
+    <div class="login-brand-footer"><span class="login-status-dot" aria-hidden="true"></span> Primeiro acesso protegido</div>
+  </aside>
+
+  <section class="auth-box login-form-panel register-form-panel" aria-labelledby="register-title">
+    <div class="auth-head">
+      <div class="auth-brand-lockup login-mobile-brand"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
+      <p class="login-eyebrow">Primeiro acesso</p>
+      <h1 id="register-title">Criar administrador</h1>
+      <p class="auth-subtitle-lg">Preencha os dados básicos para começar.</p>
+    </div>
+
+    {% include 'partials/_flash.html' %}
 
     <form method="POST" action="{{ url_for('auth.primeiro_acesso_post') }}" id="reg-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group mb16">
-        <label>Nome da Empresa <span class="req">*</span></label>
+        <label>Nome da empresa <span class="req">*</span></label>
         <input type="text" name="empresa_nome" placeholder="Ex: Minha Assistência Técnica"
                value="{{ empresa_nome or '' }}" required autofocus>
       </div>
 
       <div class="form-group mb16">
-        <label>Nome do Administrador <span class="req">*</span></label>
+        <label>Nome do administrador <span class="req">*</span></label>
         <input type="text" name="nome" placeholder="Seu nome completo"
                value="{{ nome or '' }}" required>
       </div>
@@ -57,29 +75,28 @@
                value="{{ email or '' }}" required>
       </div>
 
-      <div class="form-group mb16">
-        <label>Senha <span class="req">*</span></label>
-        <input type="password" name="senha" id="senha"
-               placeholder="Mínimo 8 caracteres" minlength="8" required>
-      </div>
+      <div class="form-row fr2 register-password-row">
+        <div class="form-group mb16">
+          <label>Senha <span class="req">*</span></label>
+          <input type="password" name="senha" id="senha"
+                 placeholder="Mínimo 8 caracteres" minlength="8" required>
+        </div>
 
-      <div class="form-group mb24">
-        <label>Confirmar Senha <span class="req">*</span></label>
-        <input type="password" name="confirmar_senha" id="confirmar_senha"
-               placeholder="Repita a senha" minlength="8" required>
-        <div id="senha-erro" class="password-error">
-          As senhas não coincidem.
+        <div class="form-group mb16">
+          <label>Confirmar senha <span class="req">*</span></label>
+          <input type="password" name="confirmar_senha" id="confirmar_senha"
+                 placeholder="Repita a senha" minlength="8" required>
+          <div id="senha-erro" class="password-error">
+            As senhas não coincidem.
+          </div>
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-block btn-lg" id="reg-btn">
-        🚀 Criar conta
-      </button>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="reg-btn">Criar conta</button>
     </form>
-  </div>
-
-  <div class="auth-footer">{{ APP_COPYRIGHT }}</div>
-</div>
+    <div class="login-form-meta"><span>{{ APP_COPYRIGHT }}</span><span>{{ APP_DOMAIN }}</span></div>
+  </section>
+</main>
 
 {% include 'partials/_pwa_install.html' %}
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pwa-install.js') }}"></script>

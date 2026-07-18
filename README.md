@@ -61,7 +61,7 @@ flask --app wsgi:app db current
 flask --app wsgi:app db check
 ```
 
-Scripts `migrate_*.py` existem apenas para recuperacao de instalacoes legadas especificas. Uma instalacao atual usa somente a cadeia em `migrations/versions/`.
+Instalacoes novas usam uma unica migration baseline em `migrations/versions/`.
 
 ## Testes e qualidade
 
@@ -99,7 +99,7 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 - `app/services`: regras de negocio e integracoes.
 - `app/templates`, `app/static`: interface e PWA.
 - `migrations`: cadeia Alembic.
-- `scripts`: backup, restore, auditoria e compatibilidade legada.
+- `scripts`: backup, restore, auditoria e testes operacionais.
 - `tests`: testes unitarios, integracao e Playwright.
 - `docs`: arquitetura, rotas, permissoes e operacao.
 
@@ -111,7 +111,7 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 - [Rotas](docs/ROTAS.md)
 - [Permissoes](docs/PERMISSOES.md)
 - [SaaS e LGPD](docs/SAAS.md)
-- [Status verificado](docs/IMPLEMENTATION_STATUS.md)
+- [Pendencias atuais](oque_falta.md)
 - [Decisoes externas](docs/DECISOES_EXTERNAS.md)
 
 A licenca juridica ainda depende de decisao do proprietario. Nao presuma permissao de redistribuicao ate essa definicao.

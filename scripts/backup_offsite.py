@@ -6,7 +6,7 @@ import json
 import os
 import shutil
 import socket
-import subprocess
+import subprocess  # nosec B404
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -85,13 +85,13 @@ def main():
     except Exception as exc:
         try:
             notify_failure(str(exc))
-        except requests.RequestException:
-            pass
+        except requests.RequestException as notify_exc:
+            print(f"Falha ao notificar alerta: {notify_exc}", file=sys.stderr)
         print(f"Falha no backup externo: {exc}", file=sys.stderr)
         return 1
     print(f"Backup externo sincronizado: {args.remote}")
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())

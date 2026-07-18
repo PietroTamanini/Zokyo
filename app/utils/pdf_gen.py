@@ -1,7 +1,7 @@
 """Geracao deterministica do PDF de ordem de servico com ReportLab."""
 import io
 import logging
-from xml.sax.saxutils import escape
+from html import escape
 
 logger = logging.getLogger(__name__)
 

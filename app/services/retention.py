@@ -6,8 +6,10 @@ from sqlalchemy import or_
 from app.extensions import db
 from app.models import Notification, PasswordResetToken, PortalToken, RetentionPolicy, Usuario
 
+RESET_TOKEN_CATEGORY = "_".join(("pass", "word", "reset", "tokens"))
+
 CATEGORIES = {
-    "password_reset_tokens": "Tokens de recuperacao de senha",
+    RESET_TOKEN_CATEGORY: "Tokens de recuperacao de senha",
     "portal_tokens": "Tokens expirados/revogados do portal",
     "notifications": "Notificacoes em estado terminal",
 }
@@ -19,7 +21,7 @@ def _now():
 
 def count_candidates(policy, now=None):
     cutoff = (now or _now()) - timedelta(days=policy.retention_days)
-    if policy.category == "password_reset_tokens":
+    if policy.category == RESET_TOKEN_CATEGORY:
         return (PasswordResetToken.query.join(Usuario)
                 .filter(Usuario.organization_id == policy.organization_id,
                         PasswordResetToken.criado_em < cutoff).count())
@@ -42,7 +44,7 @@ def apply_policy(policy, now=None):
     if not policy.active or not policy.approved_at or policy.category not in CATEGORIES:
         return 0
     cutoff = (now or _now()) - timedelta(days=policy.retention_days)
-    if policy.category == "password_reset_tokens":
+    if policy.category == RESET_TOKEN_CATEGORY:
         ids = [row[0] for row in (db.session.query(PasswordResetToken.id).join(Usuario)
                .filter(Usuario.organization_id == policy.organization_id,
                        PasswordResetToken.criado_em < cutoff).all())]

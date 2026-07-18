@@ -2,6 +2,9 @@ import os
 import tempfile
 from io import BytesIO
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
@@ -13,13 +16,19 @@ from app.services.laudos import (
     adicionar_foto,
     arquivos_orfaos,
     atualizar_laudo,
+    can_manage_laudo,
     cancelar_laudo,
     criar_rascunho,
     duplicar_laudo,
     finalizar_laudo,
     gerar_comprovante_cancelamento,
+    gerar_pdf_laudo,
+    limpar_arquivos_orfaos,
     reordenar_fotos,
     safe_file_path,
+    snapshot_cliente,
+    snapshot_equipamento,
+    validar_imagem_upload,
 )
 
 
@@ -641,3 +650,193 @@ def test_rota_admin_cria_nova_versao_do_template():
     with app.app_context():
         versions = [item.versao for item in LaudoTemplate.query.order_by(LaudoTemplate.versao).all()]
         assert versions == [1, 2]
+
+
+def test_permissoes_snapshots_e_criacao_cobrem_erros_de_negocio():
+    app = make_app()
+    with app.app_context():
+        db.create_all()
+        usuario, _cliente, os_obj = seed_base()
+        laudo = criar_rascunho(os_obj.id, usuario)
+        consulta = Usuario(nome="Consulta", email="consulta@example.com", nivel="consulta", ativo=True)
+        consulta.set_senha("Senha!123")
+        outra_org = Organization(nome="Outra", slug="outra-laudo-service")
+        db.session.add_all([consulta, outra_org])
+        db.session.flush()
+        intruso = Usuario(
+            nome="Intruso Service",
+            email="intruso-service@example.com",
+            nivel="admin",
+            ativo=True,
+            organization_id=outra_org.id,
+        )
+        intruso.set_senha("Senha!123")
+        db.session.add(intruso)
+        db.session.commit()
+
+        assert can_manage_laudo(None, laudo) is False
+        assert can_manage_laudo(usuario, None) is False
+        assert can_manage_laudo(intruso, laudo) is False
+        assert can_manage_laudo(consulta, laudo) is False
+        assert snapshot_cliente(None) == {}
+        assert snapshot_equipamento(None) == {}
+
+        with pytest.raises(ValueError, match="Ordem de servico nao encontrada"):
+            criar_rascunho(999999, usuario)
+        with pytest.raises(ValueError, match="Ordem de servico nao encontrada"):
+            criar_rascunho(os_obj.id, intruso)
+        with pytest.raises(ValueError, match="Template de laudo nao encontrado"):
+            criar_rascunho(os_obj.id, usuario, template_id=999999)
+
+
+def test_validacao_de_imagem_cobre_ausente_import_formato_e_dimensoes(monkeypatch):
+    app = make_app()
+    with app.app_context():
+        db.create_all()
+        with pytest.raises(ValueError, match="Arquivo ausente"):
+            validar_imagem_upload(None)
+
+        from werkzeug.datastructures import FileStorage
+
+        png_preparado = _image_file()
+        original_import = __import__
+
+        def import_sem_pillow(name, *args, **kwargs):
+            if name == "PIL":
+                raise ImportError("sem pillow")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.__import__", import_sem_pillow)
+        with pytest.raises(ValueError, match="Pillow nao esta instalado"):
+            validar_imagem_upload(FileStorage(stream=png_preparado, filename="foto.png", content_type="image/png"))
+        monkeypatch.setattr("builtins.__import__", original_import)
+
+        with pytest.raises(ValueError, match="Formato de imagem nao permitido"):
+            validar_imagem_upload(FileStorage(stream=_image_file("GIF"), filename="foto.gif", content_type="image/gif"))
+
+        from PIL import Image
+
+        small = BytesIO()
+        Image.new("RGB", (10, 10), color=(10, 10, 10)).save(small, format="PNG")
+        small.seek(0)
+        with pytest.raises(ValueError, match="Dimensoes"):
+            validar_imagem_upload(FileStorage(stream=small, filename="small.png", content_type="image/png"))
+
+
+def test_fotos_orfaos_reordenacao_e_pdf_com_imagens(monkeypatch):
+    app = make_app()
+    with app.app_context():
+        db.create_all()
+        usuario, _cliente, os_obj = seed_base()
+        laudo = criar_rascunho(os_obj.id, usuario)
+        primeira = adicionar_foto(laudo, _file_storage("a.png"), "frontal", "A", 0, usuario)
+        segunda = adicionar_foto(laudo, _file_storage("b.png"), "traseira", "B", 1, usuario)
+        terceira = adicionar_foto(laudo, _file_storage("c.png"), "etiqueta", "C", 2, usuario)
+        db.session.flush()
+
+        laudo.status = "finalized"
+        with pytest.raises(ValueError, match="reordenar"):
+            reordenar_fotos(laudo, [primeira.id, segunda.id, terceira.id], usuario)
+        with pytest.raises(ValueError, match="remover fotos"):
+            from app.services.laudos import remover_foto
+
+            remover_foto(primeira, usuario)
+        laudo.status = "draft"
+        with pytest.raises(ValueError, match="invalida ou incompleta"):
+            reordenar_fotos(laudo, [primeira.id], usuario)
+
+        pdf = gerar_pdf_laudo(laudo)
+        assert pdf.startswith(b"%PDF")
+
+        laudo.pdf_path = f"1/{laudo.public_uuid}/referenciado.pdf"
+        safe_file_path(laudo.pdf_path).parent.mkdir(parents=True, exist_ok=True)
+        safe_file_path(laudo.pdf_path).write_bytes(b"%PDF-ref")
+        orphan = safe_file_path(f"1/{laudo.public_uuid}/solto.txt")
+        orphan.write_text("orfao", encoding="utf-8")
+        db.session.commit()
+        assert orphan in arquivos_orfaos()
+        assert limpar_arquivos_orfaos() >= 1
+        assert not orphan.exists()
+
+        def fail_path(_storage_key):
+            raise OSError("falha planejada")
+
+        monkeypatch.setattr("app.services.laudos.safe_file_path", fail_path)
+        remover_foto = __import__("app.services.laudos", fromlist=["remover_foto"]).remover_foto
+        remover_foto(segunda, usuario)
+
+
+def test_guardas_de_foto_pdf_finalizacao_e_cancelamento(monkeypatch):
+    app = make_app()
+    with app.app_context():
+        db.create_all()
+        usuario, _cliente, os_obj = seed_base()
+        laudo = criar_rascunho(os_obj.id, usuario)
+        laudo.status = "finalized"
+        with pytest.raises(ValueError, match="alterar fotos"):
+            adicionar_foto(laudo, _file_storage("finalizado.png"), "frontal", "", 0, usuario)
+        with pytest.raises(ValueError, match="Somente rascunhos"):
+            finalizar_laudo(laudo, usuario)
+
+        laudo.status = "draft"
+        laudo.pdf_path = "1/final.pdf"
+        laudo.pdf_sha256 = "a" * 64
+        laudo.status = "finalized"
+        assert finalizar_laudo(laudo, usuario) is laudo
+
+        laudo.status = "draft"
+        laudo.pdf_path = None
+        laudo.pdf_sha256 = None
+        with pytest.raises(ValueError, match="Preencha os campos"):
+            finalizar_laudo(laudo, usuario)
+        atualizar_laudo(laudo, {
+            "inspecao_visual": "Integro",
+            "testes_realizados": "Teste",
+            "diagnostico_tecnico": "Diagnostico",
+            "conclusao_tecnica": "Conclusao",
+            "estado_final": "Final",
+        }, usuario)
+        with pytest.raises(ValueError, match="Fotos obrigatorias"):
+            finalizar_laudo(laudo, usuario)
+
+        for ordem, tipo in enumerate(LAUDO_FOTOS_OBRIGATORIAS):
+            db.session.add(LaudoFoto(
+                laudo_id=laudo.id,
+                tipo=tipo,
+                ordem=ordem,
+                storage_key=f"1/{laudo.public_uuid}/missing-{tipo}.jpg",
+                mime_type="image/jpeg",
+                tamanho_bytes=1,
+                sha256="0" * 64,
+                usuario_id=usuario.id,
+            ))
+        db.session.commit()
+
+        monkeypatch.setattr(
+            "app.services.laudos.gerar_numero_laudo",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(IntegrityError("stmt", "params", "orig")),
+        )
+        with pytest.raises(ValueError, match="Falha ao reservar numero"):
+            finalizar_laudo(laudo, usuario)
+        db.session.rollback()
+
+        monkeypatch.setattr("app.services.laudos.gerar_numero_laudo", lambda *_args, **_kwargs: ("LAU-2026-999999", 2026))
+
+        def move_and_fail(src, dst):
+            safe_file_path(f"1/{laudo.public_uuid}/LAU-2026-999999.pdf").write_bytes(b"%PDF-final")
+            raise RuntimeError(f"falha movendo {src} para {dst}")
+
+        monkeypatch.setattr("app.services.laudos.shutil.move", move_and_fail)
+        with pytest.raises(RuntimeError, match="falha movendo"):
+            finalizar_laudo(laudo, usuario)
+        assert not safe_file_path(f"1/{laudo.public_uuid}/LAU-2026-999999.pdf").exists()
+
+        with pytest.raises(RuntimeError, match="Erro ao gerar PDF"):
+            monkeypatch.setattr("app.services.laudos._pdf_via_reportlab", lambda _laudo: (_ for _ in ()).throw(RuntimeError("pdf ruim")))
+            gerar_pdf_laudo(laudo)
+
+        laudo.status = "cancelled"
+        cancelar_laudo(laudo, "Motivo suficientemente detalhado.", usuario)
+        with pytest.raises(ValueError, match="dados completos"):
+            laudo.motivo_cancelamento = ""
+            gerar_comprovante_cancelamento(laudo)

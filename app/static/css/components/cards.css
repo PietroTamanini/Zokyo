@@ -28,9 +28,12 @@
   background: var(--green-g);
 }
 
-.card-header-gradient .card-title,
-.card-header-soft-green .card-title {
+.card-header-gradient .card-title {
   color: #fff;
+}
+
+.card-header-soft-green .card-title {
+  color: var(--green);
 }
 
 /* ═══════════════════════════════════════

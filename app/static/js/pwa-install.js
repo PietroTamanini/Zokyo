@@ -42,13 +42,13 @@
 
   function manualHelp() {
     if (!isSecureEnough) {
-      return '<strong>Instalacao bloqueada neste endereco</strong>Para instalar como app de verdade no celular, abra o Zokyo por HTTPS. Endereco em IP local com HTTP pode criar atalho, mas o navegador bloqueia a PWA nativa.';
+      return '<strong>Instalação bloqueada neste endereço</strong>Para instalar como app de verdade no celular, abra o Zokyo por HTTPS. Endereço em IP local com HTTP pode criar atalho, mas o navegador bloqueia a PWA nativa.';
     }
     if (isIos) {
       return '<strong>Instalacao no iPhone/iPad</strong>Abra no Safari, toque em Compartilhar e escolha "Adicionar a Tela de Inicio".';
     }
     if (isAndroid) {
-      return '<strong>Instalacao no Android</strong>Se o botao nativo nao aparecer, abra no Chrome, toque no menu e escolha "Instalar app".';
+      return '<strong>Instalação no Android</strong>Se o botão nativo não aparecer, abra no Chrome, toque no menu e escolha "Instalar app".';
     }
     return '<strong>Instalacao no PC</strong>No Chrome ou Edge, use o icone de instalacao na barra de endereco ou o menu do navegador.';
   }

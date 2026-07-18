@@ -5,7 +5,8 @@
 .stat-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 20px; cursor: pointer;
-  transition: all 0.2s; position: relative; overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  position: relative; overflow: hidden;
 }
 .stat-card::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
@@ -21,7 +22,7 @@
 .stat-card.c-red .stat-icon { background: var(--red-g); }
 .stat-card.c-amber .stat-icon { background: var(--amber-g); }
 .stat-label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; margin-bottom: 6px; }
-.stat-value { font-size: 36px; font-weight: 800; color: var(--blue); line-height: 1; }
+.stat-value { font-size: 34px; font-weight: 800; color: var(--blue); line-height: 1; }
 .stat-card.c-green .stat-value { color: var(--green); }
 .stat-card.c-red .stat-value { color: var(--red); }
 .stat-card.c-amber .stat-value { color: var(--amber); }

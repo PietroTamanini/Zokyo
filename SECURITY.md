@@ -24,4 +24,4 @@ Nunca versionar:
 
 ## Status
 
-O projeto tem protecoes basicas de CSRF, CSP, sessoes, rate limiting de login, upload privado e auditoria. Ainda faltam RBAC granular, 2FA, recuperacao de senha e testes de seguranca amplos.
+O projeto possui CSRF, CSP com nonce, sessoes revogaveis, rate limiting de login, upload privado, auditoria, RBAC granular, 2FA administrativo, recuperacao de senha por token de uso unico e cobertura automatizada de seguranca. A entrada em producao ainda depende de HTTPS, cofre de segredos, backup externo validado, alertas reais e testes no host final.

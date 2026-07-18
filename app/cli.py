@@ -1,4 +1,5 @@
 """Comandos administrativos executados fora das requisicoes web."""
+import os
 import re
 
 import click
@@ -11,6 +12,29 @@ from app.utils.validators import validar_email
 
 
 def register_cli(app):
+    @app.cli.command("production-check")
+    @click.option(
+        "--strict-integrations",
+        is_flag=True,
+        help="Trata integracoes externas ausentes como erro.",
+    )
+    def production_check(strict_integrations):
+        """Valida configuracoes obrigatorias antes de publicar em producao."""
+        from app.utils.production_readiness import check_production_readiness
+
+        issues = check_production_readiness(
+            dict(os.environ),
+            strict_integrations=strict_integrations,
+        )
+        for issue in issues:
+            click.echo(
+                f"{issue.severity.upper()} {issue.code}: {issue.message}",
+                err=issue.severity == "error",
+            )
+        if any(issue.severity == "error" for issue in issues):
+            raise click.ClickException("Prontidao de producao reprovada.")
+        click.echo("Prontidao de producao aprovada.")
+
     @app.cli.command("seed-system")
     def seed_system():
         """Cria ou atualiza dados globais seguros e idempotentes."""

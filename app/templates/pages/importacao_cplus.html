@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Importacao CPlus — Zokyo{% endblock %}
-{% block breadcrumb %}Importacao CPlus{% endblock %}
+{% block title %}Importação CPlus — Zokyo{% endblock %}
+{% block breadcrumb %}Importação CPlus{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-title">Importacao CPlus / Firebird</div>
+    <div class="page-title">Importação CPlus / Firebird</div>
     <div class="page-sub">Analise o schema real, gere preview e confirme antes de gravar.</div>
   </div>
 </div>
@@ -20,7 +20,7 @@
       </div>
       <div class="form-row fr3">
         <div class="form-group">
-          <label>Usuario</label>
+          <label>Usuário</label>
           <input type="text" id="cplus-user" value="SYSDBA" autocomplete="off">
         </div>
         <div class="form-group">
@@ -33,13 +33,13 @@
         </div>
       </div>
       <div class="action-wrap">
-        <button type="button" class="btn btn-outline" data-action="cplus-test">Testar conexao</button>
+        <button type="button" class="btn btn-outline" data-action="cplus-test">Testar conexão</button>
         <button type="button" class="btn btn-primary" data-action="cplus-preview">Gerar preview</button>
         <button type="button" class="btn btn-danger" data-action="cplus-commit" disabled id="cplus-commit-btn">
           Confirmar importacao
         </button>
       </div>
-      <p class="input-hint">A senha nao e salva em banco, sessao ou log. O commit so libera depois do preview.</p>
+      <p class="input-hint">A senha não é salva em banco, sessão ou log. O commit só libera depois do preview.</p>
     </div>
   </div>
 

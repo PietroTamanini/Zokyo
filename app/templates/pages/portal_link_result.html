@@ -3,7 +3,7 @@
 {% block breadcrumb %}OS #{{ '%04d' % os.id }} / Portal{% endblock %}
 {% block topbar_action %}<a href="{{ url_for('pages.os_detalhe', id=os.id) }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
 {% block content %}
-<div class="page-header"><div><div class="page-title">Link do portal</div><div class="page-sub">O token e exibido somente nesta resposta</div></div></div>
+<div class="page-header"><div><div class="page-title">Link do portal</div><div class="page-sub">O token é exibido somente nesta resposta</div></div></div>
 <div class="card content-narrow">
   <div class="card-body parts-body">
     {% if erro %}<div class="alert a-red">{{ erro }}</div>{% else %}

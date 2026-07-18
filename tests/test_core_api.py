@@ -49,6 +49,18 @@ def request_json(client, method, path, payload=None):
     )
 
 
+def test_convite_publico_invalido_nao_e_redirecionado_pelo_primeiro_acesso():
+    app = create_app("development")
+    app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+
+    response = app.test_client().get("/convite/token-invalido")
+
+    assert response.status_code == 410
+
+
 def test_fluxo_crud_central_integrado():
     _app, client = make_client()
     response = request_json(client, "POST", "/api/clientes", {

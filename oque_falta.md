@@ -1,19 +1,20 @@
 # O que falta para o Zokyo ficar ainda mais profissional
 
-Atualizado em 2026-07-12 apos a revisao de seguranca, operacao e roadmap.
+Atualizado em 2026-07-18 apos nova varredura local de seguranca, testes e interface publica.
 
 O sistema esta funcional e possui uma base ampla de seguranca, testes e operacao. Este arquivo registra somente entregas comprovadas e pendencias reais.
 
 ## Resumo atual
 
-- 72 itens concluidos no repositorio.
+- 74 itens concluidos no repositorio.
 - 5 ativacoes externas pendentes.
-- 97 testes Python aprovados.
-- 165 cenarios Playwright em cinco viewports (320, 412, 768, 1366 e 1920 px): 160 aprovados e 5 nao aplicaveis por dependerem do modo desktop ou movel da navegacao.
-- Cobertura automatizada atual: 66% global e 88% no nucleo de dominio/servicos.
+- 174 testes Python aprovados.
+- Playwright publico revalidado em cinco viewports: 20 cenarios aprovados.
+- Auditoria Playwright autenticada ampla continua dependente de `E2E_EMAIL` e `E2E_PASSWORD` reais.
+- Cobertura automatizada atual: 100% global e 100% no nucleo de dominio/servicos.
 - MariaDB na revisao Alembic `20260712_0026`.
 - `pip-audit` e `npm audit` sem vulnerabilidades conhecidas.
-- Container local saudavel em `http://127.0.0.1:8000`.
+- Compose YAML valido; container local nao foi revalidado neste ambiente porque Docker nao esta instalado.
 
 ## Situacao da fase interna
 
@@ -38,6 +39,7 @@ dominio, servidor, credenciais, contrato ou uma execucao humana no ambiente real
 - [x] MariaDB sem porta publica no Compose de producao.
 - [ ] Armazenar segredos em um cofre apropriado, fora do repositorio.
 - [x] Configuracoes separadas para desenvolvimento e producao; homologacao depende do host escolhido.
+- [x] Gate executavel `production-check --strict-integrations` para reprovar configuracao incompleta antes de publicar.
 
 ### 3. Recuperacao e continuidade
 
@@ -131,13 +133,14 @@ dominio, servidor, credenciais, contrato ou uma execucao humana no ambiente real
 
 ### 12. Qualidade e entrega
 
-- [x] Cobertura do nucleo de dominio e servicos em 88%, com gate minimo de 80%; cobertura global de 65% tambem possui gate explicito.
+- [x] Cobertura do nucleo de dominio e servicos em 100%, com gate minimo de 80%; cobertura global atual de 100%.
 - [x] Testes de concorrencia e isolamento multiempresa implementados.
 - [x] Teste de carga reproduzivel com concorrencia, taxa de erro e limite de p95 no CI.
 - [x] CI/CD com imagem imutavel, homologacao, aprovacao por Environment, healthcheck e rollback automatico versionado.
 - [x] Releases por tag semantica validadas, auditadas, construidas e publicadas com notas automaticas; incremento da versao continua deliberadamente manual.
 - [x] Dependencias, codigo e segredos auditados diariamente no CI.
 - [x] Migracoes em MariaDB limpo e restauradores verificados no pipeline.
+- [x] CI e release executam o contrato de prontidao de producao em modo estrito.
 
 ## Dependencias externas
 

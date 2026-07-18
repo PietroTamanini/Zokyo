@@ -31,6 +31,8 @@ tokens/
 
 # Banco
 *.db
+*.fdb
+*.FDB
 *.sqlite3
 *.sql
 *.sql.gz

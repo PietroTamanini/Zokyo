@@ -35,8 +35,15 @@ def _network_totals():
     return received, sent
 
 
+def _existing_path_for_disk_usage(path):
+    candidate = Path(path)
+    while not candidate.exists() and candidate != candidate.parent:
+        candidate = candidate.parent
+    return candidate
+
+
 def collect_operational_metrics():
-    usage = shutil.disk_usage(current_app.instance_path)
+    usage = shutil.disk_usage(_existing_path_for_disk_usage(current_app.instance_path))
     DISK_FREE.set(usage.free)
     DISK_TOTAL.set(usage.total)
     try:

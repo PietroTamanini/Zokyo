@@ -6,12 +6,12 @@ Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 
 - `SECRET_KEY`: chave forte para sessoes e criptografia derivada.
 - `DATABASE_URL`: URL SQLAlchemy do MySQL/MariaDB.
+- `ENCRYPTION_SALT`: salt Base64 aleatorio de 32 bytes para segredos persistidos em `Configuracao`.
 
-Em producao, `SECRET_KEY` e `DATABASE_URL` sao validadas no startup.
+Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no startup.
 
 ## Recomendadas
 
-- `ENCRYPTION_SALT`: salt base64 aleatorio para segredos persistidos em `Configuracao`.
 - `REPORTS_UPLOAD_FOLDER`: pasta privada dos laudos. Se vazia, usa `instance/uploads/reports`.
 - `REPORTS_PUBLIC_VERIFICATION`: habilita/desabilita a rota publica de verificacao de laudos.
 - `PROXY_COUNT`: numero de proxies confiaveis na frente do Flask.

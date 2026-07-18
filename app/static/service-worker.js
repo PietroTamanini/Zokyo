@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zokyo-assets-v7';
+const CACHE_NAME = 'zokyo-assets-v9';
 const PRECACHE_ASSETS = [
   '/static/manifest.webmanifest',
   '/static/css/zokyo.css',

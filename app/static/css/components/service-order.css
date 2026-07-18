@@ -71,6 +71,10 @@
   text-transform: uppercase;
 }
 
+[data-theme="light"] .total-label {
+  color: var(--blue-dk);
+}
+
 .total-value {
   color: var(--blue-text);
   font-size: 30px;

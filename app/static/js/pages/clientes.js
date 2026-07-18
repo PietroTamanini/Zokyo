@@ -53,12 +53,12 @@ function clienteFormHtml(c = null) {
       </div>
       <div class="form-row fr2">
         <div class="form-group">
-          <label>Endereco</label>
+          <label>Endereço</label>
           <input type="text" name="endereco" value="${escapeHtml(c?.endereco)}"
                  placeholder="Rua, avenida, travessa">
         </div>
         <div class="form-group">
-          <label>Numero da casa</label>
+          <label>Número da casa</label>
           <input type="text" name="numero_casa" value="${escapeHtml(c?.numero_casa)}"
                  placeholder="Ex: 217">
         </div>
@@ -172,7 +172,7 @@ async function salvarCliente(id = null) {
     return;
   }
   const data = result.data || {};
-  showFieldError(form, data.field || 'geral', data.message || data.erro || 'Nao foi possivel salvar o cliente.');
+  showFieldError(form, data.field || 'geral', data.message || data.erro || 'Não foi possível salvar o cliente.');
 }
 
 document.addEventListener('click', (e) => {

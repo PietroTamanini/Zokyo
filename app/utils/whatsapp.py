@@ -92,7 +92,7 @@ def _wpp_url() -> str | None:
         if url:
             return url.rstrip("/")
     except Exception:
-        pass
+        logger.debug("[WhatsApp] Configuracao do gateway indisponivel no banco.", exc_info=True)
     env_url = os.environ.get("WPP_SERVER_URL", "").strip()
     return env_url.rstrip("/") if env_url else None
 

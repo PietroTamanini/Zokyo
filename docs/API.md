@@ -34,4 +34,4 @@ APIs retornam:
 
 ## Laudos
 
-O modulo de laudos atual e HTML-first. Downloads e fotos sao rotas autenticadas HTML. Uma API JSON dedicada para laudos ainda e pendente.
+O modulo de laudos atual e deliberadamente HTML-first. Downloads e fotos usam rotas autenticadas HTML; uma API JSON dedicada so deve ser criada quando houver consumidor externo definido.

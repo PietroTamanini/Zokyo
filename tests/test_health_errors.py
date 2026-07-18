@@ -5,7 +5,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 from app import create_app
 from app.extensions import db
-from app.models import Usuario
+from app.models import Notification, OperationalAlert, OperationalHeartbeat, Organization, Usuario
 from app.utils.exceptions import ValidationError
 
 
@@ -63,6 +63,62 @@ def test_readyz_verifica_banco():
     assert response.get_json()["database"] == "ok"
 
 
+def test_readyz_reporta_falha_do_banco(monkeypatch):
+    app = make_app()
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+
+    def raise_db_error(*_args, **_kwargs):
+        raise RuntimeError("db fora")
+
+    monkeypatch.setattr(db.session, "execute", raise_db_error)
+    response = app.test_client().get("/readyz")
+
+    assert response.status_code == 503
+    assert response.get_json()["database"] == "error"
+
+
+def test_operations_status_lista_heartbeats_alertas_e_notificacoes():
+    app = make_app()
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        org = Organization(id=1, nome="Ops", slug="ops")
+        usuario = Usuario(organization_id=1, nome="Admin", email="ops@example.com", nivel="admin", ativo=True)
+        usuario.set_senha("Senha!123")
+        heartbeat = OperationalHeartbeat(job_name="backup", consecutive_failures=2, last_error="falhou")
+        alert = OperationalAlert(severity="critical", source="backup", message="Falhou", fingerprint="ops-alert")
+        notification = Notification(
+            organization_id=1,
+            channel="email",
+            recipient="ops@example.com",
+            event_type="ops",
+            idempotency_key="ops-1",
+            payload={},
+            status="failed",
+        )
+        db.session.add_all([org, usuario, heartbeat, alert, notification])
+        db.session.commit()
+        user_id = usuario.id
+
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = user_id
+        session["nivel"] = "admin"
+        session["perfil"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "ops-csrf"
+
+    response = client.get("/api/operations/status")
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["heartbeats"][0]["job"] == "backup"
+    assert payload["alerts"][0]["source"] == "backup"
+    assert payload["failed_notifications"] == 1
+
+
 def test_erros_api_json_e_html_separados():
     app = make_app()
     with app.app_context():
@@ -80,7 +136,7 @@ def test_erros_api_json_e_html_separados():
     assert api_response.status_code == 404
     assert api_response.is_json
     assert html_response.status_code == 404
-    assert b"Pagina nao encontrada" in html_response.data
+    assert "Página não encontrada".encode("utf-8") in html_response.data
 
 
 def test_erros_estruturados_incluem_codigo_e_request_id():

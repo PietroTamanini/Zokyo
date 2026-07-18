@@ -37,11 +37,11 @@ function printCplus(data) {
 }
 
 async function cplusTest() {
-  setCplusStatus('Testando conexao...', 'sky');
+  setCplusStatus('Testando conexão...', 'sky');
   const r = await apiCall('POST', '/api/importacao/cplus/test', cplusPayload());
   printCplus(r.data);
   if (r.ok && r.data?.success) setCplusStatus(`Conexao OK. Tabelas encontradas: ${r.data.table_count}.`, 'green');
-  else setCplusStatus(r.data?.erro || 'Falha ao testar conexao.', 'red');
+  else setCplusStatus(r.data?.erro || 'Falha ao testar conexão.', 'red');
 }
 
 async function cplusPreview() {
@@ -59,11 +59,11 @@ async function cplusPreview() {
 }
 
 async function cplusCommit() {
-  if (!confirm('Confirmar importacao real no MySQL? Essa acao cria dados novos e nao salva a senha Firebird.')) return;
+  if (!confirm('Confirmar importação real no MySQL? Essa ação cria dados novos e não salva a senha Firebird.')) return;
   setCplusStatus('Importando dados confirmados...', 'sky');
   const r = await apiCall('POST', '/api/importacao/cplus/commit', cplusPayload({ confirm: true }));
   printCplus(r.data);
-  if (r.ok && r.data?.success) setCplusStatus('Importacao concluida. Confira o log tecnico em instance/import_logs.', 'green');
+  if (r.ok && r.data?.success) setCplusStatus('Importação concluída. Confira o log técnico em instance/import_logs.', 'green');
   else setCplusStatus(r.data?.erro || 'Falha ao importar.', 'red');
 }
 

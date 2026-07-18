@@ -127,8 +127,6 @@ def atualizar(id):
             if val > max_v:
                 return jsonify({"success": False,
                                 "erro": f"{campo_num} excede o valor máximo"}), 400
-            if campo_num == "quantidade":
-                val = int(val)
             setattr(peca, campo_num, val)
 
     if "fornecedor_id" in data:

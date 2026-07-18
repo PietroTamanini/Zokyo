@@ -7,7 +7,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</div>
-    <div class="page-sub">OS #{{ '%04d' % laudo.os_id }} · {{ tipo_labels.get(laudo.tipo, laudo.tipo) }} · versao {{ laudo.versao }}</div>
+    <div class="page-sub">OS #{{ '%04d' % laudo.os_id }} · {{ tipo_labels.get(laudo.tipo, laudo.tipo) }} · versão {{ laudo.versao }}</div>
   </div>
   <div class="flex-gap">
     {% if laudo.status == 'draft' %}<a href="{{ url_for('laudos.editar', id=laudo.id) }}" class="btn btn-primary btn-sm">Editar rascunho</a>{% endif %}
@@ -20,7 +20,7 @@
     {% if laudo.status == 'finalized' %}
     <form method="POST" action="{{ url_for('laudos.revisao', id=laudo.id) }}">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <button class="btn btn-ghost btn-sm" type="submit">Nova versao</button>
+      <button class="btn btn-ghost btn-sm" type="submit">Nova versão</button>
     </form>
     {% endif %}
   </div>
@@ -36,11 +36,11 @@
       <div class="card-body">
         <div class="d-row"><div class="d-label">Cliente</div><div class="d-value">{{ laudo.cliente.nome if laudo.cliente else '-' }}</div></div>
         <div class="d-row"><div class="d-label">Equipamento</div><div class="d-value">{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</div></div>
-        <div class="d-row"><div class="d-label">Serie</div><div class="d-value td-mono">{{ laudo.os.numero_serie if laudo.os else '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Série</div><div class="d-value td-mono">{{ laudo.os.numero_serie if laudo.os else '-' }}</div></div>
         <div class="d-row"><div class="d-label">Tecnico</div><div class="d-value">{{ laudo.tecnico_responsavel_nome or '-' }}</div></div>
-        <div class="d-row"><div class="d-label">Emissao</div><div class="d-value">{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Emissão</div><div class="d-value">{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</div></div>
         {% if laudo.pdf_sha256 %}<div class="d-row"><div class="d-label">SHA-256</div><div class="d-value td-mono">{{ laudo.pdf_sha256 }}</div></div>{% endif %}
-        {% if laudo.verification_token %}<div class="d-row"><div class="d-label">Verificacao</div><div class="d-value td-mono">{{ laudo.verification_token }}</div></div>{% endif %}
+        {% if laudo.verification_token %}<div class="d-row"><div class="d-label">Verificação</div><div class="d-value td-mono">{{ laudo.verification_token }}</div></div>{% endif %}
       </div>
     </div>
 
@@ -56,8 +56,8 @@
           ('Diagnostico tecnico', laudo.diagnostico_tecnico),
           ('Causa provavel', laudo.causa_provavel),
           ('Servicos realizados', laudo.servicos_realizados),
-          ('Pecas utilizadas', laudo.pecas_utilizadas),
-          ('Conclusao tecnica', laudo.conclusao_tecnica),
+          ('Peças utilizadas', laudo.pecas_utilizadas),
+          ('Conclusão técnica', laudo.conclusao_tecnica),
           ('Estado final', laudo.estado_final),
           ('Recomendacoes', laudo.recomendacoes),
           ('Riscos e limitacoes', laudo.riscos_limitacoes),
@@ -93,7 +93,7 @@
   <div class="os-column">
     {% if laudo.status != 'cancelled' %}
     <div class="card">
-      <div class="card-header"><div class="card-title">Acoes</div></div>
+      <div class="card-header"><div class="card-title">Ações</div></div>
       <div class="card-body status-actions">
         {% if laudo.status == 'draft' %}
         <form method="POST" action="{{ url_for('laudos.finalizar', id=laudo.id) }}" data-confirm="Finalizar e gerar PDF?">
@@ -111,7 +111,7 @@
     {% endif %}
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Historico</div></div>
+      <div class="card-header"><div class="card-title">Histórico</div></div>
       <div class="card-body">
         <div class="timeline">
           {% for ev in eventos %}

@@ -60,12 +60,30 @@ jobs:
           DATABASE_URL: sqlite:///:memory:
           SECRET_KEY: ci-secret-key
         run: python -m flask --app wsgi:app db current
+      - name: Validate production readiness contract
+        env:
+          FLASK_ENV: production
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@db:3306/zokyo_ci  # pragma: allowlist secret
+          SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          REQUIRE_ADMIN_2FA: "true"
+          PUBLIC_BASE_URL: https://zokyo-ci.example.com
+          METRICS_TOKEN: mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  # pragma: allowlist secret
+          BACKUP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          REPORTS_UPLOAD_FOLDER: /var/lib/zokyo/uploads/reports
+          ALERT_EMAIL: ops@example.com
+          SMTP_HOST: smtp.example.com
+          MAIL_FROM: no-reply@example.com
+          WHATSAPP_CLOUD_API_TOKEN: meta-ci-token  # pragma: allowlist secret
+          WHATSAPP_CLOUD_PHONE_NUMBER_ID: "1234567890"
+          WHATSAPP_CLOUD_API_VERSION: v23.0
+        run: python -m flask --app wsgi:app production-check --strict-integrations
       - name: Upgrade clean MariaDB schema
         env:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key
-          ENCRYPTION_SALT: ci-encryption-salt
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: |
@@ -77,7 +95,7 @@ jobs:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key
-          ENCRYPTION_SALT: ci-encryption-salt
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: python scripts/test_laudo_concurrency.py
@@ -86,7 +104,7 @@ jobs:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key
-          ENCRYPTION_SALT: ci-encryption-salt
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
           GUNICORN_BIND: 127.0.0.1:8000
