@@ -66,6 +66,12 @@ def test_usuario_lista_e_revoga_sessao_secundaria():
     page = first.get("/seguranca/sessoes")
     assert page.status_code == 200
     assert b"Sessoes e dispositivos" in page.data
+    with app.app_context():
+        second_record_id = UserSession.query.order_by(UserSession.id.desc()).first().id
+    assert first.post(
+        f"/seguranca/sessoes/{second_record_id}/revogar",
+        data={"_csrf_token": csrf(first)},
+    ).status_code == 302
     response = first.post("/seguranca/sessoes/revogar-outras", data={"_csrf_token": csrf(first)})
     assert response.status_code == 302
     assert second.get("/").status_code == 302
@@ -173,7 +179,7 @@ def test_admin_ativa_2fa_com_confirmacao_totp():
         "codigo": pyotp.TOTP(secret).now(), "_csrf_token": csrf(client),
     })
     assert response.status_code == 200
-    assert b"Codigos de recuperacao" in response.data
+    assert "Códigos de recuperação".encode("utf-8") in response.data
     with app.app_context():
         usuario = Usuario.query.filter_by(email="ativo@example.com").one()
         assert usuario.totp_enabled is True

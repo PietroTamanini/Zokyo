@@ -9,7 +9,7 @@
     <form method="POST" action="{{ url_for('platform.create_plan') }}" class="card-body parts-body">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="form-row fr2"><div class="form-group"><label>Codigo</label><input name="code" required></div><div class="form-group"><label>Nome</label><input name="nome" required></div></div>
-      <div class="form-row fr2"><div class="form-group"><label>Usuarios</label><input type="number" min="0" name="max_users"></div><div class="form-group"><label>Clientes</label><input type="number" min="0" name="max_clients"></div></div>
+      <div class="form-row fr2"><div class="form-group"><label>Usuários</label><input type="number" min="0" name="max_users"></div><div class="form-group"><label>Clientes</label><input type="number" min="0" name="max_clients"></div></div>
       <div class="form-row fr2"><div class="form-group"><label>OS abertas</label><input type="number" min="0" name="max_open_orders"></div><div class="form-group"><label>Storage MB</label><input type="number" min="0" name="max_storage_mb"></div></div>
       <button class="btn btn-primary" type="submit">Criar plano</button>
     </form>
@@ -18,7 +18,7 @@
     <div class="card-header"><div class="card-title">Vincular sandbox</div></div>
     <form method="POST" action="{{ url_for('platform.assign_subscription') }}" class="card-body parts-body">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="form-group"><label>Organizacao</label><select name="organization_id" required>{% for org in organizations %}<option value="{{ org.id }}">{{ org.nome }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label>Organização</label><select name="organization_id" required>{% for org in organizations %}<option value="{{ org.id }}">{{ org.nome }}</option>{% endfor %}</select></div>
       <div class="form-group"><label>Plano</label><select name="plan_id" required>{% for plan in plans if plan.ativo %}<option value="{{ plan.id }}">{{ plan.nome }}</option>{% endfor %}</select></div>
       <button class="btn btn-outline" type="submit">Iniciar trial sandbox</button>
     </form>
@@ -26,7 +26,7 @@
 </div>
 <div class="card">
   <div class="card-header"><div class="card-title">Organizacoes</div></div>
-  <div class="table-wrap"><table><thead><tr><th>Organizacao</th><th>Slug</th><th>Plano</th><th>Status</th><th>Usuarios</th><th>Clientes</th><th>OS</th><th>Storage</th><th>Ultima atividade</th></tr></thead><tbody>
+  <div class="table-wrap"><table><thead><tr><th>Organização</th><th>Slug</th><th>Plano</th><th>Status</th><th>Usuários</th><th>Clientes</th><th>OS</th><th>Storage</th><th>Última atividade</th></tr></thead><tbody>
   {% for org in organizations %}{% set subscription = subscriptions|selectattr('organization_id', 'equalto', org.id)|first %}<tr class="tr-static"><td class="td-strong">{{ org.nome }}</td><td class="td-mono">{{ org.slug }}</td><td>{{ subscription.plan.nome if subscription else '-' }}</td><td>{{ subscription.status if subscription else 'sem assinatura' }}</td><td>{{ usage[org.id].users }}</td><td>{{ usage[org.id].clients }}</td><td>{{ usage[org.id].orders }}</td><td>{{ '%.2f MB'|format(usage[org.id].storage_bytes / 1048576) }}</td><td>{{ usage[org.id].last_activity|fmtdata if usage[org.id].last_activity else '-' }}</td></tr>{% endfor %}
   </tbody></table></div>
 </div>

@@ -70,6 +70,16 @@ def test_relatorio_e_exportacoes_respeitam_tenant():
     assert pdf.data.startswith(b"%PDF")
 
 
+def test_relatorio_normaliza_periodos_invalidos_invertidos_e_longos():
+    app, finance_id, _operation_id = make_app()
+    client = app.test_client()
+    login(client, finance_id, "financeiro")
+
+    assert client.get("/relatorios?inicio=invalido&fim=invalido").status_code == 200
+    assert client.get("/relatorios?inicio=2026-12-31&fim=2026-01-01").status_code == 200
+    assert client.get("/relatorios?inicio=2020-01-01&fim=2026-12-31").status_code == 200
+
+
 def test_operacional_sem_permissao_nao_acessa_relatorios():
     app, _finance_id, operation_id = make_app()
     client = app.test_client()
@@ -92,8 +102,25 @@ def test_filtro_salvo_e_relatorio_agendado_entram_na_fila():
     with app.app_context():
         report = SavedReport.query.one()
         report.next_run_at = datetime.now(timezone.utc)
+        report_id = report.id
         db.session.commit()
         assert process_scheduled_reports() == 1
         notification = Notification.query.filter_by(event_type="scheduled_report").one()
         assert notification.recipient == "gestor@example.com"
         assert report.last_run_at is not None
+
+    invalid_name = client.post("/relatorios/salvos", data={
+        "_csrf_token": "report-csrf", "nome": "", "frequencia": "daily", "destinatario": "gestor@example.com",
+    })
+    invalid_frequency = client.post("/relatorios/salvos", data={
+        "_csrf_token": "report-csrf", "nome": "Ruim", "frequencia": "yearly", "destinatario": "gestor@example.com",
+    })
+    invalid_email = client.post("/relatorios/salvos", data={
+        "_csrf_token": "report-csrf", "nome": "Ruim", "frequencia": "weekly", "destinatario": "email-ruim",
+    })
+    delete_response = client.post(f"/relatorios/salvos/{report_id}/excluir", data={"_csrf_token": "report-csrf"})
+
+    assert invalid_name.status_code == 302
+    assert invalid_frequency.status_code == 302
+    assert invalid_email.status_code == 302
+    assert delete_response.status_code == 302

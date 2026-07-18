@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Laudos - Zokyo{% endblock %}
+{% block title %}Laudos — Zokyo{% endblock %}
 {% block breadcrumb %}Laudos{% endblock %}
 {% block topbar_action %}
 <div class="flex-gap">
@@ -12,7 +12,7 @@
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-title">Laudos tecnicos</div>
+    <div class="page-title">Laudos técnicos</div>
     <div class="page-sub">Documentos vinculados a OS, clientes e equipamentos</div>
   </div>
 </div>
@@ -22,7 +22,7 @@
     <form method="GET" class="form-row fr4">
       <div class="form-group">
         <label>Busca</label>
-        <input name="q" value="{{ filtros.q }}" placeholder="Numero, OS, cliente, documento, serie">
+        <input type="text" name="q" value="{{ filtros.q }}" placeholder="Número, OS, cliente, documento, série">
       </div>
       <div class="form-group">
         <label>Status</label>
@@ -43,8 +43,8 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Tecnico</label>
-        <input name="tecnico" value="{{ filtros.tecnico }}">
+        <label>Técnico</label>
+        <input type="text" name="tecnico" value="{{ filtros.tecnico }}">
       </div>
       <div class="form-actions">
         <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
@@ -59,14 +59,14 @@
     <table>
       <thead>
         <tr>
-          <th>Numero</th>
+          <th>Número</th>
           <th>OS</th>
-          <th>Cliente</th>
-          <th>Equipamento</th>
-          <th>Tecnico</th>
-          <th>Versao</th>
+          <th class="th-hide-sm">Cliente</th>
+          <th class="th-hide-sm">Equipamento</th>
+          <th class="th-hide-sm">Técnico</th>
+          <th class="th-hide-sm">Versão</th>
           <th>Status</th>
-          <th>Emissao</th>
+          <th class="th-hide-sm">Emissão</th>
           <th></th>
         </tr>
       </thead>
@@ -75,12 +75,12 @@
         <tr>
           <td class="td-strong">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</td>
           <td><a href="{{ url_for('pages.os_detalhe', id=laudo.os_id) }}">#{{ '%04d' % laudo.os_id }}</a></td>
-          <td>{{ laudo.cliente.nome if laudo.cliente else '-' }}</td>
-          <td>{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</td>
-          <td>{{ laudo.tecnico_responsavel_nome or '-' }}</td>
-          <td class="td-mono">{{ laudo.versao }}</td>
+          <td class="td-hide-sm">{{ laudo.cliente.nome if laudo.cliente else '-' }}</td>
+          <td class="td-hide-sm">{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</td>
+          <td class="td-hide-sm">{{ laudo.tecnico_responsavel_nome or '-' }}</td>
+          <td class="td-mono td-hide-sm">{{ laudo.versao }}</td>
           <td><span class="badge {{ 'b-green' if laudo.status == 'finalized' else 'b-red' if laudo.status == 'cancelled' else 'b-amber' }}"><span class="dot"></span>{{ status_labels.get(laudo.status, laudo.status) }}</span></td>
-          <td>{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</td>
+          <td class="td-hide-sm">{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</td>
           <td class="txt-r">
             <a class="btn btn-ghost btn-xs" href="{{ url_for('laudos.detalhe', id=laudo.id) }}">Abrir</a>
             {% if laudo.status == 'draft' %}<a class="btn btn-primary btn-xs" href="{{ url_for('laudos.editar', id=laudo.id) }}">Editar</a>{% endif %}

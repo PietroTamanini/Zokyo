@@ -23,9 +23,11 @@ def encrypt_secret(secret: str) -> str:
 
 
 def decrypt_secret(encrypted: str) -> str | None:
+    if not encrypted:
+        return None
     try:
         return _fernet().decrypt(encrypted.encode("ascii")).decode("ascii")
-    except (InvalidToken, ValueError, TypeError):
+    except (InvalidToken, ValueError, TypeError, AttributeError):
         return None
 
 

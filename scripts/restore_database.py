@@ -9,13 +9,13 @@ import json
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
 try:
     from scripts.backup_database import load_env_file, parse_database_url, write_defaults_file
-except ModuleNotFoundError:  # Execucao direta: python scripts/restore_database.py
+except ModuleNotFoundError:  # pragma: no cover - direct script bootstrap.
     from backup_database import load_env_file, parse_database_url, write_defaults_file
 
 
@@ -116,5 +116,5 @@ def main() -> int:
         return 1
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())

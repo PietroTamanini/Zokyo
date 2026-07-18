@@ -71,7 +71,7 @@ def restore_backup(archive_path: Path, destination: Path, verify_only: bool = Fa
         if not manifest_member:
             raise ValueError("Manifesto ausente no backup.")
         extracted = archive.extractfile(manifest_member)
-        if not extracted:
+        if not extracted:  # pragma: no cover - tarfile returns None only for malformed members.
             raise ValueError("Manifesto invalido.")
         manifest = json.loads(extracted.read().decode("utf-8"))
         member_map = {item.name: item for item in members}
@@ -112,5 +112,5 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())

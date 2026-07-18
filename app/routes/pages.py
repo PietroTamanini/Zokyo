@@ -367,9 +367,13 @@ def _escape_like(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 def _date_trunc_month(col):
+    if db.session.get_bind().dialect.name == "sqlite":
+        return func.strftime("%Y-%m", col)
     return func.date_format(col, "%Y-%m")
 
 def _date_trunc_day(col):
+    if db.session.get_bind().dialect.name == "sqlite":
+        return func.strftime("%Y-%m-%d", col)
     return func.date_format(col, "%Y-%m-%d")
 
 def _coalesce_sum(col):
@@ -1388,8 +1392,8 @@ def peca_movimentar(id):
 @page_nivel_required("admin")
 def peca_deletar(id):
     p = db.get_or_404(Peca, id)
-    if p.ordens:
-        flash("Esta peca ja foi usada em uma OS e deve ser preservada no historico.", "error")
+    if p.ordens or InventoryMovement.query.filter_by(part_id=p.id).first():
+        flash("Esta peca ja possui historico e deve ser preservada.", "error")
         return redirect(url_for("pages.estoque"))
     registrar("exclusao", "estoque", f"Peça removida: {p.nome}")
     db.session.delete(p)

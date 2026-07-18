@@ -57,11 +57,11 @@
                    data-viacep data-fill-logradouro="[name=endereco]" data-fill-cidade="[name=cidade]" data-fill-uf="[name=uf]">
           </div>
           <div class="form-group">
-            <label>Endereco</label>
+            <label>Endereço</label>
             <input type="text" name="endereco" value="{{ fd.get('endereco', '') }}">
           </div>
           <div class="form-group">
-            <label>Numero</label>
+            <label>Número</label>
             <input type="text" name="numero_casa" value="{{ fd.get('numero_casa', '') }}">
           </div>
         </div>
@@ -79,7 +79,7 @@
 
         <div class="form-group mb16">
           <label>Observacoes para quem vai coletar</label>
-          <textarea name="observacoes" rows="3" placeholder="Ex: cliente so esta no local apos 14h, portao lateral, falar com Maria...">{{ fd.get('observacoes', '') }}</textarea>
+          <textarea name="observacoes" rows="3" placeholder="Ex: cliente só está no local após 14h, portão lateral, falar com Maria...">{{ fd.get('observacoes', '') }}</textarea>
         </div>
 
         <button type="submit" class="btn btn-primary submit-wide">Agendar coleta</button>
@@ -102,7 +102,7 @@
       </div>
       <div class="card-body">
         <div class="d-row d-row-compact"><div class="d-label">Telefone</div><div class="d-value">{{ c.telefone_contato or (c.cliente.telefone if c.cliente else '') or '—' }}</div></div>
-        <div class="d-row d-row-compact"><div class="d-label">Endereco</div><div class="d-value">{{ c.endereco_completo or '—' }}</div></div>
+        <div class="d-row d-row-compact"><div class="d-label">Endereço</div><div class="d-value">{{ c.endereco_completo or '—' }}</div></div>
         {% if c.observacoes %}<div class="note-block note-sky">{{ c.observacoes }}</div>{% endif %}
         <div class="action-wrap mt12">
           {% if c.status != 'concluida' and c.status != 'cancelada' %}

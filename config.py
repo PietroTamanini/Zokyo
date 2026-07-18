@@ -9,6 +9,7 @@ Fixes:
   M04 — FLASK_ENV=development não é padrão silencioso; produção requer configuração explícita
   M06 — Sessão com timeout absoluto + inatividade
 """
+import base64
 import os
 import secrets
 import warnings
@@ -41,7 +42,7 @@ class Config:
     # ── Banco ──────────────────────────────────────────────────────────────
     # C03: sem credenciais hardcoded; fallback só aceito em desenvolvimento
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or \
-        "mysql+pymysql://root:@localhost:3306/zokyo"
+        "mysql+pymysql://root:@127.0.0.1:3306/zokyo?charset=utf8mb4"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     if SQLALCHEMY_DATABASE_URI.startswith("sqlite"):
         SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
@@ -114,6 +115,19 @@ class ProductionConfig(Config):
             raise RuntimeError(
                 "[FATAL] DATABASE_URL não configurada. "
                 "Defina DATABASE_URL no ambiente de produção."
+            )
+        salt = os.environ.get("ENCRYPTION_SALT", "").strip()
+        try:
+            decoded_salt = base64.b64decode(salt, validate=True)
+        except Exception as exc:
+            raise RuntimeError(
+                "[FATAL] ENCRYPTION_SALT inválido. "
+                "Defina um valor Base64 aleatório de 32 bytes no ambiente de produção."
+            ) from exc
+        if len(decoded_salt) != 32:
+            raise RuntimeError(
+                "[FATAL] ENCRYPTION_SALT inválido. "
+                "Defina um valor Base64 aleatório de 32 bytes no ambiente de produção."
             )
 
     # H02: HSTS — só faz sentido com HTTPS

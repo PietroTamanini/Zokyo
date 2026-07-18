@@ -1,5 +1,5 @@
 ﻿/*
-  Zokyo Informatica - CSS entrypoint
+  Zokyo Informática - CSS entrypoint
   Arquitetura organizada por responsabilidade.
 */
 
@@ -39,6 +39,9 @@
 body { font-size: 14px; line-height: 1.55; }
 #content { width: 100%; max-width: 1680px; margin: 0 auto; }
 .topbar { background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(12px); }
+.topbar-left { min-width: 0; }
+.topbar-right { min-width: 0; }
+.topbar-right .flex-gap { align-items: center; justify-content: flex-end; }
 .page-header { align-items: center; margin-bottom: 24px; }
 .page-title { font-size: 27px; font-weight: 750; line-height: 1.2; }
 .page-sub { max-width: 760px; line-height: 1.45; }
@@ -61,8 +64,8 @@ body { font-size: 14px; line-height: 1.55; }
 .hamburger:focus-visible, .modal-close:focus-visible, a:focus-visible {
   outline: 3px solid var(--blue-ring); outline-offset: 2px;
 }
-input[type="text"], input[type="number"], input[type="email"], input[type="date"],
-input[type="datetime-local"], input[type="password"], input[type="file"], select, textarea {
+input:not([type]), input[type="text"], input[type="number"], input[type="email"], input[type="date"],
+input[type="datetime-local"], input[type="password"], input[type="file"], input[type="search"], select, textarea {
   min-height: 40px; background: var(--surface); border-width: 1px;
 }
 input::placeholder, textarea::placeholder { color: var(--text-3); opacity: .78; }
@@ -81,6 +84,30 @@ tbody tr:hover td { background: color-mix(in srgb, var(--blue) 6%, var(--surface
 .action-wrap, .action-row { flex-wrap: wrap; }
 
 @media (max-width: 600px) {
+  .topbar {
+    height: auto;
+    min-height: 54px;
+    padding: 10px 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .topbar-left {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .topbar-right {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar-right .flex-gap {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .topbar-right .flex-gap .btn {
+    flex: 1 1 auto;
+  }
   #content { padding: 18px 16px 28px; }
   .page-header { margin-bottom: 20px; }
   .page-header > div:last-child:not(:first-child), .page-header .flex-gap { width: 100%; }

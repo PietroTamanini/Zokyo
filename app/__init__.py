@@ -90,7 +90,7 @@ def create_app(config_name="default"):
             try:
                 usuario = db.session.get(Usuario, _s["usuario_id"])
             except Exception:
-                pass
+                app.logger.debug("Nao foi possivel carregar usuario do contexto.", exc_info=True)
         try:
             cfg = Configuracao.get()
         except Exception:
@@ -271,6 +271,8 @@ def create_app(config_name="default"):
             or request.endpoint in (
                 "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
                 "auth.login_page", "auth.login_post",
+                "auth.recuperar_senha", "auth.redefinir_senha",
+                "usuarios.aceitar_convite", "portal.publico", "laudos.verificar",
                 "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
         )
@@ -284,7 +286,7 @@ def create_app(config_name="default"):
             # Marca para evitar queries futuras
             _tem_usuarios = True
         except Exception:
-            pass
+            app.logger.debug("Verificacao de primeiro acesso ignorada por indisponibilidade do banco.", exc_info=True)
 
     # ── After request: security headers ──────────────────────────────────
 
@@ -350,7 +352,7 @@ def create_app(config_name="default"):
             try:
                 db.session.rollback()
             except Exception:
-                pass
+                app.logger.debug("Rollback apos erro falhou.", exc_info=True)
 
     # ── Template filters ──────────────────────────────────────────────────
     @app.template_filter("moeda")
@@ -371,8 +373,8 @@ def create_app(config_name="default"):
             p = str(v)[:10].split("-")
             if len(p) == 3:
                 return f"{p[2]}/{p[1]}/{p[0]}"
-        except Exception:
-            pass
+        except (TypeError, ValueError, IndexError):
+            return str(v)
         return str(v)
 
     # ── Blueprints ────────────────────────────────────────────────────────

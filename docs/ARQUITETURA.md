@@ -20,9 +20,7 @@ O Zokyo usa Flask com application factory em `app/__init__.py`.
 
 ## Banco
 
-Flask-Migrate foi registrado em `app/extensions.py` e `app/__init__.py`. O schema e gerenciado exclusivamente por migrations Alembic em desenvolvimento e producao; `db.create_all()` e usado apenas de forma explicita em bancos efemeros dos testes unitarios.
-
-Pendencia: baseline Alembic completo do schema legado.
+Flask-Migrate foi registrado em `app/extensions.py` e `app/__init__.py`. O schema e gerenciado exclusivamente por migrations Alembic em desenvolvimento e producao; `db.create_all()` e usado apenas de forma explicita em bancos efemeros dos testes unitarios. A baseline consolidada esta em `migrations/versions/20260718_0001_initial_mysql_schema.py`.
 
 ## Laudos
 

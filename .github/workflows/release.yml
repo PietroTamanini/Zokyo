@@ -25,7 +25,7 @@ jobs:
       - name: Install and test
         env:
           DATABASE_URL: sqlite:///:memory:
-          SECRET_KEY: release-validation-secret
+          SECRET_KEY: release-validation-secret  # pragma: allowlist secret
         run: |
           pip install -r requirements-dev.txt
           npm ci
@@ -34,6 +34,24 @@ jobs:
           npm test
           pip-audit -r requirements-prod.txt
           npm audit --audit-level=low
+      - name: Validate production readiness contract
+        env:
+          FLASK_ENV: production
+          DATABASE_URL: mysql+pymysql://zokyo:release_ci_password@db:3306/zokyo_ci  # pragma: allowlist secret
+          SECRET_KEY: release-production-secret-key-long-value  # pragma: allowlist secret
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          REQUIRE_ADMIN_2FA: "true"
+          PUBLIC_BASE_URL: https://zokyo-release.example.com
+          METRICS_TOKEN: mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  # pragma: allowlist secret
+          BACKUP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          REPORTS_UPLOAD_FOLDER: /var/lib/zokyo/uploads/reports
+          ALERT_EMAIL: ops@example.com
+          SMTP_HOST: smtp.example.com
+          MAIL_FROM: no-reply@example.com
+          WHATSAPP_CLOUD_API_TOKEN: meta-release-token  # pragma: allowlist secret
+          WHATSAPP_CLOUD_PHONE_NUMBER_ID: "1234567890"
+          WHATSAPP_CLOUD_API_VERSION: v23.0
+        run: python -m flask --app wsgi:app production-check --strict-integrations
       - name: Build container
         run: docker build -t zokyo:${GITHUB_REF_NAME} .
       - name: Create release with generated notes

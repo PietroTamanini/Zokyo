@@ -54,11 +54,11 @@ Se `REPORTS_UPLOAD_FOLDER` ficar vazio, os arquivos ficam em `instance/uploads/r
 - fotos aceitas: JPEG, PNG e WebP, validadas por Pillow;
 - as cinco categorias padrao sao obrigatorias para finalizar.
 
-## Limitacoes conhecidas
+## Decisoes futuras
 
-- ainda nao existe tenant real alem de `organization_id=1`;
-- permissao esta baseada nos perfis existentes (`admin`, `operacional`, `consulta`, `cadastro`);
-- o schema legado anterior ao modulo ainda precisa de um baseline Alembic formal para instalacoes totalmente vazias.
+- uma API JSON dedicada para laudos so deve ser criada quando houver consumidor externo definido;
+- assinatura com validade juridica especifica depende da politica do proprietario e/ou assessoria juridica;
+- armazenamento compativel com S3 pode ser adicionado se o ambiente de producao exigir.
 
 ## Auditoria do storage
 

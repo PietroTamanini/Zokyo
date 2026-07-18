@@ -6,7 +6,7 @@
 {% include 'partials/_flash.html' %}
 <div class="card"><div class="card-body">
 {% if enabled %}
-  <div class="alert a-green mb20">A autenticacao em duas etapas esta ativa.</div>
+  <div class="alert a-green mb20">A autenticação em duas etapas está ativa.</div>
   <form method="POST" action="{{ url_for('auth.two_factor_disable') }}" data-confirm="Desativar a autenticacao em duas etapas?">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="form-row fr2"><div class="form-group"><label for="senha">Senha atual</label><input id="senha" type="password" name="senha" required autocomplete="current-password"></div>

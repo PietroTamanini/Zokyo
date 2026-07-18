@@ -4,9 +4,9 @@
 .fr4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 .form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 7px; }
 .form-group label .req { color: var(--blue); margin-left: 2px; }
-input[type="text"], input[type="number"], input[type="email"],
+input:not([type]), input[type="text"], input[type="number"], input[type="email"],
 input[type="date"], input[type="datetime-local"], input[type="password"],
-input[type="file"], select, textarea {
+input[type="file"], input[type="search"], select, textarea {
   width: 100%; background: var(--surface2); border: 1.5px solid var(--border2);
   border-radius: 6px; color: var(--text); font-family: inherit;
   font-size: 14px; padding: 9px 13px;

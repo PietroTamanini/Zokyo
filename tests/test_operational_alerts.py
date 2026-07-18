@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from app import create_app
 from app.extensions import db
@@ -46,5 +47,28 @@ def test_webhook_exige_https_allowlist_e_ip_publico(monkeypatch):
     monkeypatch.setenv("ALERT_WEBHOOK_ALLOWED_HOSTS", "alerts.example")
     monkeypatch.setattr("app.services.operational_alerts.socket.getaddrinfo", lambda *_: [(None, None, None, None, ("8.8.8.8", 443))])
     assert _safe_webhook("https://alerts.example/hook")
+    monkeypatch.setattr("app.services.operational_alerts.socket.getaddrinfo", lambda *_: [(None, None, None, None, ("127.0.0.1", 443))])
+    assert not _safe_webhook("https://alerts.example/hook")
+    monkeypatch.setattr(
+        "app.services.operational_alerts.socket.getaddrinfo",
+        lambda *_: (_ for _ in ()).throw(ValueError("dns")),
+    )
+    assert not _safe_webhook("https://alerts.example/hook")
     assert not _safe_webhook("http://alerts.example/hook")
     assert not _safe_webhook("https://other.example/hook")
+
+
+def test_alerta_entrega_email_e_tenta_webhook_seguro(monkeypatch):
+    app = _app()
+    app.config.update(ALERT_EMAIL="ops@example.test", ALERT_WEBHOOK_URL="https://alerts.example/hook")
+    sent = []
+
+    def fake_post(*_args, **_kwargs):
+        raise requests.RequestException("fora")
+
+    monkeypatch.setattr("app.services.operational_alerts.send_email", lambda *args: sent.append(args))
+    monkeypatch.setattr("app.services.operational_alerts._safe_webhook", lambda _url: True)
+    monkeypatch.setattr("app.services.operational_alerts.requests.post", fake_post)
+    with app.app_context():
+        emit_alert("critical", "webhook", "Falha\ncom quebra")
+    assert sent[0][0] == "ops@example.test"

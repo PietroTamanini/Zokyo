@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Fallback para valor legado apenas quando ENCRYPTION_SALT não está definido
 # (compatibilidade com dados existentes em desenvolvimento).
 _ENCRYPTION_SALT_B64 = os.environ.get("ENCRYPTION_SALT", "").strip()
-if _ENCRYPTION_SALT_B64:
+if _ENCRYPTION_SALT_B64:  # pragma: no cover - import-time env branch; tested only in a fresh process.
     try:
         _SALT = base64.b64decode(_ENCRYPTION_SALT_B64)
         if len(_SALT) < 16:

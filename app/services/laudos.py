@@ -632,7 +632,7 @@ def finalizar_laudo(laudo: LaudoTecnico, usuario: Usuario) -> LaudoTecnico:
                 tmp_pdf.unlink()
             if final_path and final_path.exists():
                 final_path.unlink()
-        except OSError as cleanup_error:
+        except OSError as cleanup_error:  # pragma: no cover - defensive cleanup logging.
             logger.warning("Falha ao limpar PDF apos rollback: %s", cleanup_error)
         raise
 

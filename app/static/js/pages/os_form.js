@@ -111,8 +111,8 @@ function quickClientHtml() {
         </div>
       </div>
       <div class="form-row fr2">
-        <div class="form-group"><label>Endereco</label><input type="text" name="endereco"></div>
-        <div class="form-group"><label>Numero da casa</label><input type="text" name="numero_casa"></div>
+        <div class="form-group"><label>Endereço</label><input type="text" name="endereco"></div>
+        <div class="form-group"><label>Número da casa</label><input type="text" name="numero_casa"></div>
       </div>
       <div class="form-row fr2">
         <div class="form-group"><label>Cidade</label><input type="text" name="cidade"></div>
@@ -163,7 +163,7 @@ async function salvarClienteRapido() {
   const r = await apiCall('POST', '/api/clientes/quick-create', quickPayload(form));
   if (!r.ok || r.data?.success === false) {
     const data = r.data || {};
-    quickError(form, data.field || 'nome', data.message || data.erro || 'Nao foi possivel criar o cliente.');
+    quickError(form, data.field || 'nome', data.message || data.erro || 'Não foi possível criar o cliente.');
     return;
   }
 
@@ -194,7 +194,7 @@ async function adicionarPecaOS(osId) {
 }
 
 async function removerPecaOS(osId, pecaId) {
-  if (!confirm('Remover esta peca da OS?')) return;
+  if (!confirm('Remover esta peça da OS?')) return;
   const r = await apiCall('DELETE', `/api/os/${osId}/pecas/${pecaId}`);
   if (r.ok) location.reload();
   else showToast(r.data.erro || 'Erro ao remover', 'red');

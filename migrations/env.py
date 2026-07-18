@@ -1,8 +1,8 @@
-from logging.config import fileConfig
 import os
+from logging.config import fileConfig
 
-from flask import current_app
 from alembic import context
+from flask import current_app
 
 config = context.config
 fileConfig(config.config_file_name)

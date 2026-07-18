@@ -1,13 +1,22 @@
+import base64
+import importlib
 import os
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
+import config as config_module
 from app import create_app
+
+
+def valid_encryption_salt():
+    return base64.b64encode(b"0" * 32).decode("ascii")
 
 
 def test_flask_migrate_registrado():
@@ -15,11 +24,49 @@ def test_flask_migrate_registrado():
     assert "migrate" in app.extensions
 
 
-def test_producao_desabilita_create_all():
-    os.environ["SECRET_KEY"] = "prod-secret-key"
-    os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+def test_producao_desabilita_create_all(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ENCRYPTION_SALT", valid_encryption_salt())
     app = create_app("production")
     assert app.config["DISABLE_CREATE_ALL"] is True
+
+
+def test_producao_exige_encryption_salt(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.delenv("ENCRYPTION_SALT", raising=False)
+
+    with pytest.raises(RuntimeError, match="ENCRYPTION_SALT"):
+        create_app("production")
+
+
+def test_config_cobre_fallback_dev_mysql_e_erros_de_producao(monkeypatch):
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "mysql+pymysql://user:pass@localhost/db")
+    reloaded = importlib.reload(config_module)
+    assert reloaded.Config.SECRET_KEY
+    assert reloaded.Config.SQLALCHEMY_ENGINE_OPTIONS["pool_size"] == 10
+
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    with pytest.raises(RuntimeError, match="SECRET_KEY"):
+        reloaded.ProductionConfig.init_app(None)
+
+    monkeypatch.setenv("SECRET_KEY", "prod-secret")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        reloaded.ProductionConfig.init_app(None)
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ENCRYPTION_SALT", "nao-e-base64!")
+    with pytest.raises(RuntimeError, match="ENCRYPTION_SALT"):
+        reloaded.ProductionConfig.init_app(None)
+
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ENCRYPTION_SALT", valid_encryption_salt())
+    importlib.reload(config_module)
 
 
 def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
@@ -46,4 +93,4 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert {"organizations", "usuarios", "clientes", "ordens_servico", "laudos_tecnicos", "laudo_fotos", "laudo_templates", "notifications", "retention_policies"} <= tables
     assert "thumbnail_key" in photo_columns
-    assert revision == "20260712_0026"
+    assert revision == "20260718_0001"

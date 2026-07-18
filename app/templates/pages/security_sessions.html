@@ -11,7 +11,7 @@
 </div>
 {% include 'partials/_flash.html' %}
 <div class="card"><div class="table-wrap"><table>
-  <thead><tr><th>Dispositivo</th><th>IP</th><th>Inicio</th><th>Ultima atividade</th><th>Situacao</th><th></th></tr></thead>
+  <thead><tr><th>Dispositivo</th><th>IP</th><th>Início</th><th>Última atividade</th><th>Situação</th><th></th></tr></thead>
   <tbody>
   {% for item in records %}
     <tr class="tr-static">
@@ -24,11 +24,11 @@
         {% elif item.is_active %}<span class="badge b-green">Ativa</span>
         {% else %}<span class="badge b-gray">Encerrada</span>{% endif %}
       </td>
-      <td>{% if item.is_active %}<form method="POST" action="{{ url_for('auth.session_revoke', record_id=item.id) }}" data-confirm="Encerrar esta sessao?">
+      <td>{% if item.is_active %}<form method="POST" action="{{ url_for('auth.session_revoke', record_id=item.id) }}" data-confirm="Encerrar esta sessão?">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-sm" type="submit">Encerrar</button>
       </form>{% endif %}</td>
     </tr>
-  {% else %}<tr><td colspan="6" class="td-empty">Nenhuma sessao registrada.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="6" class="td-empty">Nenhuma sessão registrada.</td></tr>{% endfor %}
   </tbody>
 </table></div></div>
 {% endblock %}

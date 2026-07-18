@@ -15,14 +15,24 @@ Use `.env.production.example` como base. Em producao sao obrigatorias:
 python -m flask --app wsgi:app db upgrade
 ```
 
-Instalacoes novas executam o baseline completo automaticamente. Para um banco legado criado antes do Alembic, faca backup, confira o schema e marque o baseline antes do upgrade:
+Instalacoes novas executam a baseline consolidada `20260718_0001` automaticamente. Para um banco legado criado antes desta baseline, faca backup, confira o schema e marque a revision consolidada somente se o schema ja estiver equivalente:
 
 ```bash
-python -m flask --app wsgi:app db stamp 20260710_0000
-python -m flask --app wsgi:app db upgrade
+python -m flask --app wsgi:app db stamp 20260718_0001
 ```
 
 Nunca use `stamp` em banco vazio.
+
+## Prontidao de producao
+
+Antes de publicar ou promover uma versao, rode:
+
+```bash
+python -m flask --app wsgi:app production-check --strict-integrations
+```
+
+O comando reprova segredos fracos, banco nao produtivo, salt invalido, 2FA admin
+desligado e integracoes externas obrigatorias para operacao completa.
 
 ## Gunicorn
 
@@ -55,7 +65,7 @@ O workflow `Deploy` publica uma imagem identificada pelo commit, promove primeir
 para o GitHub Environment `staging` e somente depois para `production`. Configure
 em cada Environment:
 
-- secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` e `DEPLOY_KNOWN_HOSTS`;
+- secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` e `DEPLOY_KNOWN_HOSTS`; <!-- pragma: allowlist secret -->
 - variables `APP_DIR` e `HEALTHCHECK_URL`;
 - reviewers obrigatorios no Environment `production`.
 

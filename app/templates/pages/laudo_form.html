@@ -63,7 +63,7 @@
             {% endfor %}
           </select>
           {% else %}
-          <input type="text" value="{{ obj.template.nome ~ ' v' ~ obj.template.versao if obj.template else 'Padrao do sistema' }}" disabled>
+          <input type="text" value="{{ obj.template.nome ~ ' v' ~ obj.template.versao if obj.template else 'Padrão do sistema' }}" disabled>
           {% endif %}
         </div>
         <div class="form-row fr3">
@@ -84,8 +84,8 @@
           ('diagnostico_tecnico','Diagnostico tecnico', True),
           ('causa_provavel','Causa provavel', False),
           ('servicos_realizados','Servicos realizados', False),
-          ('pecas_utilizadas','Pecas utilizadas', False),
-          ('conclusao_tecnica','Conclusao tecnica', True),
+          ('pecas_utilizadas','Peças utilizadas', False),
+          ('conclusao_tecnica','Conclusão técnica', True),
           ('recomendacoes','Recomendacoes', False),
           ('riscos_limitacoes','Riscos e limitacoes', False),
           ('garantia','Garantia', False),
@@ -159,13 +159,13 @@
     <div class="a4-preview">
       <div class="preview-company">{{ cfg.nome_empresa if cfg else 'Zokyo Platform' }}</div>
       <h2>Laudo tecnico</h2>
-      <div class="muted-sm">{{ obj.numero if obj and obj.numero else 'Numero gerado na finalizacao' }}</div>
+      <div class="muted-sm">{{ obj.numero if obj and obj.numero else 'Número gerado na finalização' }}</div>
       <hr>
       <p><strong>Cliente:</strong> {{ obj.cliente.nome if obj and obj.cliente else 'Cliente da OS selecionada' }}</p>
       <p><strong>Equipamento:</strong> {% if obj and obj.os %}{{ obj.os.tipo_aparelho }} {{ obj.os.marca }} {{ obj.os.modelo }}{% else %}-{% endif %}</p>
       <p><strong>Defeito:</strong> <span data-preview="defeito_relatado">{{ obj.defeito_relatado if obj else '-' }}</span></p>
       <p><strong>Diagnostico:</strong> <span data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</span></p>
-      <p><strong>Conclusao:</strong> <span data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</span></p>
+      <p><strong>Conclusão:</strong> <span data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</span></p>
       <div class="signature-row">Responsavel tecnico</div>
       <div class="signature-row">Cliente / ciencia</div>
     </div>
