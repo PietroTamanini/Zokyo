@@ -1,10 +1,10 @@
-﻿{% extends "base.html" %}
-{% block title %}Usuários — Zokyo{% endblock %}
+{% extends "base.html" %}
+{% block title %}Usuários - Zokyo{% endblock %}
 {% block breadcrumb %}Usuários{% endblock %}
 {% block content %}
 <div class="page-header">
   <div><div class="page-title">Usuários</div><div class="page-sub">Contas, perfis de acesso e segurança da equipe</div></div>
-  <button class="btn btn-primary" data-action="usuario-novo">+ Novo Usuário</button>
+  <button class="btn btn-primary" data-action="usuario-novo">Novo Usuário</button>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -41,7 +41,7 @@
   <div class="modal-box modal-box-sm">
     <div class="modal-header">
       <div class="modal-title">Novo Usuário</div>
-      <button class="modal-close" data-action="usuario-novo-fechar">✕</button>
+      <button class="modal-close" data-action="usuario-novo-fechar">×</button>
     </div>
     <div id="novo-err" class="alert a-red mb16 hidden"></div>
     <div class="form-row fr2">
@@ -68,7 +68,7 @@
   <div class="modal-box modal-box-sm">
     <div class="modal-header">
       <div class="modal-title">Editar Usuário</div>
-      <button class="modal-close" data-action="usuario-editar-fechar">✕</button>
+      <button class="modal-close" data-action="usuario-editar-fechar">×</button>
     </div>
     <div id="edit-err" class="alert a-red mb16 hidden"></div>
     <input type="hidden" id="e-id">
@@ -86,10 +86,10 @@
     <div class="form-group"><label>Status</label>
       <select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select>
     </div>
-    <div class="alert a-amber mb16 muted-sm">Revogue as sessoes em caso de perda de dispositivo ou suspeita de acesso.</div>
+    <div class="alert a-amber mb16 muted-sm">Revogue as sessões em caso de perda de dispositivo ou suspeita de acesso.</div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" data-action="usuario-deletar">Remover</button>
-      <button class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessoes</button>
+      <button class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessões</button>
       <button class="btn btn-ghost" data-action="usuario-editar-fechar">Cancelar</button>
       <button class="btn btn-primary" data-action="usuario-salvar">Salvar</button>
     </div>
@@ -100,8 +100,8 @@
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 function editarUsuario(u) {
-  document.getElementById('e-id').value    = u.id;
-  document.getElementById('e-nome').value  = u.nome;
+  document.getElementById('e-id').value = u.id;
+  document.getElementById('e-nome').value = u.nome;
   document.getElementById('e-email').value = u.email;
   document.getElementById('e-nivel').value = u.nivel;
   document.getElementById('e-ativo').value = u.ativo ? 'true':'false';
@@ -113,7 +113,7 @@ function editarUsuario(u) {
 async function criarUsuario() {
   const err = document.getElementById('novo-err');
   const body = {
-    nome:  document.getElementById('n-nome').value,
+    nome: document.getElementById('n-nome').value,
     email: document.getElementById('n-email').value,
     senha: document.getElementById('n-senha').value,
     nivel: document.getElementById('n-nivel').value,
@@ -125,10 +125,10 @@ async function criarUsuario() {
 }
 
 async function salvarUsuario() {
-  const id  = document.getElementById('e-id').value;
+  const id = document.getElementById('e-id').value;
   const err = document.getElementById('edit-err');
   const body = {
-    nome:  document.getElementById('e-nome').value,
+    nome: document.getElementById('e-nome').value,
     email: document.getElementById('e-email').value,
     nivel: document.getElementById('e-nivel').value,
     ativo: document.getElementById('e-ativo').value === 'true',
@@ -149,7 +149,7 @@ async function deletarUsuario() {
 }
 
 async function revogarSessoes() {
-  if (!confirm('Encerrar todas as sessoes deste usuario?')) return;
+  if (!confirm('Encerrar todas as sessões deste usuário?')) return;
   const id = document.getElementById('e-id').value;
   const r = await fetch(`/api/usuarios/${id}/revogar-sessoes`, {method:'POST', headers:{'X-CSRFToken':CSRF}});
   if (r.ok) location.reload();
@@ -186,4 +186,3 @@ document.addEventListener('click', (e) => {
 });
 </script>
 {% endblock %}
-

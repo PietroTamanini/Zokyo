@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Importar dados - Zokyo{% endblock %}
+{% block breadcrumb %}Importar dados{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Importação de outros bancos de dados</div>
+    <div class="page-sub">Importe dados de outros sistemas de assistência técnica com prévia, mapeamento e confirmação antes da gravação.</div>
+  </div>
+</div>
+
+<div class="g64">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Banco de origem</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label>Origem dos dados</label>
+        <select id="external-db-type">
+          <option value="firebird">Firebird legado</option>
+          <option value="mysql" disabled>MySQL/MariaDB - em preparação</option>
+          <option value="sqlite" disabled>SQLite - em preparação</option>
+          <option value="csv" disabled>CSV/planilha - em preparação</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Caminho do arquivo ou dados da conexão</label>
+        <input type="text" id="external-db-path" value="C:\Origem\Banco.fdb" autocomplete="off">
+      </div>
+      <div class="form-row fr3">
+        <div class="form-group">
+          <label>Usuário</label>
+          <input type="text" id="external-db-user" value="SYSDBA" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Senha</label>
+          <input type="password" id="external-db-password" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label>Charset</label>
+          <input type="text" id="external-db-charset" value="WIN1252">
+        </div>
+      </div>
+      <div class="action-wrap">
+        <button type="button" class="btn btn-outline" data-action="external-test">Testar conexão</button>
+        <button type="button" class="btn btn-outline" data-action="external-schema">Analisar banco</button>
+        <button type="button" class="btn btn-outline" data-action="external-mapping">Mapeamento</button>
+        <button type="button" class="btn btn-outline" data-action="external-logs">Logs</button>
+        <button type="button" class="btn btn-primary" data-action="external-preview">Gerar prévia</button>
+        <button type="button" class="btn btn-danger" data-action="external-commit" disabled id="external-commit-btn">
+          Confirmar importação
+        </button>
+      </div>
+      <p class="input-hint">A senha não é salva em banco, sessão ou log. A gravação só libera depois da prévia.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Resultado</div></div>
+    <div class="card-body">
+      <div id="external-status" class="note-block note-sky">Aguardando teste ou prévia.</div>
+      <pre id="external-output" class="code-output"></pre>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/importacao_bancos.js') }}"></script>
+{% endblock %}

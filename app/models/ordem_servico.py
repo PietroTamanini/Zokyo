@@ -36,10 +36,27 @@ STATUS_OS_LABELS = {
 }
 
 
+def proximo_numero_os(organization_id: int = 1) -> int:
+    ultimo = (
+        db.session.query(db.func.max(OrdemServico.numero))
+        .filter(OrdemServico.organization_id == organization_id)
+        .scalar()
+    )
+    if ultimo:
+        return int(ultimo) + 1
+    ultimo_id = (
+        db.session.query(db.func.max(OrdemServico.id))
+        .filter(OrdemServico.organization_id == organization_id)
+        .scalar()
+    )
+    return int(ultimo_id or 0) + 1
+
+
 class OrdemServico(db.Model):
     __tablename__ = "ordens_servico"
 
     id         = db.Column(db.Integer, primary_key=True)
+    numero     = db.Column(db.Integer, index=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"),  nullable=False)
     usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"),  nullable=False)
@@ -71,6 +88,7 @@ class OrdemServico(db.Model):
 
     # Campos extras
     prio          = db.Column(db.String(20), default="normal")
+    tipo_atendimento = db.Column(db.String(50), default="balcao")
     tecnico_nome  = db.Column(db.String(120))
     garantia_dias = db.Column(db.Integer, default=90)
     data_prev     = db.Column(db.DateTime)
@@ -88,10 +106,14 @@ class OrdemServico(db.Model):
 
     # Fix #32: soft delete — registros financeiros nunca são apagados fisicamente
     deletado_em = db.Column(db.DateTime, nullable=True)
+    baixada_em = db.Column(db.DateTime, nullable=True, index=True)
+    baixada_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
+    baixa_observacao = db.Column(db.String(300), nullable=True)
 
     # Relacionamentos
     pecas   = db.relationship("Peca", secondary=os_pecas, backref=db.backref("ordens", lazy=True))
-    usuario = db.relationship("Usuario", backref=db.backref("ordens", lazy=True))
+    usuario = db.relationship("Usuario", foreign_keys=[usuario_id], backref=db.backref("ordens", lazy=True))
+    baixada_por = db.relationship("Usuario", foreign_keys=[baixada_por_id])
     checklist_template = db.relationship("ServiceChecklistTemplate")
     warranty_origin = db.relationship("OrdemServico", remote_side=[id], backref=db.backref("warranty_returns", lazy=True))
 
@@ -101,6 +123,18 @@ class OrdemServico(db.Model):
         vp = float(self.valor_pecas   or 0)
         dc = float(self.desconto      or 0)
         return round(vs + vp - dc, 2)
+
+    @property
+    def numero_display(self):
+        return self.numero or self.id
+
+    @property
+    def codigo_os(self):
+        return f"{self.numero_display:04d}"
+
+    @property
+    def baixada(self):
+        return self.baixada_em is not None
 
     # Fix #33: property calculada de garantia
     @property
@@ -122,6 +156,11 @@ class OrdemServico(db.Model):
         active_signature = next((item for item in sorted(self.signatures, key=lambda value: value.created_at, reverse=True) if item.revoked_at is None), None)
         return {
             "id":                  self.id,
+            "numero":              self.numero_display,
+            "codigo_os":           self.codigo_os,
+            "baixada":             self.baixada,
+            "baixada_em":          self.baixada_em.isoformat() if self.baixada_em else None,
+            "baixa_observacao":    self.baixa_observacao,
             "cliente_id":          self.cliente_id,
             "cliente_nome":        self.cliente.nome if self.cliente else None,
             "tecnico_nome":        self.tecnico_nome or "",
@@ -140,6 +179,7 @@ class OrdemServico(db.Model):
             "valor_total":         self.valor_total,
             "status":              self.status,
             "prio":                self.prio or "normal",
+            "tipo_atendimento":     self.tipo_atendimento or "balcao",
             "garantia_dias":       self.garantia_dias or 90,
             "em_garantia":         self.em_garantia,
             "checklist_snapshot":  self.checklist_snapshot or [],

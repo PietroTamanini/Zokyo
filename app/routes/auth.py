@@ -8,7 +8,7 @@ Fixes:
 """
 import time
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from app.extensions import db
 from app.models import Usuario, registrar
@@ -33,6 +33,7 @@ from app.utils.validators import validar_email
 
 auth_bp = Blueprint("auth", __name__)
 SENHA_MIN = 8
+BEARER_SCHEME = "Bearer"
 
 
 def _ip():
@@ -106,6 +107,65 @@ def login_post():
     return _login_user(usuario)
 
 
+def _api_login_payload(usuario):
+    session.clear()
+    session.permanent = True
+    session["usuario_id"] = usuario.id
+    session["nivel"] = usuario.nivel
+    session["perfil"] = usuario.nivel
+    session["usuario_nome"] = usuario.nome
+    session["security_version"] = usuario.security_version
+    session["_last_active"] = time.time()
+    from app.services.user_sessions import create_session_record
+
+    record = create_session_record(usuario)
+    raw_token = session["session_token"]
+    registrar("login", "api", f"Login API: {usuario.nome}", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    db.session.commit()
+    return {
+        "status": True,
+        "message": "Login efetuado com sucesso",
+        "token": raw_token,
+        "token_type": BEARER_SCHEME,
+        "expires_at": record.expires_at.isoformat(),
+        "user": usuario.to_dict(),
+    }
+
+
+@auth_bp.route("/api/v1/login", methods=["POST"])
+@rate_limit_route(max_hits=10, window_seconds=300)
+def api_v1_login():
+    data = request.get_json(silent=True) or {}
+    email = sanitize_email(data.get("email", ""))
+    senha = data.get("password") or data.get("senha") or ""
+    if not email or not validar_email(email) or not senha:
+        time.sleep(0.3)
+        return jsonify({"status": False, "message": "Os dados de acesso estao incorretos"}), 401
+    usuario = Usuario.query.filter_by(email=email, ativo=True).first()
+    if not usuario or not usuario.check_senha(senha) or not usuario.organization or not usuario.organization.ativo:
+        time.sleep(0.3)
+        return jsonify({"status": False, "message": "Os dados de acesso estao incorretos"}), 401
+    if usuario.totp_enabled or (current_app.config.get("REQUIRE_ADMIN_2FA") and usuario.nivel == "admin"):
+        return jsonify({"status": False, "message": "Segundo fator obrigatório para login via API"}), 403
+    return jsonify(_api_login_payload(usuario))
+
+
+@auth_bp.route("/api/v1/reGenToken", methods=["POST"])
+def api_v1_regen_token():
+    from app.services.user_sessions import current_session_record, revoke_record
+    from app.utils.auth import authenticate_bearer_session
+
+    usuario = authenticate_bearer_session()
+    if not usuario:
+        return jsonify({"status": False, "message": "Token inválido ou expirado"}), 401
+    old_record = current_session_record(usuario.id)
+    payload = _api_login_payload(usuario)
+    if old_record:
+        revoke_record(old_record, "token regenerado")
+        db.session.commit()
+    return jsonify(payload)
+
+
 @auth_bp.route("/2fa", methods=["GET", "POST"])
 @rate_limit_route(max_hits=10, window_seconds=300)
 def two_factor_challenge():
@@ -124,9 +184,9 @@ def two_factor_challenge():
             registrar("login", "sistema", "Segundo fator validado.", usuario_id=usuario.id, usuario_nome=usuario.nome)
             db.session.commit()
             return _login_user(usuario)
-        registrar("falha_login", "sistema", "Segundo fator invalido.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+        registrar("falha_login", "sistema", "Segundo fator inválido.", usuario_id=usuario.id, usuario_nome=usuario.nome)
         db.session.commit()
-        flash("Codigo invalido.", "error")
+        flash("Código inválido.", "error")
     return render_template("pages/two_factor_challenge.html")
 
 
@@ -137,7 +197,7 @@ def two_factor_setup():
     if request.method == "POST":
         secret = decrypt_secret(usuario.totp_secret_encrypted)
         if not secret or not verify_totp(secret, request.form.get("codigo", "")):
-            flash("Codigo TOTP invalido. Confira o horario do dispositivo.", "error")
+            flash("Código TOTP inválido. Confira o horário do dispositivo.", "error")
             return redirect(url_for("auth.two_factor_setup"))
         codes, hashes = generate_recovery_codes()
         usuario.totp_enabled = True
@@ -160,7 +220,7 @@ def two_factor_disable():
     usuario = db.session.get(Usuario, session["usuario_id"])
     secret = decrypt_secret(usuario.totp_secret_encrypted)
     if not usuario.check_senha(request.form.get("senha", "")) or not secret or not verify_totp(secret, request.form.get("codigo", "")):
-        flash("Senha ou codigo TOTP invalido.", "error")
+        flash("Senha ou código TOTP inválido.", "error")
         return redirect(url_for("auth.two_factor_setup"))
     usuario.totp_enabled = False
     usuario.totp_secret_encrypted = None
@@ -211,7 +271,7 @@ def session_revoke(record_id):
     record = UserSession.query.filter_by(id=record_id, user_id=session["usuario_id"]).first_or_404()
     current_record = current_session_record(session["usuario_id"])
     revoke_record(record, "revogacao pelo usuario")
-    registrar("seguranca", "sessoes", f"Sessao #{record.id} revogada.")
+    registrar("seguranca", "sessoes", f"Sessão #{record.id} revogada.")
     db.session.commit()
     if current_record and current_record.id == record.id:
         session.clear()
@@ -227,12 +287,12 @@ def sessions_revoke_others():
     current_record = current_session_record(session["usuario_id"])
     count = revoke_all(
         session["usuario_id"],
-        "revogacao de outras sessoes",
+        "revogação de outras sessões",
         except_id=current_record.id if current_record else None,
     )
-    registrar("seguranca", "sessoes", f"{count} outra(s) sessao(oes) revogada(s).")
+    registrar("seguranca", "sessoes", f"{count} outra(s) sessão(ões) revogada(s).")
     db.session.commit()
-    flash(f"{count} outra(s) sessao(oes) encerrada(s).", "success")
+    flash(f"{count} outra(s) sessão(ões) encerrada(s).", "success")
     return redirect(url_for("auth.sessions_page"))
 
 
@@ -248,9 +308,9 @@ def recuperar_senha():
             try:
                 enviar_link(usuario, raw_token)
             except Exception:
-                current_app.logger.error("Falha ao enviar recuperacao de senha.", exc_info=True)
+                current_app.logger.error("Falha ao enviar recuperação de senha.", exc_info=True)
         time.sleep(0.3)
-        flash("Se o e-mail estiver cadastrado, enviaremos as instrucoes de recuperacao.", "success")
+        flash("Se o e-mail estiver cadastrado, enviaremos as instruções de recuperação.", "success")
         return redirect(url_for("auth.login_page"))
     return render_template("pages/password_forgot.html")
 
@@ -259,12 +319,12 @@ def recuperar_senha():
 def redefinir_senha(token):
     reset_token = localizar_token(token)
     if not reset_token:
-        flash("Link invalido ou expirado. Solicite uma nova recuperacao.", "error")
+        flash("Link inválido ou expirado. Solicite uma nova recuperação.", "error")
         return redirect(url_for("auth.recuperar_senha"))
     if request.method == "POST":
         senha = request.form.get("senha", "")
         if senha != request.form.get("confirmar_senha", ""):
-            flash("As senhas nao coincidem.", "error")
+            flash("As senhas não coincidem.", "error")
             return render_template("pages/password_reset.html", token=token)
         erros = validar_senha_forte(senha)
         if erros:

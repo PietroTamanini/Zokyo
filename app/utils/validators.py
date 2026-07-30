@@ -148,12 +148,12 @@ def validar_cpf_cnpj(documento: str) -> tuple[bool, str | None, str | None, str]
     if len(d) == 11:
         if validar_cpf(d):
             return True, d, None, ""
-        return False, None, None, "CPF invalido."
+        return False, None, None, "CPF inválido."
     if len(d) == 14:
         if validar_cnpj(d):
             return True, None, d, ""
-        return False, None, None, "CNPJ invalido."
-    return False, None, None, "CPF/CNPJ deve ter 11 ou 14 digitos."
+        return False, None, None, "CNPJ inválido."
+    return False, None, None, "CPF/CNPJ deve ter 11 ou 14 dígitos."
 
 
 def validar_telefone(telefone: str, obrigatorio: bool = False) -> bool:

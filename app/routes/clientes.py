@@ -95,13 +95,13 @@ def _validar_e_sanitizar(data: dict, parcial: bool = False) -> tuple[dict, dict[
     if "telefone" in data or not parcial:
         tel_raw = sanitize_phone(data.get("telefone", ""))
         if tel_raw and not validar_telefone(tel_raw):
-            erros["telefone"] = "Telefone invalido. Use DDD + numero."
+            erros["telefone"] = "Telefone inválido. Use DDD + número."
         d["telefone"] = tel_raw or None
 
     if "cep" in data or not parcial:
         cep_raw = sanitize_cep(data.get("cep", ""))
         if cep_raw and not validar_cep(cep_raw):
-            erros["cep"] = "CEP invalido."
+            erros["cep"] = "CEP inválido."
         d["cep"] = cep_raw or None
 
     if "endereco" in data or not parcial:
@@ -132,6 +132,7 @@ def _erro_json(erros: dict[str, str], status=400):
 
 
 @clientes_bp.route("/api/clientes", methods=["GET"])
+@clientes_bp.route("/api/v1/clientes", methods=["GET"])
 @login_required
 def listar():
     q = sanitize_search_query(request.args.get("q", ""), max_length=100)
@@ -154,12 +155,14 @@ def listar():
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["GET"])
+@clientes_bp.route("/api/v1/clientes/<int:id>", methods=["GET"])
 @login_required
 def obter(id):
     return jsonify(db.get_or_404(Cliente, id).to_dict())
 
 
 @clientes_bp.route("/api/clientes", methods=["POST"])
+@clientes_bp.route("/api/v1/clientes", methods=["POST"])
 @nivel_required("admin", "operacional", "cadastro")
 def criar():
     try:
@@ -183,6 +186,7 @@ def criar():
 
 
 @clientes_bp.route("/api/clientes/quick-create", methods=["POST"])
+@clientes_bp.route("/api/v1/clientes/quick-create", methods=["POST"])
 @nivel_required("admin", "operacional", "cadastro")
 def quick_create():
     try:
@@ -200,12 +204,13 @@ def quick_create():
 
     c = Cliente(**d)
     db.session.add(c)
-    registrar("criacao", "clientes", f"Cliente rapido criado: {d['nome']}")
+    registrar("criacao", "clientes", f"Cliente rápido criado: {d['nome']}")
     db.session.commit()
     return jsonify({"success": True, "cliente": c.to_dict()}), 201
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["PUT"])
+@clientes_bp.route("/api/v1/clientes/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional", "cadastro")
 def atualizar(id):
     c = db.get_or_404(Cliente, id)
@@ -237,10 +242,11 @@ def atualizar(id):
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["DELETE"])
+@clientes_bp.route("/api/v1/clientes/<int:id>", methods=["DELETE"])
 @nivel_required("admin")
 def deletar(id):
     c = db.get_or_404(Cliente, id)
     c.ativo = False
-    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; historico preservado.")
+    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; histórico preservado.")
     db.session.commit()
-    return jsonify({"success": True, "mensagem": "Cliente arquivado; historico preservado"})
+    return jsonify({"success": True, "mensagem": "Cliente arquivado; histórico preservado"})

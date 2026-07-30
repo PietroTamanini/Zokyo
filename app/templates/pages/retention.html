@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Retenção de dados{% endblock %}
+{% block title %}Privacidade e retenção{% endblock %}
 {% block content %}
-<div class="page-header"><div><div class="page-title">Retenção de dados</div><div class="page-sub">Políticas conservadoras e auditáveis por empresa</div></div></div>
-<div class="alert a-amber">A automação nunca elimina OS, laudos, financeiro, clientes ou logs. Ative somente depois da aprovação jurídica dos prazos.</div>
+<div class="page-header"><div><div class="page-title">Privacidade e retenção</div><div class="page-sub">Prazos auditáveis para limpeza controlada por empresa</div></div></div>
+<div class="alert a-amber">A automação nunca remove OS, laudos, financeiro, clientes ou logs críticos. Ative somente depois da aprovação jurídica dos prazos.</div>
 <form method="POST" class="page-section">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
   <div class="table-wrap"><table><thead><tr><th>Categoria</th><th>Prazo em dias</th><th>Candidatos agora</th><th>Ativa</th></tr></thead><tbody>
   {% for category, label, policy, candidates in rows %}<tr><td><strong>{{ label }}</strong><div class="td-note">{{ category }}</div></td><td><input class="input-compact" type="number" min="7" max="3650" name="days_{{ category }}" value="{{ policy.retention_days if policy else 90 }}" required></td><td>{{ candidates }}</td><td><input type="checkbox" name="active_{{ category }}" value="1" {{ 'checked' if policy and policy.active }} aria-label="Ativar {{ label }}"></td></tr>{% endfor %}
   </tbody></table></div>
   <label class="check-row"><input type="checkbox" name="legal_approval" value="yes"> Confirmo que os prazos ativos foram aprovados pelo responsável da organização.</label>
-  <button class="btn btn-primary" type="submit">Salvar políticas</button>
+  <button class="btn btn-primary" type="submit">Salvar regras</button>
 </form>
 {% endblock %}

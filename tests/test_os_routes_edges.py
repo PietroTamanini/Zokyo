@@ -11,6 +11,7 @@ from app.models import (
     Peca,
     ServiceChecklistTemplate,
     StockReservation,
+    Transacao,
     Usuario,
 )
 
@@ -92,7 +93,8 @@ def test_os_api_cobre_criacao_atualizacao_checklist_pdf_whatsapp_e_assinatura(mo
         ({"cliente_id": ids["client"], "valor_servico": "x"}, 400),
         ({"cliente_id": ids["client"], "valor_servico": -1}, 400),
         ({"cliente_id": ids["client"], "valor_servico": 1, "desconto": 2}, 400),
-        ({"cliente_id": ids["client"], "prio": "alta"}, 400),
+        ({"cliente_id": ids["client"], "prio": "fora"}, 400),
+        ({"cliente_id": ids["client"], "tipo_atendimento": "fora"}, 400),
         ({"cliente_id": ids["client"], "defeito_alegado": "x" * 5001}, 400),
     ):
         assert _json(browser, "POST", "/api/os", payload).status_code == expected
@@ -124,7 +126,8 @@ def test_os_api_cobre_criacao_atualizacao_checklist_pdf_whatsapp_e_assinatura(mo
     assert _json(browser, "POST", f"/api/os/{warranty_id}/autorizacao", {"aceito": True, "aceito_por": "Cliente"}).status_code == 200
 
     for payload in (
-        {"prio": "alta"},
+        {"prio": "fora"},
+        {"tipo_atendimento": "fora"},
         {"valor_servico": "x"},
         {"valor_servico": -1},
         {"valor_servico": 1, "valor_pecas": 0, "desconto": 2},
@@ -137,9 +140,22 @@ def test_os_api_cobre_criacao_atualizacao_checklist_pdf_whatsapp_e_assinatura(mo
         "defeito_alegado": "Falha intermitente",
         "observacoes": "Observacao tecnica",
         "prio": "urgente",
+        "tipo_atendimento": "coleta",
     })
     assert atualizado.status_code == 200
     assert atualizado.get_json()["prio"] == "urgente"
+    assert atualizado.get_json()["tipo_atendimento"] == "coleta"
+    with app.app_context():
+        db.session.add(Transacao(
+            organization_id=1,
+            os_id=warranty_id,
+            tipo="receita",
+            categoria="servico",
+            descricao="Pagamento OS teste",
+            valor=100,
+            status="pago",
+        ))
+        db.session.commit()
     entregue = _json(browser, "PUT", f"/api/os/{warranty_id}", {
         "status": "entregue",
         "valor_servico": 100,

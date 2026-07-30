@@ -18,17 +18,20 @@ from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models import (
     Cliente,
+    Configuracao,
+    DefeitoPadrao,
     OrdemServico,
     OrderSignature,
+    OSFoto,
     OSHistorico,
     Peca,
     ServiceChecklistTemplate,
     StockReservation,
     Transacao,
     Usuario,
+    proximo_numero_os,
     registrar,
 )
-from app.models.ordem_servico import STATUS_OS
 from app.services.billing import assert_limit, assert_write_allowed
 from app.services.inventory import cancel_reservation, consume_reservation, record_movement, reserve_stock
 from app.services.order_signatures import capture_signature, signature_path
@@ -40,7 +43,7 @@ from app.utils.whatsapp import enviar_whatsapp, mensagem_os_pronta
 
 os_bp = Blueprint("os", __name__)
 
-PRIOS_VALIDAS = {"normal", "urgente", "critico"}
+PRIOS_VALIDAS = {"normal", "urgente", "critico", "alta", "baixa"}
 
 _STATUS_ALIAS = {
     "analise":   "em_analise",
@@ -52,9 +55,21 @@ def _normalizar_status(raw: str) -> str | None:
     if not raw:
         return None
     s = raw.strip().lower()
-    if s in STATUS_OS:
+    configured = set(Configuracao.get().get_os_status_map())
+    if s in configured:
         return s
-    return _STATUS_ALIAS.get(s)
+    alias = _STATUS_ALIAS.get(s)
+    return alias if alias in configured else None
+
+
+def _priority_keys():
+    keys = set(Configuracao.get().get_os_priority_map())
+    return keys or PRIOS_VALIDAS
+
+
+def _attendance_keys():
+    keys = set(Configuracao.get().get_attendance_type_map())
+    return keys or {"balcao", "coleta"}
 
 def _now(): return datetime.now(timezone.utc)
 
@@ -75,10 +90,13 @@ def _registrar_historico(os_id, anterior, novo, usuario_id):
 
 # ── LISTAR ────────────────────────────────────────────────────
 @os_bp.route("/api/os", methods=["GET"])
+@os_bp.route("/api/v1/os", methods=["GET"])
 @api_login_required
 def listar():
     status     = request.args.get("status")
     cliente_id = request.args.get("cliente_id", type=int)
+    atendimento = request.args.get("tipo_atendimento") or request.args.get("atendimento")
+    baixadas = request.args.get("baixadas") in {"1", "true", "sim"}
     page       = request.args.get("page", 1, type=int)
     # FIX: limitar per_page para evitar DoS
     per_page   = min(request.args.get("per_page", 50, type=int), 200)
@@ -86,12 +104,15 @@ def listar():
     query = (OrdemServico.query
              .options(joinedload(OrdemServico.cliente))
              .filter(OrdemServico.deletado_em.is_(None)))
+    query = query.filter(OrdemServico.baixada_em.isnot(None) if baixadas else OrdemServico.baixada_em.is_(None))
     if status:
         s = _normalizar_status(status)
         if s:
             query = query.filter_by(status=s)
     if cliente_id:
         query = query.filter_by(cliente_id=cliente_id)
+    if atendimento:
+        query = query.filter_by(tipo_atendimento=atendimento)
 
     pag = query.order_by(
         OrdemServico.data_entrada.desc()).paginate(
@@ -106,8 +127,36 @@ def listar():
     })
 
 
+@os_bp.route("/api/v1/calendario", methods=["GET"])
+@nivel_required("admin", "operacional", "consulta")
+def calendario():
+    inicio = _parse_date(request.args.get("inicio") or request.args.get("start"))
+    fim = _parse_date(request.args.get("fim") or request.args.get("end"))
+    query = (
+        OrdemServico.query
+        .options(joinedload(OrdemServico.cliente))
+        .filter(OrdemServico.deletado_em.is_(None))
+        .filter(OrdemServico.data_prev.isnot(None))
+    )
+    if inicio:
+        query = query.filter(OrdemServico.data_prev >= inicio)
+    if fim:
+        query = query.filter(OrdemServico.data_prev <= fim)
+    items = query.order_by(OrdemServico.data_prev.asc()).limit(500).all()
+    return jsonify([{
+        "id": item.id,
+        "title": f"OS #{item.codigo_os} - {item.cliente.nome if item.cliente else 'Cliente'}",
+        "start": item.data_prev.isoformat() if item.data_prev else None,
+        "end": item.data_saida.isoformat() if item.data_saida else None,
+        "status": item.status,
+        "cliente": item.cliente.nome if item.cliente else None,
+        "url": f"/os/{item.id}",
+    } for item in items])
+
+
 # ── OBTER ─────────────────────────────────────────────────────
 @os_bp.route("/api/os/<int:id>", methods=["GET"])
+@os_bp.route("/api/v1/os/<int:id>", methods=["GET"])
 @api_login_required
 def obter(id):
     os_obj = (OrdemServico.query.filter_by(id=id)
@@ -116,8 +165,42 @@ def obter(id):
     return jsonify(os_obj.to_dict())
 
 
+@os_bp.route("/api/os/<int:id>/baixar", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/baixar", methods=["POST"])
+@nivel_required("admin", "operacional")
+def baixar(id):
+    os_obj = (OrdemServico.query.filter_by(id=id)
+              .filter(OrdemServico.deletado_em.is_(None))
+              .first_or_404())
+    if not os_obj.baixada_em:
+        data, _ = get_request_data()
+        os_obj.baixada_em = _now()
+        os_obj.baixada_por_id = session.get("usuario_id")
+        os_obj.baixa_observacao = sanitize_text(data.get("observacao", ""), max_length=300) or None
+        registrar("status", "ordens_servico", f"OS #{os_obj.codigo_os} baixada")
+        db.session.commit()
+    return jsonify(os_obj.to_dict())
+
+
+@os_bp.route("/api/os/<int:id>/restaurar", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/restaurar", methods=["POST"])
+@nivel_required("admin", "operacional")
+def restaurar(id):
+    os_obj = (OrdemServico.query.filter_by(id=id)
+              .filter(OrdemServico.deletado_em.is_(None))
+              .first_or_404())
+    if os_obj.baixada_em:
+        os_obj.baixada_em = None
+        os_obj.baixada_por_id = None
+        os_obj.baixa_observacao = None
+        registrar("status", "ordens_servico", f"OS #{os_obj.codigo_os} restaurada")
+        db.session.commit()
+    return jsonify(os_obj.to_dict())
+
+
 # ── CRIAR ─────────────────────────────────────────────────────
 @os_bp.route("/api/os", methods=["POST"])
+@os_bp.route("/api/v1/os", methods=["POST"])
 @nivel_required("admin", "operacional")
 def criar():
     data, _ = get_request_data()
@@ -125,7 +208,9 @@ def criar():
     try:
         assert_write_allowed(user.organization_id)
         open_count = OrdemServico.query.filter(
-            OrdemServico.deletado_em.is_(None), ~OrdemServico.status.in_(["entregue", "cancelado"]),
+            OrdemServico.deletado_em.is_(None),
+            OrdemServico.baixada_em.is_(None),
+            ~OrdemServico.status.in_(["entregue", "cancelado"]),
         ).count()
         assert_limit(user.organization_id, "max_open_orders", open_count)
     except PermissionError as exc:
@@ -166,8 +251,13 @@ def criar():
 
     # FIX: validar prio
     prio = data.get("prio", "normal")
-    if prio not in PRIOS_VALIDAS:
-        return jsonify({"erro": f"prio inválida. Use: {', '.join(PRIOS_VALIDAS)}"}), 400
+    priority_keys = _priority_keys()
+    if prio not in priority_keys:
+        return jsonify({"erro": f"prio inválida. Use: {', '.join(sorted(priority_keys))}"}), 400
+    tipo_atendimento = data.get("tipo_atendimento", "balcao")
+    attendance_keys = _attendance_keys()
+    if tipo_atendimento not in attendance_keys:
+        return jsonify({"erro": f"tipo_atendimento inválido. Use: {', '.join(sorted(attendance_keys))}"}), 400
 
     # FIX: validar tamanho máximo dos campos de texto
     MAX_TEXT = 5000
@@ -181,6 +271,8 @@ def criar():
         ServiceChecklistTemplate.version.desc(),
     ).first()
     os_obj = OrdemServico(
+        numero=proximo_numero_os(user.organization_id),
+        organization_id=user.organization_id,
         cliente_id=data["cliente_id"],
         usuario_id=session["usuario_id"],
         tipo_aparelho=sanitize_text(data.get("tipo_aparelho", ""), max_length=100) or None,
@@ -196,6 +288,7 @@ def criar():
         desconto=desconto,
         status=status_final,
         prio=prio,
+        tipo_atendimento=tipo_atendimento,
         tecnico_nome=sanitize_text(data.get("tecnico_nome", ""), max_length=120) or None,
         garantia_dias=garantia_dias,
         data_entrada=_parse_date(data.get("data_entrada")) or _now(),
@@ -232,7 +325,7 @@ def criar_checklist():
     category = sanitize_text(data.get("categoria", ""), max_length=100)
     raw_items = data.get("itens")
     if not category or not isinstance(raw_items, list) or not 1 <= len(raw_items) <= 50:
-        return jsonify({"erro": "Categoria e lista de 1 a 50 itens sao obrigatorias"}), 400
+        return jsonify({"erro": "Categoria e lista de 1 a 50 itens são obrigatórias"}), 400
     items = [sanitize_text(str(item), max_length=200) for item in raw_items]
     if any(len(item) < 2 for item in items):
         return jsonify({"erro": "Cada item deve ter pelo menos 2 caracteres"}), 400
@@ -250,6 +343,7 @@ def criar_checklist():
 
 
 @os_bp.route("/api/os/<int:id>/checklist", methods=["PUT"])
+@os_bp.route("/api/v1/os/<int:id>/checklist", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar_checklist(id):
     order = OrdemServico.query.filter_by(id=id).first_or_404()
@@ -267,13 +361,14 @@ def atualizar_checklist(id):
 
 
 @os_bp.route("/api/os/<int:id>/autorizacao", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/autorizacao", methods=["POST"])
 @nivel_required("admin", "operacional")
 def aceitar_autorizacao(id):
     order = OrdemServico.query.filter_by(id=id).first_or_404()
     data, _ = get_request_data()
     accepted_by = sanitize_text(data.get("aceito_por", ""), max_length=120)
     if data.get("aceito") is not True or len(accepted_by) < 2:
-        return jsonify({"erro": "Aceite expresso e nome do responsavel sao obrigatorios"}), 400
+        return jsonify({"erro": "Aceite expresso e nome do responsável são obrigatórios"}), 400
     order.authorization_accepted_at = _now()
     order.authorization_accepted_by = accepted_by
     registrar("autorizacao", "ordens_servico", f"Termo aceito na OS #{order.id} por {accepted_by}")
@@ -282,12 +377,13 @@ def aceitar_autorizacao(id):
 
 
 @os_bp.route("/api/os/<int:id>/assinatura", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/assinatura", methods=["POST"])
 @nivel_required("admin", "operacional")
 def capturar_assinatura(id):
     order = OrdemServico.query.filter_by(id=id).first_or_404()
     uploaded = request.files.get("assinatura")
     if not uploaded:
-        return jsonify({"erro": "Arquivo de assinatura e obrigatorio"}), 400
+        return jsonify({"erro": "Arquivo de assinatura é obrigatório"}), 400
     try:
         signature = capture_signature(
             order, session["usuario_id"], request.form.get("signatario"), uploaded, request.remote_addr,
@@ -300,6 +396,7 @@ def capturar_assinatura(id):
 
 
 @os_bp.route("/api/os/<int:id>/assinatura")
+@os_bp.route("/api/v1/os/<int:id>/assinatura")
 @api_login_required
 def baixar_assinatura(id):
     signature = OrderSignature.query.filter_by(order_id=id, revoked_at=None).order_by(
@@ -308,12 +405,13 @@ def baixar_assinatura(id):
     try:
         path = signature_path(signature)
     except FileNotFoundError:
-        return jsonify({"erro": "Assinatura nao encontrada"}), 404
+        return jsonify({"erro": "Assinatura não encontrada"}), 404
     return send_file(path, mimetype="image/png", as_attachment=False, download_name=f"assinatura-os-{id}.png")
 
 
 # ── ATUALIZAR ─────────────────────────────────────────────────
 @os_bp.route("/api/os/<int:id>", methods=["PUT"])
+@os_bp.route("/api/v1/os/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar(id):
     os_obj = (OrdemServico.query.filter_by(id=id)
@@ -333,9 +431,15 @@ def atualizar(id):
 
     # FIX: validar prio
     if "prio" in data:
-        if data["prio"] not in PRIOS_VALIDAS:
-            return jsonify({"erro": f"prio inválida. Use: {', '.join(PRIOS_VALIDAS)}"}), 400
+        priority_keys = _priority_keys()
+        if data["prio"] not in priority_keys:
+            return jsonify({"erro": f"prio inválida. Use: {', '.join(sorted(priority_keys))}"}), 400
         os_obj.prio = data["prio"]
+    if "tipo_atendimento" in data:
+        attendance_keys = _attendance_keys()
+        if data["tipo_atendimento"] not in attendance_keys:
+            return jsonify({"erro": f"tipo_atendimento inválido. Use: {', '.join(sorted(attendance_keys))}"}), 400
+        os_obj.tipo_atendimento = data["tipo_atendimento"]
 
     # FIX: validar valores numéricos e não negativos
     for campo_num, tp in (
@@ -361,20 +465,24 @@ def atualizar(id):
         novo_status = _normalizar_status(novo_status_raw)
         if not novo_status:
             return jsonify({"erro": f"Status inválido: {novo_status_raw}"}), 400
+        if novo_status == "entregue" and status_anterior != "entregue":
+            valor_pago = sum(
+                float(item.valor or 0)
+                for item in Transacao.query.filter_by(
+                    os_id=os_obj.id,
+                    tipo="receita",
+                    status="pago",
+                ).all()
+            )
+            restante = round(max(float(os_obj.valor_total or 0) - valor_pago, 0), 2)
+            if restante > 0.01:
+                return jsonify({
+                    "erro": "Esta OS ainda possui saldo em aberto. Registre o pagamento total antes de finalizar."
+                }), 400
         os_obj.status = novo_status
 
         if novo_status == "entregue" and not os_obj.data_saida:
             os_obj.data_saida = _now()
-
-        if novo_status == "entregue" and status_anterior != "entregue":
-            if not Transacao.query.filter_by(
-                    os_id=os_obj.id, tipo="receita").first():
-                db.session.add(Transacao(
-                    os_id=os_obj.id, tipo="receita", categoria="Serviços OS",
-                    descricao=f"OS #{os_obj.id:04d}",
-                    valor=os_obj.valor_total, status="pago",
-                    data_vencimento=_now(), data_pagamento=_now(),
-                ))
 
         if novo_status != status_anterior:
             _registrar_historico(
@@ -385,7 +493,32 @@ def atualizar(id):
 
 
 # ── DELETAR (soft) ────────────────────────────────────────────
+@os_bp.route("/api/v1/os/<int:id>/desconto", methods=["POST", "PUT"])
+@nivel_required("admin", "operacional")
+def atualizar_desconto(id):
+    os_obj = (
+        OrdemServico.query.filter_by(id=id)
+        .filter(OrdemServico.deletado_em.is_(None))
+        .first_or_404()
+    )
+    data, _ = get_request_data()
+    try:
+        desconto = float(data.get("desconto", 0))
+    except (TypeError, ValueError):
+        return jsonify({"erro": "desconto deve ser numérico"}), 400
+    if desconto < 0:
+        return jsonify({"erro": "desconto não pode ser negativo"}), 400
+    total_bruto = float(os_obj.valor_servico or 0) + float(os_obj.valor_pecas or 0)
+    if desconto > total_bruto:
+        return jsonify({"erro": "Desconto não pode ser maior que o total"}), 400
+    os_obj.desconto = desconto
+    registrar("edicao", "ordens_servico", f"Desconto atualizado na OS #{os_obj.id}")
+    db.session.commit()
+    return jsonify(os_obj.to_dict())
+
+
 @os_bp.route("/api/os/<int:id>", methods=["DELETE"])
+@os_bp.route("/api/v1/os/<int:id>", methods=["DELETE"])
 @nivel_required("admin")
 def deletar(id):
     os_obj = (OrdemServico.query.filter_by(id=id)
@@ -398,19 +531,21 @@ def deletar(id):
 
 # ── PEÇAS ─────────────────────────────────────────────────────
 @os_bp.route("/api/os/<int:id>/pecas", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/pecas", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/produtos", methods=["POST"])
 @nivel_required("admin", "operacional")
 def adicionar_peca(id):
     os_obj = (OrdemServico.query.filter_by(id=id)
               .filter(OrdemServico.deletado_em.is_(None))
               .first_or_404())
     data, _ = get_request_data()
-    peca_id = data.get("peca_id")
+    peca_id = data.get("peca_id") or data.get("produto_id") or data.get("idProduto")
     if not peca_id:
         return jsonify({"erro": "peca_id é obrigatório"}), 400
 
     try:
         quantidade     = int(data.get("quantidade", 1))
-        valor_unitario = float(data.get("valor_unitario", 0))
+        valor_unitario = float(data.get("valor_unitario", data.get("preco", 0)))
     except (ValueError, TypeError):
         return jsonify({"erro": "quantidade e valor_unitario devem ser numéricos"}), 400
     if quantidade <= 0:
@@ -480,6 +615,8 @@ def adicionar_peca(id):
 
 
 @os_bp.route("/api/os/<int:id>/pecas/<int:peca_id>", methods=["DELETE"])
+@os_bp.route("/api/v1/os/<int:id>/pecas/<int:peca_id>", methods=["DELETE"])
+@os_bp.route("/api/v1/os/<int:id>/produtos/<int:peca_id>", methods=["DELETE"])
 @nivel_required("admin", "operacional")
 def remover_peca(id, peca_id):
     os_obj = (OrdemServico.query.filter_by(id=id)
@@ -513,7 +650,139 @@ def remover_peca(id, peca_id):
     return jsonify(os_obj.to_dict()), 200
 
 
+@os_bp.route("/api/v1/os/<int:id>/servicos", methods=["GET", "POST"])
+@nivel_required("admin", "operacional", "consulta")
+def servicos_os(id):
+    os_obj = (
+        OrdemServico.query.filter_by(id=id)
+        .filter(OrdemServico.deletado_em.is_(None))
+        .first_or_404()
+    )
+    if request.method == "GET":
+        return jsonify({
+            "items": [],
+            "valor_servico": float(os_obj.valor_servico or 0),
+            "observacoes": os_obj.observacoes or "",
+            "mensagem": "Serviços ficam consolidados no valor e nas observações da OS.",
+        })
+
+    if session.get("nivel") == "consulta":
+        return jsonify({"erro": "Acesso negado"}), 403
+    data, _ = get_request_data()
+    servico_id = data.get("servico_id") or data.get("idServico") or data.get("defeito_id")
+    servico = db.session.get(DefeitoPadrao, int(servico_id)) if servico_id else None
+    descricao = sanitize_text(
+        data.get("descricao") or data.get("nome") or (servico.sintoma if servico else ""),
+        max_length=300,
+    )
+    try:
+        valor = float(data.get("valor") or data.get("preco") or data.get("valor_unitario") or 0)
+        quantidade = int(data.get("quantidade") or 1)
+    except (TypeError, ValueError):
+        return jsonify({"erro": "valor e quantidade devem ser numericos"}), 400
+    if valor < 0 or quantidade <= 0:
+        return jsonify({"erro": "valor não pode ser negativo e quantidade deve ser positiva"}), 400
+    if not descricao:
+        return jsonify({"erro": "descrição ou servico_id é obrigatório"}), 400
+    incremento = valor * quantidade
+    os_obj.valor_servico = float(os_obj.valor_servico or 0) + incremento
+    nota = f"Serviço adicionado: {descricao} x{quantidade} - R$ {incremento:.2f}"
+    os_obj.observacoes = "\n".join(part for part in [os_obj.observacoes, nota] if part)
+    registrar("edicao", "ordens_servico", f"Serviço adicionado na OS #{os_obj.id}")
+    db.session.commit()
+    return jsonify(os_obj.to_dict()), 200
+
+
+@os_bp.route("/api/v1/os/<int:id>/servicos/<int:servico_id>", methods=["DELETE"])
+@nivel_required("admin", "operacional")
+def remover_servico_os(id, servico_id):
+    os_obj = (
+        OrdemServico.query.filter_by(id=id)
+        .filter(OrdemServico.deletado_em.is_(None))
+        .first_or_404()
+    )
+    return jsonify({
+        "success": True,
+        "mensagem": "Serviço consolidado na OS; ajuste valor_servico se precisar reverter.",
+        "os": os_obj.to_dict(),
+    })
+
+
+@os_bp.route("/api/v1/os/<int:id>/anotacoes", methods=["GET", "POST"])
+@nivel_required("admin", "operacional", "consulta")
+def anotacoes_os(id):
+    os_obj = (
+        OrdemServico.query.filter_by(id=id)
+        .filter(OrdemServico.deletado_em.is_(None))
+        .first_or_404()
+    )
+    if request.method == "POST":
+        if session.get("nivel") == "consulta":
+            return jsonify({"erro": "Acesso negado"}), 403
+        data, _ = get_request_data()
+        texto = sanitize_text(data.get("anotacao") or data.get("descricao") or data.get("texto") or "", max_length=1000)
+        if not texto:
+            return jsonify({"erro": "anotacao e obrigatoria"}), 400
+        os_obj.observacoes = "\n".join(part for part in [os_obj.observacoes, f"Anotacao: {texto}"] if part)
+        registrar("edicao", "ordens_servico", f"Anotacao adicionada na OS #{os_obj.id}")
+        db.session.commit()
+    historico = OSHistorico.query.filter_by(os_id=os_obj.id).order_by(OSHistorico.criado_em.desc()).all()
+    return jsonify({
+        "observacoes": os_obj.observacoes or "",
+        "items": [{
+            "id": item.id,
+            "status_anterior": item.status_anterior,
+            "status_novo": item.status_novo,
+            "criado_em": item.criado_em.isoformat() if item.criado_em else None,
+        } for item in historico],
+    })
+
+
+@os_bp.route("/api/v1/os/<int:id>/anotacoes/<int:anotacao_id>", methods=["DELETE"])
+@nivel_required("admin", "operacional")
+def remover_anotacao_os(id, anotacao_id):
+    OrdemServico.query.filter_by(id=id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
+    return jsonify({
+        "success": True,
+        "mensagem": "Anotações são preservadas no histórico/auditoria do Zokyo.",
+    })
+
+
+@os_bp.route("/api/v1/os/<int:id>/anexos", methods=["GET"])
+@nivel_required("admin", "operacional", "consulta")
+def anexos_os(id):
+    OrdemServico.query.filter_by(id=id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
+    fotos = OSFoto.query.filter_by(os_id=id).order_by(OSFoto.criado_em.desc()).all()
+    return jsonify({
+        "items": [{
+            "id": item.id,
+            "nome": item.original_filename or item.filename,
+            "mime_type": item.mime_type,
+            "tamanho_bytes": item.tamanho_bytes,
+            "descricao": item.descricao,
+            "url": f"/uploads/os-fotos/{item.id}",
+            "criado_em": item.criado_em.isoformat() if item.criado_em else None,
+        } for item in fotos],
+    })
+
+
+@os_bp.route("/api/v1/os/<int:id>/anexos/<int:anexo_id>", methods=["GET"])
+@nivel_required("admin", "operacional", "consulta")
+def anexo_os(id, anexo_id):
+    foto = OSFoto.query.filter_by(id=anexo_id, os_id=id).first_or_404()
+    return jsonify({
+        "id": foto.id,
+        "nome": foto.original_filename or foto.filename,
+        "mime_type": foto.mime_type,
+        "tamanho_bytes": foto.tamanho_bytes,
+        "descricao": foto.descricao,
+        "url": f"/uploads/os-fotos/{foto.id}",
+        "criado_em": foto.criado_em.isoformat() if foto.criado_em else None,
+    })
+
+
 @os_bp.route("/api/os/<int:id>/reservas", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/reservas", methods=["POST"])
 @nivel_required("admin", "operacional")
 def reservar_peca(id):
     os_obj = OrdemServico.query.filter_by(id=id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
@@ -537,6 +806,7 @@ def reservar_peca(id):
 
 
 @os_bp.route("/api/os/<int:id>/reservas/<int:reservation_id>", methods=["DELETE"])
+@os_bp.route("/api/v1/os/<int:id>/reservas/<int:reservation_id>", methods=["DELETE"])
 @nivel_required("admin", "operacional")
 def cancelar_reserva(id, reservation_id):
     reservation = StockReservation.query.filter_by(
@@ -549,6 +819,7 @@ def cancelar_reserva(id, reservation_id):
 
 # ── PDF ───────────────────────────────────────────────────────
 @os_bp.route("/api/os/<int:id>/pdf", methods=["GET"])
+@os_bp.route("/api/v1/os/<int:id>/pdf", methods=["GET"])
 @api_login_required
 def pdf(id):
     os_obj = (OrdemServico.query.filter_by(id=id)
@@ -560,12 +831,13 @@ def pdf(id):
         return jsonify({"erro": str(exc)}), 500
     return send_file(
         io.BytesIO(pdf_bytes), mimetype="application/pdf",
-        as_attachment=True, download_name=f"OS_{os_obj.id:04d}.pdf",
+        as_attachment=True, download_name=f"OS_{os_obj.codigo_os}.pdf",
     )
 
 
 # ── WHATSAPP ──────────────────────────────────────────────────
 @os_bp.route("/api/os/<int:id>/whatsapp", methods=["POST"])
+@os_bp.route("/api/v1/os/<int:id>/whatsapp", methods=["POST"])
 @nivel_required("admin", "operacional")
 def whatsapp(id):
     os_obj = (OrdemServico.query.filter_by(id=id)

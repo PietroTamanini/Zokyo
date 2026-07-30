@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% set editando = transacao is not none %}
+{% set page_title = titulo or ('Editar lançamento' if editando else 'Receber ou pagar') %}
+{% block title %}{{ page_title }} - Zokyo{% endblock %}
+{% block breadcrumb %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
+    <h5>{{ page_title }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ action_url }}" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Tipo *</label>
+            {% set tipo_atual = transacao.tipo if editando else tipo_padrao %}
+            <select name="tipo" required>
+              <option value="receita" {{ 'selected' if tipo_atual == 'receita' else '' }}>Receita</option>
+              <option value="despesa" {{ 'selected' if tipo_atual == 'despesa' else '' }}>Despesa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            {% set categoria_atual = transacao.categoria if editando else 'servico' %}
+            <select name="categoria">
+              {% for value, label in [('servico','Serviço'),('peca','Peça'),('aluguel','Aluguel'),('salario','Salário'),('fornecedor','Fornecedor'),('imposto','Imposto'),('outros','Outros')] %}
+              <option value="{{ value }}" {{ 'selected' if categoria_atual == value else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Descrição *</label>
+          <input type="text" name="descricao" required autofocus value="{{ transacao.descricao if editando else '' }}" placeholder="Descrição do lançamento">
+        </div>
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Valor (R$) *</label>
+            <input type="number" name="valor" step="0.01" min="0" required value="{{ transacao.valor if editando else '' }}">
+          </div>
+          <div class="form-group">
+            <label>Vencimento</label>
+            <input type="date" name="data_vencimento" value="{{ transacao.data_vencimento.strftime('%Y-%m-%d') if editando and transacao.data_vencimento else '' }}">
+          </div>
+        </div>
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Status</label>
+            {% set status_atual = transacao.status if editando else 'pendente' %}
+            <select name="status">
+              <option value="pendente" {{ 'selected' if status_atual == 'pendente' else '' }}>Pendente</option>
+              <option value="pago" {{ 'selected' if status_atual == 'pago' else '' }}>Pago</option>
+              {% if editando %}<option value="cancelado" {{ 'selected' if status_atual == 'cancelado' else '' }}>Cancelado</option>{% endif %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Forma de pagamento</label>
+            {% set forma_atual = transacao.forma_pagamento if editando else '' %}
+            <select name="forma_pagamento">
+              <option value="">Selecione</option>
+              {% for value, label in [('Dinheiro','Dinheiro'),('PIX','PIX'),('Cartao Debito','Cartão de débito'),('Cartao Credito','Cartão de crédito'),('Transferencia','Transferência')] %}
+              <option value="{{ value }}" {{ 'selected' if forma_atual == value else '' }}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        {% if not editando %}
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Parcelas</label>
+            <input type="number" name="parcelas" value="1" min="1" max="60">
+          </div>
+          <div class="form-group">
+            <label>Recorrência</label>
+            <select name="recorrencia">
+              <option value="">Não recorrente</option>
+              <option value="mensal">Mensal</option>
+            </select>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+          <label>Comissão %</label>
+          <input type="number" name="comissao_percentual" value="{{ transacao.comissao_percentual if editando else '0' }}" min="0" max="100" step="0.01">
+        </div>
+
+        <div class="modal-actions">
+          <a class="btn btn-ghost" href="{{ voltar_url or url_for('pages.financeiro') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -115,4 +115,4 @@ def deletar(id):
     f.ativo = False
     registrar("arquivamento", "fornecedores", f"Fornecedor arquivado: {f.nome}")
     db.session.commit()
-    return jsonify({"success": True, "mensagem": "Fornecedor arquivado; historico preservado"})
+    return jsonify({"success": True, "mensagem": "Fornecedor arquivado; histórico preservado"})

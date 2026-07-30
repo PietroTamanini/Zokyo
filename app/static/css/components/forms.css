@@ -28,6 +28,24 @@ input.input-error, select.input-error, textarea.input-error {
 .strength-4 { color:#22c55e; } .strength-5 { color:#16a34a; }
 .field-autofilled { background:var(--green-g) !important; transition:background .4s; }
 
+.option-list {
+  display: grid;
+  gap: 8px;
+}
+
+.option-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.75fr) minmax(140px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 820px) {
+  .option-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .code-output {
   max-height: 560px;
   overflow: auto;

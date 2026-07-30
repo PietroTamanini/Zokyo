@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Editar serviço' if servico else 'Cadastrar serviço' }} - Zokyo{% endblock %}
+{% block breadcrumb %}Serviços / {{ 'Editar' if servico else 'Cadastrar' }}{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
+    <h5>{{ 'Editar serviço' if servico else 'Cadastrar serviço' }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ action_url }}" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Nome do serviço *</label>
+            <input type="text" name="nome" required autofocus value="{{ servico.sintoma if servico else '' }}" placeholder="Ex: Troca de conector">
+          </div>
+          <div class="form-group">
+            <label>Tipo de aparelho</label>
+            <input type="text" name="tipo_aparelho" value="{{ servico.tipo_aparelho if servico else '' }}" placeholder="Ex: Notebook, Celular">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Causa</label>
+          <textarea name="causa" rows="4" placeholder="Causa comum do defeito">{{ servico.causa if servico else '' }}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Descrição e solução</label>
+          <textarea name="descricao" rows="5" placeholder="Descrição do serviço e procedimento recomendado">{{ servico.solucao if servico else '' }}</textarea>
+        </div>
+        <div class="modal-actions">
+          <a class="btn btn-ghost" href="{{ url_for('pages.servicos') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

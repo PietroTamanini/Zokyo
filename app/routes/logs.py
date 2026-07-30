@@ -67,6 +67,7 @@ def index():
 
 
 @logs_bp.route("/api/logs", methods=["GET"])
+@logs_bp.route("/api/v1/audit", methods=["GET"])
 @nivel_required("admin")
 def api_logs():
     """Endpoint JSON para integração e exportação de logs."""

@@ -34,11 +34,11 @@ def _permission_list(value):
     if value is None:
         return None
     if not isinstance(value, list):
-        raise ValueError("Permissoes devem ser enviadas como lista.")
+        raise ValueError("Permissões devem ser enviadas como lista.")
     values = sorted(set(value))
     invalid = [item for item in values if item not in KNOWN_PERMISSIONS]
     if invalid:
-        raise ValueError("Permissoes invalidas: " + ", ".join(invalid))
+        raise ValueError("Permissões inválidas: " + ", ".join(invalid))
     return values
 
 
@@ -52,24 +52,28 @@ def usuarios_page():
 
 
 @usuarios_bp.route("/api/permissoes", methods=["GET"])
+@usuarios_bp.route("/api/v1/permissoes", methods=["GET"])
 @nivel_required("admin")
 def listar_permissoes():
     return jsonify(sorted(KNOWN_PERMISSIONS))
 
 
 @usuarios_bp.route("/api/usuarios", methods=["GET"])
+@usuarios_bp.route("/api/v1/usuarios", methods=["GET"])
 @nivel_required("admin")
 def listar():
     return jsonify([u.to_dict() for u in Usuario.query.filter_by(organization_id=_organization_id()).all()])
 
 
 @usuarios_bp.route("/api/usuarios/<int:id>", methods=["GET"])
+@usuarios_bp.route("/api/v1/usuarios/<int:id>", methods=["GET"])
 @nivel_required("admin")
 def obter(id):
     return jsonify(Usuario.query.filter_by(id=id, organization_id=_organization_id()).first_or_404().to_dict())
 
 
 @usuarios_bp.route("/api/usuarios", methods=["POST"])
+@usuarios_bp.route("/api/v1/usuarios", methods=["POST"])
 @nivel_required("admin")
 def criar():
     data, _ = get_request_data()
@@ -129,7 +133,7 @@ def criar_convite():
     email = sanitize_email(data.get("email", ""))
     role = sanitize_text(data.get("nivel", ""), max_length=20)
     if not validar_email(email) or role not in PERFIS:
-        return jsonify({"erro": "E-mail ou perfil invalido"}), 400
+        return jsonify({"erro": "E-mail ou perfil inválido"}), 400
     if Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email).first():
         return jsonify({"erro": "E-mail ja cadastrado"}), 409
     organization_id = _organization_id()
@@ -183,6 +187,7 @@ def aceitar_convite(token):
 
 
 @usuarios_bp.route("/api/usuarios/<int:id>", methods=["PUT"])
+@usuarios_bp.route("/api/v1/usuarios/<int:id>", methods=["PUT"])
 @nivel_required("admin")
 def atualizar(id):
     u = Usuario.query.filter_by(id=id, organization_id=_organization_id()).first_or_404()
@@ -243,7 +248,7 @@ def revogar_sessoes(id):
     from app.services.user_sessions import revoke_all
     revoke_all(u.id, "revogacao administrativa")
     u.security_version += 1
-    registrar("seguranca", "usuarios", f"Sessoes revogadas: {u.nome}")
+    registrar("seguranca", "usuarios", f"Sessões revogadas: {u.nome}")
     db.session.commit()
     if u.id == session["usuario_id"]:
         session.clear()
@@ -251,6 +256,7 @@ def revogar_sessoes(id):
 
 
 @usuarios_bp.route("/api/usuarios/<int:id>", methods=["DELETE"])
+@usuarios_bp.route("/api/v1/usuarios/<int:id>", methods=["DELETE"])
 @nivel_required("admin")
 def deletar(id):
     u = Usuario.query.filter_by(id=id, organization_id=_organization_id()).first_or_404()
@@ -264,6 +270,7 @@ def deletar(id):
 
 
 @usuarios_bp.route("/api/usuarios/alterar-senha", methods=["POST"])
+@usuarios_bp.route("/api/v1/usuarios/alterar-senha", methods=["POST"])
 @api_login_required
 def alterar_senha():
     data, _ = get_request_data()
@@ -288,3 +295,12 @@ def alterar_senha():
     db.session.commit()
     session.clear()
     return jsonify({"success": True, "mensagem": "Senha alterada; entre novamente"})
+
+
+@usuarios_bp.route("/api/v1/conta", methods=["GET"])
+@api_login_required
+def conta_v1():
+    usuario = db.session.get(Usuario, session["usuario_id"])
+    if not usuario:
+        return jsonify({"erro": "Usuário não encontrado"}), 404
+    return jsonify(usuario.to_dict())

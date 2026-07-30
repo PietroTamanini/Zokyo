@@ -3,10 +3,13 @@ utils/auth.py — Decorators de autenticação, controle de acesso e validação
 
 Fix L04: política de senha forte com verificação de senhas comuns.
 """
+import hashlib
 import re
+import time
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import flash, jsonify, redirect, session, url_for
+from flask import flash, g, jsonify, redirect, request, session, url_for
 
 # Top-50 senhas mais comuns — expandir conforme necessário
 _SENHAS_COMUNS = frozenset({
@@ -44,10 +47,61 @@ def validar_senha_forte(senha: str) -> list[str]:
 
 # ── Decorators ────────────────────────────────────────────────────────────────
 
+def _bearer_token():
+    auth = request.headers.get("Authorization", "").strip()
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return ""
+
+
+def _hash_token(raw_token: str) -> str:
+    return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+
+
+def authenticate_bearer_session():
+    raw_token = _bearer_token()
+    if not raw_token:
+        return None
+    from app.extensions import db
+    from app.models import UserSession
+
+    record = (
+        UserSession.query.execution_options(include_all_tenants=True)
+        .filter_by(token_hash=_hash_token(raw_token))
+        .first()
+    )
+    if not record or not record.is_active or not record.user or not record.user.ativo:
+        return None
+    user = record.user
+    if not user.organization or not user.organization.ativo:
+        return None
+    session.permanent = True
+    session["usuario_id"] = user.id
+    session["nivel"] = user.nivel
+    session["perfil"] = user.nivel
+    session["usuario_nome"] = user.nome
+    session["security_version"] = user.security_version
+    session["session_token"] = raw_token
+    session["_last_active"] = time.time()
+    g.organization_id = user.organization_id
+    now = datetime.now(timezone.utc)
+    last_seen = record.last_seen_at.replace(tzinfo=timezone.utc)
+    if now - last_seen >= timedelta(minutes=5):
+        record.last_seen_at = now
+        db.session.commit()
+    return user
+
+
+def _ensure_api_auth():
+    if "usuario_id" in session:
+        return True
+    return authenticate_bearer_session() is not None
+
+
 def api_login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if "usuario_id" not in session:
+        if not _ensure_api_auth():
             return jsonify({"erro": "Autenticação necessária"}), 401
         return f(*args, **kwargs)
     return decorated
@@ -61,7 +115,7 @@ def nivel_required(*niveis):
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
-            if "usuario_id" not in session:
+            if not _ensure_api_auth():
                 return jsonify({"erro": "Autenticação necessária"}), 401
             if session.get("nivel") not in niveis:
                 return jsonify({"erro": "Acesso negado"}), 403

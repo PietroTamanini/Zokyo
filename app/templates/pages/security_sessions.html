@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Sessoes ativas - Zokyo{% endblock %}
-{% block breadcrumb %}Seguranca / Sessoes{% endblock %}
+{% block title %}Sessões ativas - Zokyo{% endblock %}
+{% block breadcrumb %}Segurança / Sessões{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">Sessoes e dispositivos</div><div class="page-sub">Acessos recentes vinculados a sua conta</div></div>
-  <form method="POST" action="{{ url_for('auth.sessions_revoke_others') }}" data-confirm="Encerrar todas as outras sessoes?">
+  <div><div class="page-title">Sessões e dispositivos</div><div class="page-sub">Acessos recentes vinculados a sua conta</div></div>
+  <form method="POST" action="{{ url_for('auth.sessions_revoke_others') }}" data-confirm="Encerrar todas as outras sessões?">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <button class="btn btn-outline" type="submit">Encerrar outras sessoes</button>
+    <button class="btn btn-outline" type="submit">Encerrar outras sessões</button>
   </form>
 </div>
 {% include 'partials/_flash.html' %}

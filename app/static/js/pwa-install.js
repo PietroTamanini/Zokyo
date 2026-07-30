@@ -3,7 +3,7 @@
   const DISMISS_KEY = 'zokyo:pwa:v3:dismissed-until';
   const INSTALLED_KEY = 'zokyo:pwa:v3:installed';
   const DISMISS_MS = 6 * 60 * 60 * 1000;
-  const FALLBACK_DELAY_MS = 1800;
+  const FALLBACK_DELAY_MS = 45000;
 
   let deferredPrompt = null;
   let isVisible = false;
@@ -45,12 +45,12 @@
       return '<strong>Instalação bloqueada neste endereço</strong>Para instalar como app de verdade no celular, abra o Zokyo por HTTPS. Endereço em IP local com HTTP pode criar atalho, mas o navegador bloqueia a PWA nativa.';
     }
     if (isIos) {
-      return '<strong>Instalacao no iPhone/iPad</strong>Abra no Safari, toque em Compartilhar e escolha "Adicionar a Tela de Inicio".';
+      return '<strong>Instalação no iPhone/iPad</strong>Abra no Safari, toque em Compartilhar e escolha "Adicionar à Tela de Início".';
     }
     if (isAndroid) {
       return '<strong>Instalação no Android</strong>Se o botão nativo não aparecer, abra no Chrome, toque no menu e escolha "Instalar app".';
     }
-    return '<strong>Instalacao no PC</strong>No Chrome ou Edge, use o icone de instalacao na barra de endereco ou o menu do navegador.';
+    return '<strong>Instalação no PC</strong>No Chrome ou Edge, use o ícone de instalação na barra de endereço ou o menu do navegador.';
   }
 
   function setManualMode() {
@@ -63,7 +63,7 @@
     if (text) {
       text.textContent = isMobile
         ? 'Instale no celular para abrir direto pela tela inicial.'
-        : 'Instale no PC para abrir em uma janela propria, sem depender da aba do navegador.';
+        : 'Instale no PC para abrir em uma janela própria, sem depender da aba do navegador.';
     }
     if (help) {
       help.innerHTML = manualHelp();
@@ -81,7 +81,7 @@
     if (text) {
       text.textContent = isMobile
         ? 'Instale no celular para abrir direto pela tela inicial.'
-        : 'Instale no PC para abrir em uma janela propria, sem depender da aba do navegador.';
+        : 'Instale no PC para abrir em uma janela própria, sem depender da aba do navegador.';
     }
     if (help) {
       help.hidden = true;

@@ -53,10 +53,10 @@ def test_validar_documentos_cpf_cnpj():
 
     assert validators.validar_cpf_cnpj("") == (True, None, None, "")
     assert validators.validar_cpf_cnpj("52998224725") == (True, "52998224725", None, "")
-    assert validators.validar_cpf_cnpj("52998224724")[3] == "CPF invalido."
+    assert validators.validar_cpf_cnpj("52998224724")[3] == "CPF inválido."
     assert validators.validar_cpf_cnpj("04252011000110") == (True, None, "04252011000110", "")
-    assert validators.validar_cpf_cnpj("04252011000111")[3] == "CNPJ invalido."
-    assert validators.validar_cpf_cnpj("123")[3] == "CPF/CNPJ deve ter 11 ou 14 digitos."
+    assert validators.validar_cpf_cnpj("04252011000111")[3] == "CNPJ inválido."
+    assert validators.validar_cpf_cnpj("123")[3] == "CPF/CNPJ deve ter 11 ou 14 dígitos."
 
 
 def test_validar_telefone_cep_texto_numero_data_enum_uf():

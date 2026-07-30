@@ -14,7 +14,7 @@ fdb>=2.0.4
 
 # PDF
 reportlab>=4.0,<5.0
-Pillow>=12.2.0,<13.0
+Pillow>=12.3.0,<13.0
 
 # HTTP (WhatsApp)
 requests>=2.34.2,<3.0

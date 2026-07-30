@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Permissões - Zokyo{% endblock %}
+{% block breadcrumb %}Permissões{% endblock %}
+
+{% block content %}
+<div class="page-header zokyo-page-header">
+  <div>
+    <div class="page-title">Permissões</div>
+    <div class="page-sub">Controle de permissao por usuario no padrao Zokyo.</div>
+  </div>
+</div>
+
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-lock"></use></svg></span>
+    <h5>Permissões</h5>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table class="zokyo-table">
+        <thead>
+          <tr>
+            <th>Usuário</th>
+            <th>Perfil</th>
+            <th>Extras</th>
+            <th>Negadas</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for usuario in usuarios %}
+          <tr class="tr-static">
+            <td>
+              <div class="td-strong">{{ usuario.nome }}</div>
+              <div class="muted-xs">{{ usuario.email }}</div>
+            </td>
+            <td><span class="badge b-blue"><span class="dot"></span>{{ usuario.nivel }}</span></td>
+            <td>{{ (usuario.permissoes_extra or [])|join(', ') or '-' }}</td>
+            <td>{{ (usuario.permissoes_negadas or [])|join(', ') or '-' }}</td>
+            <td><a class="btn btn-nwe3 btn-xs" href="#permissoes-{{ usuario.id }}">Editar</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% for usuario in usuarios %}
+<div class="zokyo-widget mt20" id="permissoes-{{ usuario.id }}">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-user"></use></svg></span>
+    <h5>{{ usuario.nome }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('pages.zokyo_permissoes_editar', id=usuario.id) }}" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="zokyo-permissions-grid">
+          {% for permissao in permissoes %}
+          <div class="permission-row">
+            <div>
+              <strong>{{ permissao }}</strong>
+              <span>{{ 'Base do perfil' if '*' in role_permissions.get(usuario.nivel, []) or permissao in role_permissions.get(usuario.nivel, []) else 'Override opcional' }}</span>
+            </div>
+            <label><input type="checkbox" name="permissoes_extra" value="{{ permissao }}" {{ 'checked' if permissao in (usuario.permissoes_extra or []) }}> Extra</label>
+            <label><input type="checkbox" name="permissoes_negadas" value="{{ permissao }}" {{ 'checked' if permissao in (usuario.permissoes_negadas or []) }}> Negar</label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

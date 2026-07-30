@@ -53,7 +53,7 @@ def permission_required(permission: str, api: bool = True):
             user = _current_user()
             if not user:
                 if api:
-                    return jsonify({"erro": "Autenticacao necessaria"}), 401
+                    return jsonify({"erro": "Autenticação necessária"}), 401
                 return redirect(url_for("auth.login_page"))
             if not has_permission(user, permission):
                 if api or request.path.startswith("/api/"):

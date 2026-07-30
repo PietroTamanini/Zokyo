@@ -66,7 +66,7 @@ def check_production_readiness(
     if _is_placeholder(database_url):
         add("error", "DATABASE_URL", "Defina DATABASE_URL real.")
     elif parsed_db.scheme not in MYSQL_SCHEMES:
-        add("error", "DATABASE_URL", "Use MySQL/MariaDB em producao, nao SQLite ou outro backend.")
+        add("error", "DATABASE_URL", "Use MySQL/MariaDB em produção, não SQLite ou outro backend.")
     elif not parsed_db.username or not parsed_db.password or not parsed_db.hostname or not parsed_db.path.lstrip("/"):
         add("error", "DATABASE_URL", "DATABASE_URL deve conter usuario, senha, host e banco.")
 
@@ -98,7 +98,7 @@ def check_production_readiness(
     else:
         normalized = Path(upload_folder).as_posix().lower()
         if "/static" in normalized or normalized.endswith("/static"):
-            add("error", "REPORTS_UPLOAD_FOLDER", "Uploads sensiveis nao podem ficar dentro de static.")
+            add("error", "REPORTS_UPLOAD_FOLDER", "Uploads sensíveis não podem ficar dentro de static.")
 
     alert_email = _get(env, "ALERT_EMAIL")
     alert_webhook = _get(env, "ALERT_WEBHOOK_URL")
@@ -119,7 +119,7 @@ def check_production_readiness(
     smtp_host = _get(env, "SMTP_HOST")
     mail_from = _get(env, "MAIL_FROM")
     if not smtp_host or not mail_from:
-        integration("SMTP", "Configure SMTP_HOST e MAIL_FROM para recuperacao de senha por e-mail.")
+        integration("SMTP", "Configure SMTP_HOST e MAIL_FROM para recuperação de senha por e-mail.")
 
     meta_values = (
         _get(env, "WHATSAPP_CLOUD_API_TOKEN"),
@@ -132,6 +132,6 @@ def check_production_readiness(
     if any(gateway_values) and not all(gateway_values):
         add("error", "WPP_GATEWAY", "Preencha URL, segredo e allowlist do gateway WhatsApp juntos.")
     if not any(meta_values) and not any(gateway_values):
-        integration("WHATSAPP", "WhatsApp automatico nao configurado; o sistema ficara no fallback manual.")
+        integration("WHATSAPP", "WhatsApp automático não configurado; o sistema ficará no fallback manual.")
 
     return issues

@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% set page_title = titulo or 'Detalhe financeiro' %}
+{% block title %}{{ page_title }} - Zokyo{% endblock %}
+{% block breadcrumb %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
+    <h5>{{ page_title }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Lançamento #{{ '%04d'|format(transacao.id) }}</div>
+          <h2>{{ transacao.descricao }}</h2>
+          <div class="muted-sm">{{ transacao.tipo|capitalize }} - {{ transacao.status|capitalize }}</div>
+        </div>
+        <div class="action-row">
+          {% if active == 'vendas' %}
+          <a class="btn btn-nwe6 btn-xs" href="{{ url_for('pages.vendas_imprimir_alias', id=transacao.id) }}" target="_blank" rel="noopener">PDF</a>
+          <a class="btn btn-nwe btn-xs" href="{{ url_for('pages.vendas_orcamento_alias', id=transacao.id) }}" target="_blank" rel="noopener">Orçamento</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.vendas_termica_alias', id=transacao.id) }}">Impressão térmica</a>
+          {% endif %}
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.vendas_editar_alias', id=transacao.id) if active == 'vendas' else url_for('pages.transacao_editar_alias', id=transacao.id) }}">Editar</a>
+          {% if transacao.status == 'pendente' %}
+          <form method="POST" action="{{ url_for('pages.transacao_pagar', id=transacao.id) }}" data-confirm="Marcar como pago?" class="inline-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-nwe5 btn-xs">Marcar pago</button>
+          </form>
+          {% endif %}
+          <a class="btn btn-ghost btn-xs" href="{{ voltar_url or url_for('pages.financeiro') }}">Voltar</a>
+        </div>
+      </div>
+
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>Tipo</span>
+          <strong>{{ transacao.tipo|capitalize }}</strong>
+        </div>
+        <div>
+          <span>Categoria</span>
+          <strong>{{ transacao.categoria or '-' }}</strong>
+        </div>
+        <div>
+          <span>Valor</span>
+          <strong>{{ transacao.valor | moeda }}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{{ transacao.status|capitalize }}</strong>
+        </div>
+        <div>
+          <span>Vencimento</span>
+          <strong>{{ transacao.data_vencimento | fmtdata if transacao.data_vencimento else '-' }}</strong>
+        </div>
+        <div>
+          <span>Pagamento</span>
+          <strong>{{ transacao.data_pagamento | fmtdata if transacao.data_pagamento else '-' }}</strong>
+        </div>
+        <div>
+          <span>Forma de pagamento</span>
+          <strong>{{ transacao.forma_pagamento or '-' }}</strong>
+        </div>
+        <div>
+          <span>Parcela</span>
+          <strong>{{ transacao.parcela_numero }}/{{ transacao.parcela_total }}</strong>
+        </div>
+        <div>
+          <span>OS</span>
+          <strong>{% if transacao.os_id %}#{{ '%04d'|format(transacao.os_id) }}{% else %}-{% endif %}</strong>
+        </div>
+        <div>
+          <span>Conciliação</span>
+          <strong>{{ transacao.conciliacao_ref or '-' }}</strong>
+        </div>
+        <div>
+          <span>Comissão</span>
+          <strong>{{ transacao.comissao_percentual or 0 }}%</strong>
+        </div>
+        <div>
+          <span>Criado em</span>
+          <strong>{{ transacao.criado_em | fmtdata if transacao.criado_em else '-' }}</strong>
+        </div>
+        {% if transacao.payment_gateway or transacao.payment_link or transacao.payment_payload %}
+        <div>
+          <span>Gateway</span>
+          <strong>{{ transacao.payment_gateway or '-' }}</strong>
+        </div>
+        <div>
+          <span>Método</span>
+          <strong>{{ transacao.payment_method or '-' }}</strong>
+        </div>
+        <div>
+          <span>Status do pagamento</span>
+          <strong>{{ transacao.payment_status or '-' }}</strong>
+        </div>
+        <div>
+          <span>Expiração</span>
+          <strong>{{ transacao.payment_expires_at | fmtdata if transacao.payment_expires_at else '-' }}</strong>
+        </div>
+        {% endif %}
+      </div>
+      {% if transacao.payment_link or transacao.payment_payload or transacao.payment_barcode %}
+      <div class="note-block note-sky mt16">
+        {% if transacao.payment_link %}<div><strong>Link:</strong> <a href="{{ transacao.payment_link }}" target="_blank" rel="noopener">{{ transacao.payment_link }}</a></div>{% endif %}
+        {% if transacao.payment_payload %}<div><strong>PIX copia e cola:</strong> <span class="td-mono">{{ transacao.payment_payload }}</span></div>{% endif %}
+        {% if transacao.payment_barcode %}<div><strong>Código:</strong> <span class="td-mono">{{ transacao.payment_barcode }}</span></div>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

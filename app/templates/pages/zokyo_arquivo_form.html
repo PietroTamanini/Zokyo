@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Adicionar Arquivo - Zokyo{% endblock %}
+{% block breadcrumb %}Arquivos / Adicionar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
+    <h5>Adicionar Arquivo</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('pages.arquivos_adicionar_post') }}" enctype="multipart/form-data" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>OS *</label>
+          <select name="os_id" required autofocus>
+            <option value="">Selecione</option>
+            {% for os in ordens %}
+            <option value="{{ os.id }}">OS #{{ '%04d'|format(os.id) }} - {{ os.cliente.nome if os.cliente else 'Sem cliente' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Arquivo *</label>
+          <input type="file" name="fotos" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
+        </div>
+        <div class="form-group">
+          <label>Descrição</label>
+          <input type="text" name="descricao" maxlength="200" placeholder="Identificação opcional do arquivo">
+        </div>
+        <div class="modal-actions">
+          <a class="btn btn-ghost" href="{{ url_for('pages.arquivos') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

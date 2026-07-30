@@ -22,8 +22,15 @@ Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no s
 - `METRICS_TOKEN`: token Bearer para coleta protegida de metricas Prometheus.
 - `SENTRY_DSN`: habilita Sentry opcional; vazio mantem a integracao desligada.
 - `SENTRY_TRACES_SAMPLE_RATE`: amostragem entre 0 e 1, padrao 0.
+- `ASAAS_API_KEY`: chave da API Asaas para gerar cobranças reais.
+- `ASAAS_SANDBOX`: use `true` em homologação e `false` em produção.
+- `ASAAS_BASE_URL`: sobrescreve a URL da API Asaas somente quando necessário.
+- `ASAAS_TIMEOUT`: timeout HTTP das chamadas ao Asaas, em segundos.
+- `ASAAS_USER_AGENT`: identificação enviada ao Asaas nas chamadas HTTP.
 
 Sem `SMTP_HOST` e `MAIL_FROM`, nenhuma mensagem de recuperacao e enviada em producao e o erro operacional e registrado sem expor o token.
+
+Sem `ASAAS_API_KEY`, as cobranças continuam usando o fallback local seguro. Com a chave configurada, o gateway `asaas` cria/consulta cliente, gera cobrança e busca o payload PIX quando a forma for Pix.
 
 ## 2FA administrativo
 

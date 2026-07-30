@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% set editando = produto is not none %}
+{% block title %}{{ 'Editar Produto' if editando else 'Adicionar Produto' }} - Zokyo{% endblock %}
+{% block breadcrumb %}Produtos / {{ 'Editar' if editando else 'Adicionar' }}{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
+    <h5>{{ 'Editar Produto' if editando else 'Adicionar Produto' }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ action_url }}" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Nome *</label>
+            <input type="text" name="nome" required autofocus value="{{ produto.nome if editando else '' }}" placeholder="Nome do produto">
+          </div>
+          <div class="form-group">
+            <label>Código</label>
+            <input type="text" name="codigo" value="{{ produto.codigo if editando else '' }}" placeholder="Código interno ou SKU">
+          </div>
+        </div>
+
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Categoria</label>
+            <input type="text" name="categoria" value="{{ produto.categoria if editando else '' }}" placeholder="Ex: Tela, Bateria, Fonte">
+          </div>
+          <div class="form-group">
+            <label>Localização</label>
+            <input type="text" name="localizacao" value="{{ produto.localizacao if editando else '' }}" placeholder="Prateleira, gaveta ou setor">
+          </div>
+        </div>
+
+        <div class="form-row fr4">
+          {% if not editando %}
+          <div class="form-group">
+            <label>Quantidade</label>
+            <input type="number" name="quantidade" min="0" step="1" value="0">
+          </div>
+          {% endif %}
+          <div class="form-group">
+            <label>Estoque mínimo</label>
+            <input type="number" name="estoque_minimo" min="0" step="1" value="{{ produto.estoque_minimo if editando else 5 }}">
+          </div>
+          <div class="form-group">
+            <label>Preço de compra</label>
+            <input type="number" name="custo" min="0" step="0.01" value="{{ produto.custo if editando else '0.00' }}">
+          </div>
+          <div class="form-group">
+            <label>Margem (%)</label>
+            <input type="number" name="margem" min="0" step="0.01" value="{{ produto.margem if editando else '0.00' }}">
+          </div>
+        </div>
+
+        {% if editando %}
+        <div class="zokyo-detail-grid mb20">
+          <div>
+            <span>Estoque atual</span>
+            <strong>{{ produto.quantidade }}</strong>
+          </div>
+          <div>
+            <span>Reservado</span>
+            <strong>{{ produto.quantidade_reservada }}</strong>
+          </div>
+          <div>
+            <span>Disponível</span>
+            <strong>{{ produto.quantidade_disponivel }}</strong>
+          </div>
+          <div>
+            <span>Venda estimada</span>
+            <strong>{{ produto.preco_venda | moeda }}</strong>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="modal-actions">
+          <a class="btn btn-ghost" href="{{ url_for('pages.estoque') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

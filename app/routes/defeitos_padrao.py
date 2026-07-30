@@ -17,6 +17,7 @@ def _escape_like(q: str) -> str:
 
 
 @defeitos_bp.route("/api/defeitos", methods=["GET"])
+@defeitos_bp.route("/api/v1/servicos", methods=["GET"])
 @api_login_required
 def listar():
     q    = request.args.get("q", "").strip()
@@ -34,6 +35,7 @@ def listar():
 
 
 @defeitos_bp.route("/api/defeitos", methods=["POST"])
+@defeitos_bp.route("/api/v1/servicos", methods=["POST"])
 @nivel_required("admin", "operacional")
 def criar():
     data = request.get_json(silent=True) or {}
@@ -51,6 +53,7 @@ def criar():
 
 
 @defeitos_bp.route("/api/defeitos/<int:id>", methods=["PUT"])
+@defeitos_bp.route("/api/v1/servicos/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar(id):
     d    = db.get_or_404(DefeitoPadrao, id)
@@ -64,6 +67,7 @@ def atualizar(id):
 
 
 @defeitos_bp.route("/api/defeitos/<int:id>", methods=["DELETE"])
+@defeitos_bp.route("/api/v1/servicos/<int:id>", methods=["DELETE"])
 @nivel_required("admin")
 def deletar(id):
     d = db.get_or_404(DefeitoPadrao, id)

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Movimentacoes de estoque - Zokyo{% endblock %}
-{% block breadcrumb %}Estoque / Movimentacoes{% endblock %}
+{% block title %}Movimentações de estoque - Zokyo{% endblock %}
+{% block breadcrumb %}Estoque / Movimentações{% endblock %}
 {% block content %}
 <div class="page-header"><div><div class="page-title">Movimentações de estoque</div><div class="page-sub">Livro auditável de entradas, saídas, ajustes e consumo em OS</div></div><a class="btn btn-outline" href="{{ url_for('pages.estoque') }}">Voltar ao estoque</a></div>
 {% if suggestions %}<div class="card mb20"><div class="card-header"><div class="card-title">Sugestões de compra</div></div><div class="table-wrap"><table><thead><tr><th>Peça</th><th>Disponível</th><th>Mínimo</th><th>Comprar</th></tr></thead><tbody>{% for item in suggestions %}<tr class="tr-static"><td class="td-strong">{{ item.part.nome }}</td><td>{{ item.part.quantidade_disponivel }}</td><td>{{ item.part.estoque_minimo }}</td><td class="td-strong">{{ item.quantity }}</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}

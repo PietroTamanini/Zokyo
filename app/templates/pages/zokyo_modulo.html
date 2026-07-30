@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} - Zokyo{% endblock %}
+{% block breadcrumb %}{{ breadcrumb }}{% endblock %}
+
+{% block content %}
+<div class="page-header zokyo-page-header">
+  <div>
+    <div class="page-title">{{ title }}</div>
+    <div class="page-sub">{{ subtitle }}</div>
+  </div>
+</div>
+
+{% if flow_hint %}
+<div class="flow-guide mb20" aria-label="Como usar esta tela">
+  <div>{{ flow_hint|safe }}</div>
+</div>
+{% endif %}
+
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+    <h5>{{ title }}</h5>
+  </div>
+
+  <form class="zokyo-toolbar" method="GET">
+    {% if add_url %}
+    <a class="button btn btn-mini btn-success zokyo-add-button" href="{{ add_url }}"><span class="button__text2">{{ add_label|replace('+ ', '') }}</span>
+    </a>
+    {% endif %}
+    <input type="text" name="{{ search_name|default('q') }}" value="{{ search or '' }}" placeholder="{{ search_placeholder }}">
+    {% for filter in filters or [] %}
+    <select name="{{ filter.name }}">
+      {% for value, label in filter.options %}
+      <option value="{{ value }}" {{ 'selected' if filter.value == value }}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    {% endfor %}
+    <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
+    {% if search %}
+    <a href="{{ request.path }}" class="btn btn-ghost btn-sm">Limpar busca</a>
+    {% endif %}
+  </form>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="zokyo-table">
+        <thead>
+          <tr>
+            {% for col in columns %}
+            <th>{{ col.label }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="tr-static">
+            {% for col in columns %}
+            {% set value = row[col.key] %}
+            <td>
+              {% if col.actions %}
+                <div class="zokyo-row-actions">
+                  {% for action in row.get(col.actions, []) %}
+                    {% if action.method == 'POST' %}
+                    <form method="POST" action="{{ action.url }}" class="inline-form" {% if action.confirm %}data-confirm="{{ action.confirm }}"{% endif %}>
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn {{ action.class|default('btn-ghost') }} btn-xs" title="{{ action.title }}">{{ action.label }}</button>
+                    </form>
+                    {% else %}
+                    <a href="{{ action.url }}" class="btn {{ action.class|default('btn-ghost') }} btn-xs" title="{{ action.title }}" {% if action.target_blank %}target="_blank" rel="noopener"{% endif %}>{{ action.label }}</a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% elif col.url_key %}
+                {% if row[col.url_key] %}<a href="{{ row[col.url_key] }}" class="btn btn-ghost btn-xs" {% if col.target_blank %}target="_blank" rel="noopener"{% endif %}>{{ value or 'Abrir' }}</a>{% else %}-{% endif %}
+              {% elif col.money %}
+                {{ value | moeda if value is not none else '-' }}
+              {% elif col.date %}
+                {{ value | fmtdata if value else '-' }}
+              {% elif col.badge %}
+                <span class="badge b-blue"><span class="dot"></span>{{ value or '-' }}</span>
+              {% else %}
+                {{ value or '-' }}
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr><td colspan="{{ columns|length }}"><div class="empty"><div class="empty-title">{{ empty }}</div>{% if empty_hint %}<div class="empty-sub">{{ empty_hint }}</div>{% endif %}{% if add_url and add_label %}<a class="btn btn-primary btn-sm" href="{{ add_url }}">{{ add_label|replace('+ ', '') }}</a>{% endif %}</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pagination and pagination.pages > 1 %}
+    <div class="card-body pagination">
+      {% if pagination.has_prev %}
+      <a href="{{ url_for(request.endpoint, page=pagination.prev_num, q=search, status=request.args.get('status', '')) }}" class="btn btn-ghost btn-sm">Anterior</a>
+      {% endif %}
+      <span class="pagination-label">{{ pagination.page }}/{{ pagination.pages }}</span>
+      {% if pagination.has_next %}
+      <a href="{{ url_for(request.endpoint, page=pagination.next_num, q=search, status=request.args.get('status', '')) }}" class="btn btn-ghost btn-sm">Próximo</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

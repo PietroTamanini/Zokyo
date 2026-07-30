@@ -50,12 +50,12 @@ def _is_safe_wpp_url(url: str) -> bool:
 
     allowed_hosts = _allowed_hosts()
     if hostname not in allowed_hosts:
-        logger.warning("[WhatsApp] Host nao permitido: %s", hostname)
+        logger.warning("[WhatsApp] Host não permitido: %s", hostname)
         return False
 
     is_localhost = hostname in _WPP_ALLOWED_HOSTS
     if parsed.scheme != "https" and not is_localhost:
-        logger.warning("[WhatsApp] HTTPS obrigatorio para gateway remoto: %s", hostname)
+        logger.warning("[WhatsApp] HTTPS obrigatório para gateway remoto: %s", hostname)
         return False
 
     try:
@@ -64,10 +64,10 @@ def _is_safe_wpp_url(url: str) -> bool:
             ip = ipaddress.ip_address(addr)
             blocked = ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast
             if blocked and not is_localhost:
-                logger.warning("[WhatsApp] Endereco bloqueado para %s: %s", hostname, addr)
+                logger.warning("[WhatsApp] Endereço bloqueado para %s: %s", hostname, addr)
                 return False
     except (socket.gaierror, ValueError):
-        logger.warning("[WhatsApp] Host nao resolvido: %s", hostname)
+        logger.warning("[WhatsApp] Host não resolvido: %s", hostname)
         return False
 
     return True
@@ -92,7 +92,7 @@ def _wpp_url() -> str | None:
         if url:
             return url.rstrip("/")
     except Exception:
-        logger.debug("[WhatsApp] Configuracao do gateway indisponivel no banco.", exc_info=True)
+        logger.debug("[WhatsApp] Configuração do gateway indisponível no banco.", exc_info=True)
     env_url = os.environ.get("WPP_SERVER_URL", "").strip()
     return env_url.rstrip("/") if env_url else None
 
@@ -160,7 +160,7 @@ def enviar_whatsapp(numero: str, mensagem: str) -> dict:
             "modo":    "simulacao",
             "sucesso": False,
             "link":    link,
-            "aviso":   "Gateway seguro nao configurado. Use o link para envio manual.",
+            "aviso":   "Gateway seguro não configurado. Use o link para envio manual.",
         }
 
     # H05: valida a URL antes de fazer a requisição
@@ -239,6 +239,7 @@ def mensagem_os_pronta(os) -> str:
     aparelho     = f"{os.marca or ''} {os.modelo or ''}".strip() or "Aparelho"
     solucao      = os.solucao or "Reparo concluído"
     cliente_nome = os.cliente.nome if os.cliente else "Cliente"
+    codigo_os = getattr(os, "codigo_os", f"{os.id:04d}")
 
     try:
         from app.models import Configuracao
@@ -249,7 +250,7 @@ def mensagem_os_pronta(os) -> str:
     return (
         f"Olá, *{cliente_nome}*! 👋\n\n"
         f"Seu aparelho está *pronto* para retirada! ✅\n\n"
-        f"📋 OS *#{os.id:04d}*\n"
+        f"📋 OS *#{codigo_os}*\n"
         f"📱 {aparelho}\n"
         f"🔧 {solucao}\n"
         f"💰 Total: *R$ {total:.2f}*\n\n"

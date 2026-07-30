@@ -3,7 +3,7 @@ from datetime import datetime
 from app import create_app
 from app.extensions import db
 from app.models import Cliente, EventoLog, Fornecedor, OrdemServico, Organization, Peca, Plan, Usuario
-from app.services.cplus_firebird_importer import CPlusImportError
+from app.services.external_database_importer import ExternalImportError
 
 
 def _make_client():
@@ -329,32 +329,57 @@ def test_rotas_usuarios_importacao_platform_privacidade_e_portal(monkeypatch):
 
         def test_connection(self):
             if self.creds.database_path == "bad":
-                raise CPlusImportError("falha")
+                raise ExternalImportError("falha")
             return {"success": True, "driver": "fake", "table_count": 1}
+
+        def inspect_schema(self):
+            if self.creds.database_path == "bad":
+                raise ExternalImportError("falha")
+            return {"table_count": 1, "tables": {"CLIENTES": ["NOME"]}, "detected_entities": {"clientes": ["CLIENTES"]}}
+
+        def mapping_report(self):
+            return {"clientes": {"CLIENTES.NOME": "Cliente.nome"}}
+
+        def ignored_fields_report(self):
+            return {"clientes": ["CLIENTES.OBS"]}
+
+        def manual_confirmation_report(self):
+            return ["Confirmar campos sem equivalente direto antes do commit."]
 
         def preview(self):
             if self.creds.database_path == "bad":
-                raise CPlusImportError("falha")
+                raise ExternalImportError("falha")
             return {"success": True, "dry_run": True}
 
         def commit(self, admin_user=None, admin_user_id=None):
             if self.creds.database_path == "commit-bad.fdb":
-                raise CPlusImportError("falha")
+                raise ExternalImportError("falha")
             return {"success": True, "created": {"clientes": 1}, "admin": admin_user, "admin_id": admin_user_id}
 
     import app.routes.importacao as importacao_routes
 
-    monkeypatch.setattr(importacao_routes, "CPlusFirebirdImporter", FakeImporter)
-    assert _json(browser, "POST", "/api/importacao/cplus/test", {"database_path": "bad"}).status_code == 400
-    assert _json(browser, "POST", "/api/importacao/cplus/test", {"database_path": "ok.fdb"}).status_code == 200
-    assert _json(browser, "POST", "/api/importacao/cplus/preview", {"database_path": "bad"}).status_code == 400
-    assert _json(browser, "POST", "/api/importacao/cplus/commit", {"database_path": "ok.fdb", "confirm": True}).status_code == 400
-    assert _json(browser, "POST", "/api/importacao/cplus/preview", {"database_path": "ok.fdb"}).status_code == 200
-    assert _json(browser, "POST", "/api/importacao/cplus/commit", {"database_path": "other.fdb", "confirm": True}).status_code == 400
-    assert _json(browser, "POST", "/api/importacao/cplus/preview", {"database_path": "commit-bad.fdb"}).status_code == 200
-    assert _json(browser, "POST", "/api/importacao/cplus/commit", {"database_path": "commit-bad.fdb", "confirm": True}).status_code == 400
-    assert _json(browser, "POST", "/api/importacao/cplus/preview", {"database_path": "ok.fdb"}).status_code == 200
-    assert _json(browser, "POST", "/api/importacao/cplus/commit", {"database_path": "ok.fdb", "confirm": True}).status_code == 200
+    monkeypatch.setattr(importacao_routes, "ExternalFirebirdImporter", FakeImporter)
+    assert _json(browser, "POST", "/api/importacao/bancos/test", {"database_path": "bad"}).status_code == 400
+    assert _json(browser, "POST", "/api/importacao/bancos/test", {"database_path": "ok.fdb"}).status_code == 200
+    assert _json(browser, "POST", "/api/importacao/bancos/schema", {"database_path": "bad"}).status_code == 400
+    schema = _json(browser, "POST", "/api/importacao/bancos/schema", {"database_path": "ok.fdb"})
+    assert schema.status_code == 200
+    assert schema.get_json()["schema"]["detected_entities"]["clientes"] == ["CLIENTES"]
+    mapping = browser.get("/api/importacao/bancos/mapping")
+    assert mapping.status_code == 200
+    assert mapping.get_json()["mapped_fields"]["clientes"]["CLIENTES.NOME"] == "Cliente.nome"
+    logs = browser.get("/api/importacao/bancos/logs")
+    assert logs.status_code == 200
+    for log in logs.get_json()["logs"]:
+        assert "database_path" not in log["payload"]
+    assert _json(browser, "POST", "/api/importacao/bancos/preview", {"database_path": "bad"}).status_code == 400
+    assert _json(browser, "POST", "/api/importacao/bancos/commit", {"database_path": "ok.fdb", "confirm": True}).status_code == 400
+    assert _json(browser, "POST", "/api/importacao/bancos/preview", {"database_path": "ok.fdb"}).status_code == 200
+    assert _json(browser, "POST", "/api/importacao/bancos/commit", {"database_path": "other.fdb", "confirm": True}).status_code == 400
+    assert _json(browser, "POST", "/api/importacao/bancos/preview", {"database_path": "commit-bad.fdb"}).status_code == 200
+    assert _json(browser, "POST", "/api/importacao/bancos/commit", {"database_path": "commit-bad.fdb", "confirm": True}).status_code == 400
+    assert _json(browser, "POST", "/api/importacao/bancos/preview", {"database_path": "ok.fdb"}).status_code == 200
+    assert _json(browser, "POST", "/api/importacao/bancos/commit", {"database_path": "ok.fdb", "confirm": True}).status_code == 200
 
     monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "admin@routes.test")
     assert _form(browser, "/platform/plans", {"code": "", "nome": ""}).status_code == 400

@@ -2,14 +2,14 @@ const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
 function abrirModalNovaTransacao() {
   const hoje = new Date().toISOString().split('T')[0];
-  openModal('Nova Transação', `
+  openModal('Receber ou pagar', `
     <form method="POST" action="/financeiro/nova">
       <input type="hidden" name="_csrf_token" value="${CSRF}">
       <div class="form-row fr2">
         <div class="form-group"><label>Tipo *</label>
           <select name="tipo">
-            <option value="receita">💚 Receita</option>
-            <option value="despesa">🔴 Despesa</option>
+            <option value="receita">Receita</option>
+            <option value="despesa">Despesa</option>
           </select>
         </div>
         <div class="form-group"><label>Categoria</label>
@@ -36,12 +36,12 @@ function abrirModalNovaTransacao() {
             <option value="pago">Pago</option>
           </select>
         </div>
-        <div class="form-group"><label>Forma de Pagamento</label>
+        <div class="form-group"><label>Forma de pagamento</label>
           <select name="forma_pagamento">
             <option value="">Selecione</option>
-            <option>Dinheiro</option><option>PIX</option>
-            <option>Cartão Débito</option><option>Cartão Crédito</option>
-            <option>Transferência</option>
+            <option value="Dinheiro">Dinheiro</option><option value="PIX">PIX</option>
+            <option value="Cartao Debito">Cartão de débito</option><option value="Cartao Credito">Cartão de crédito</option>
+            <option value="Transferencia">Transferência</option>
           </select>
         </div>
       </div>
@@ -63,4 +63,9 @@ document.addEventListener('click', (e) => {
   if (el.getAttribute('data-action') === 'transacao-nova') {
     return abrirModalNovaTransacao();
   }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('novo') === '1') abrirModalNovaTransacao();
 });

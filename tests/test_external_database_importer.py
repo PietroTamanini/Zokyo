@@ -10,9 +10,9 @@ import pytest
 from app import create_app
 from app.extensions import db
 from app.models import Cliente, OrdemServico, Organization, Peca, Usuario
-from app.services.cplus_firebird_importer import (
-    CPlusFirebirdImporter,
-    CPlusImportError,
+from app.services.external_database_importer import (
+    ExternalFirebirdImporter,
+    ExternalImportError,
     FirebirdCredentials,
     _digits,
     _json_safe,
@@ -56,14 +56,14 @@ def _make_app(tmp_path):
     app.config.update(
         TESTING=True,
         SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-        SECRET_KEY="cplus-contract-key",
+        SECRET_KEY="external-import-contract-key",
         WTF_CSRF_ENABLED=False,
     )
     app.instance_path = str(tmp_path)
     with app.app_context():
         db.create_all()
-        organization = Organization(id=1, nome="CPlus", slug="cplus")
-        admin = Usuario(nome="Admin", email="cplus@example.com", nivel="admin", ativo=True, organization_id=1)
+        organization = Organization(id=1, nome="Importacao", slug="importacao")
+        admin = Usuario(nome="Admin", email="importacao@example.com", nivel="admin", ativo=True, organization_id=1)
         admin.set_senha("Senha!123")
         duplicate_client = Cliente(nome="Duplicado", cpf="52998224725", telefone="47999999999", organization_id=1)
         duplicate_part = Peca(nome="Duplicada", codigo="DUP", quantidade=1, organization_id=1)
@@ -93,8 +93,8 @@ def test_helpers_e_conexao_cobrem_drivers_firebird(monkeypatch, tmp_path):
     assert _type_name(261, 1, None, None, None) == "BLOB1"
     assert _type_name(999, 0, None, None, None) == "TYPE_999"
 
-    missing = CPlusFirebirdImporter(FirebirdCredentials(str(tmp_path / "missing.fdb")))
-    with pytest.raises(CPlusImportError, match="nao encontrado"):
+    missing = ExternalFirebirdImporter(FirebirdCredentials(str(tmp_path / "missing.fdb")))
+    with pytest.raises(ExternalImportError, match="não encontrado"):
         missing._connect()
 
     database = tmp_path / "base.fdb"
@@ -111,7 +111,7 @@ def test_helpers_e_conexao_cobrem_drivers_firebird(monkeypatch, tmp_path):
     fake_fdb.connect = connect_fdb
     monkeypatch.setitem(sys.modules, "fdb", fake_fdb)
     monkeypatch.setenv("FIREBIRD_CLIENT_LIBRARY", "fbclient.dll")
-    importer = CPlusFirebirdImporter(FirebirdCredentials(str(database), password="master"))
+    importer = ExternalFirebirdImporter(FirebirdCredentials(str(database), password="master"))
     assert importer._rows("select * from cliente") == [{"ID": 7, "NOME": "Maria"}]
     assert importer._scalar("select count(*)") == 9
     assert importer.test_connection() == {"success": True, "driver": "fdb", "table_count": 9}
@@ -138,7 +138,7 @@ def test_helpers_e_conexao_cobrem_drivers_firebird(monkeypatch, tmp_path):
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
-    fallback = CPlusFirebirdImporter(FirebirdCredentials(str(database), user="", password="", charset=""))
+    fallback = ExternalFirebirdImporter(FirebirdCredentials(str(database), user="", password="", charset=""))
     assert fallback.test_connection()["driver"] == "firebird-driver"
     assert imported[0][0] == str(database)
     assert imported[0][1]["user"] == "SYSDBA"
@@ -158,8 +158,8 @@ def test_helpers_e_conexao_cobrem_drivers_firebird(monkeypatch, tmp_path):
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", exception_import)
-    with pytest.raises(CPlusImportError, match="fdb quebrou"):
-        CPlusFirebirdImporter(FirebirdCredentials(str(database)))._connect()
+    with pytest.raises(ExternalImportError, match="fdb quebrou"):
+        ExternalFirebirdImporter(FirebirdCredentials(str(database)))._connect()
 
     def broken_import(name, globals=None, locals=None, fromlist=(), level=0):
         if name in {"fdb", "firebird.driver"}:
@@ -167,14 +167,14 @@ def test_helpers_e_conexao_cobrem_drivers_firebird(monkeypatch, tmp_path):
         return real_import(name, globals, locals, fromlist, level)
 
     monkeypatch.setattr(builtins, "__import__", broken_import)
-    failing = CPlusFirebirdImporter(FirebirdCredentials(str(database)))
-    with pytest.raises(CPlusImportError, match="Nao foi possivel abrir"):
+    failing = ExternalFirebirdImporter(FirebirdCredentials(str(database)))
+    with pytest.raises(ExternalImportError, match="Não foi possível abrir"):
         failing._connect()
 
 
-def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
+def test_schema_preview_commit_e_log_banco_externo(monkeypatch, tmp_path):
     app, admin_id = _make_app(tmp_path)
-    importer = CPlusFirebirdImporter(FirebirdCredentials(str(tmp_path / "base.fdb")))
+    importer = ExternalFirebirdImporter(FirebirdCredentials(str(tmp_path / "base.fdb")))
     schema_tables = {
         "CLIENTE": {},
         "CLIENTEENDERECO": {},
@@ -266,8 +266,9 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
     ]
     os_rows = [
         {
-            "CODOS": 100,
-            "CODCLI": 999,
+                "CODOS": 100,
+                "NUMOS": 2600,
+                "CODCLI": 999,
             "EQUIPAMENTO": "Tablet",
             "IDENTIFICADOR": "SN1",
             "MARCAMODELO": "Apple - iPad",
@@ -283,8 +284,9 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
             "VALOR": 100,
         },
         {
-            "CODOS": 101,
-            "CODCLI": 10,
+                "CODOS": 101,
+                "NUMOS": 2601,
+                "CODCLI": 10,
             "EQUIPAMENTO": "Celular",
             "IDENTIFICADOR": "SN2",
             "MARCAMODELO": "Samsung/A10",
@@ -300,8 +302,9 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
             "VALOR": 200,
         },
         {
-            "CODOS": 102,
-            "CODCLI": 12,
+                "CODOS": 102,
+                "NUMOS": 2602,
+                "CODCLI": 12,
             "EQUIPAMENTO": "",
             "IDENTIFICADOR": "SN3",
             "MARCAMODELO": "Dell - XPS",
@@ -313,7 +316,7 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
             "DATSAI": datetime(2026, 3, 5, 8, 0, 0),
             "GARANTIA": 120,
             "STATUS_NOME": "Em manutencao",
-            "TECNICO_NOME": "Tecnico CPlus",
+            "TECNICO_NOME": "Tecnico Banco externo",
             "VALOR": Decimal("350.50"),
         },
     ]
@@ -321,7 +324,7 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
     monkeypatch.setattr(importer, "test_connection", lambda: {"success": True, "driver": "fake", "table_count": 11})
     monkeypatch.setattr(importer, "_scalar", lambda sql, params=(): 3)
 
-    row_importer = CPlusFirebirdImporter(FirebirdCredentials("fake.fdb"))
+    row_importer = ExternalFirebirdImporter(FirebirdCredentials("fake.fdb"))
     monkeypatch.setattr(row_importer, "_rows", lambda sql, params=(): [{"sql": sql.strip().split()[1]}])
     assert row_importer._cliente_rows()
     assert row_importer._produto_rows()
@@ -352,33 +355,34 @@ def test_schema_preview_commit_e_log_cplus(monkeypatch, tmp_path):
 
     with app.app_context():
         preview = importer.preview()
-        assert preview["counts"] == {"clientes": 3, "produtos": 3, "ordens_servico": 3}
+        assert preview["counts"] == {"clientes": 3, "produtos": 3, "ordens_servico": 3, "financeiro": 0}
         assert preview["invalid_records"]["clientes"][0]["reason"] == "nome vazio"
         assert preview["invalid_records"]["ordens_servico"][0]["source_id"] == "100"
         assert preview["probable_duplicates"]["clientes"][0]["reason"] == "CPF ja existe"
         assert preview["probable_duplicates"]["produtos"][0]["reason"] == "codigo ja existe"
         assert preview["probable_duplicates"]["ordens_servico"][0]["reason"] == "OS semelhante ja existe"
         assert preview["examples"]["ordens_servico"][0]["cliente"] is None
-        assert "Commit exige usuario admin" in preview["manual_confirmation"][3]
+        assert "Commit exige" in preview["manual_confirmation"][3]
 
-        with pytest.raises(CPlusImportError, match="Usuario admin"):
+        with pytest.raises(ExternalImportError, match="admin"):
             importer.commit(admin_user="Admin")
         result = importer.commit(admin_user="Admin", admin_user_id=admin_id)
-        assert result["created"] == {"clientes": 1, "produtos": 1, "ordens_servico": 1}
-        assert result["skipped"] == {"clientes": 2, "produtos": 2, "ordens_servico": 2}
+        assert result["created"] == {"clientes": 1, "produtos": 1, "ordens_servico": 1, "financeiro": 0, "itens_os": 0}
+        assert result["skipped"] == {"clientes": 2, "produtos": 2, "ordens_servico": 2, "financeiro": 0, "itens_os": 0}
         assert Cliente.query.filter_by(nome="Nova Pessoa").count() == 1
         assert Peca.query.filter_by(codigo="NOVO").count() == 1
         imported_order = OrdemServico.query.filter_by(numero_serie="SN3").one()
+        assert imported_order.numero == 2602
         assert imported_order.status == "em_reparo"
-        assert imported_order.tecnico_nome == "Tecnico CPlus"
+        assert imported_order.tecnico_nome == "Tecnico Banco externo"
 
-        logs = list((tmp_path / "import_logs").glob("cplus_import_*.json"))
+        logs = list((tmp_path / "import_logs").glob("external_import_*.json"))
         assert logs
         payload = json.loads(logs[-1].read_text(encoding="utf-8"))
         assert payload["created"]["ordens_servico"] == 1
 
-        failing = CPlusFirebirdImporter(FirebirdCredentials(str(tmp_path / "falha.fdb")))
-        monkeypatch.setattr(failing, "preview", lambda: {"selected_tables": [], "counts": {}})
+        failing = ExternalFirebirdImporter(FirebirdCredentials(str(tmp_path / "falha.fdb")))
+        monkeypatch.setattr(failing, "preview", lambda: {"selected_tables": ["CLIENTE"], "counts": {}, "schema": {"tables": {"CLIENTE": {}}}})
         monkeypatch.setattr(failing, "_cliente_rows", lambda: (_ for _ in ()).throw(RuntimeError("falha commit")))
         monkeypatch.setattr(failing, "_produto_rows", lambda: [])
         monkeypatch.setattr(failing, "_os_rows", lambda: [])

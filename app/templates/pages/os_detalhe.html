@@ -1,21 +1,35 @@
-﻿{% extends 'base.html' %}
-{% block title %}OS #{{ '%04d' % os.id }} — Zokyo{% endblock %}
-{% block breadcrumb %}OS #{{ '%04d' % os.id }}{% endblock %}
-{% block topbar_action %}<a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">← Voltar</a>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}OS #{{ os.codigo_os }} — Zokyo{% endblock %}
+{% block breadcrumb %}OS #{{ os.codigo_os }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">Voltar para OS</a>{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
   <div>
-    <div class="page-title">OS #{{ '%04d' % os.id }}</div>
+    <div class="page-title">OS #{{ os.codigo_os }}</div>
     <div class="page-sub">{{ os.tipo_aparelho }} {{ os.marca }} {{ os.modelo }} · {{ os.cliente.nome if os.cliente else '—' }}</div>
   </div>
   <div class="flex-gap">
     <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank">PDF</a>
     <button id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">WhatsApp</button>
+    {% if os.baixada %}
+    <form method="post" action="{{ url_for('pages.os_restaurar', id=os.id) }}" class="inline-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-ghost btn-sm">Restaurar</button>
+    </form>
+    {% elif nivel_usuario in ('admin', 'operacional') %}
+    <form method="post" action="{{ url_for('pages.os_baixar', id=os.id) }}" class="inline-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-ghost btn-sm">Arquivar OS</button>
+    </form>
+    {% endif %}
     <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-primary btn-sm">Editar OS</a>
   </div>
 </div>
+{% if os.baixada %}
+<div class="alert a-amber">Esta OS está arquivada e não aparece na lista principal.</div>
+{% endif %}
 
 <div class="g64">
 
@@ -25,20 +39,21 @@
     <!-- Equipamento -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">💻 Equipamento</div>
+        <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Equipamento</div>
         <div class="flex-gap">
           {% set sc = {'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red','em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'}[os.status] if os.status else 'b-gray' %}
           <span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span>
-          {% set prio_cls = {'alta':'b-red','normal':'b-blue','baixa':'b-gray'}[os.prio] if os.prio else 'b-gray' %}
-          <span class="badge {{ prio_cls }}"><span class="dot"></span>{{ os.prio | capitalize }}</span>
-          {% if os.em_garantia %}<span class="badge b-green"><span class="dot"></span>Em Garantia</span>{% endif %}
+          {% set prio_cls = {'alta':'b-red','urgente':'b-red','critico':'b-red','normal':'b-blue','baixa':'b-gray'}.get(os.prio, 'b-gray') %}
+          <span class="badge {{ prio_cls }}"><span class="dot"></span>{{ priority_map.get(os.prio, os.prio or 'normal') }}</span>
+          {% if os.em_garantia %}<span class="badge b-green"><span class="dot"></span>Em garantia</span>{% endif %}
         </div>
       </div>
       <div class="card-body">
         <div class="d-row"><div class="d-label">Tipo</div><div class="d-value">{{ os.tipo_aparelho or '—' }}</div></div>
-        <div class="d-row"><div class="d-label">Marca/Modelo</div><div class="d-value fw6">{{ os.marca or '' }} {{ os.modelo or '' }}</div></div>
-        <div class="d-row"><div class="d-label">Nº Série</div><div class="d-value td-mono">{{ os.numero_serie or '—' }}</div></div>
+        <div class="d-row"><div class="d-label">Marca/modelo</div><div class="d-value fw6">{{ os.marca or '' }} {{ os.modelo or '' }}</div></div>
+        <div class="d-row"><div class="d-label">Número de série</div><div class="d-value td-mono">{{ os.numero_serie or '—' }}</div></div>
         <div class="d-row"><div class="d-label">Técnico</div><div class="d-value">{{ os.tecnico_nome or 'Não atribuído' }}</div></div>
+        <div class="d-row"><div class="d-label">Atendimento</div><div class="d-value">{{ attendance_map.get(os.tipo_atendimento, os.tipo_atendimento or 'Balcão') }}</div></div>
         <div class="d-row"><div class="d-label">Entrada</div><div class="d-value">{{ os.data_entrada | fmtdata }}</div></div>
         <div class="d-row"><div class="d-label">Previsão</div><div class="d-value">{{ os.data_prev | fmtdata if os.data_prev else '—' }}</div></div>
         <div class="d-row"><div class="d-label">Saída</div><div class="d-value">{{ os.data_saida | fmtdata if os.data_saida else '—' }}</div></div>
@@ -51,22 +66,22 @@
 
     <!-- Diagnóstico -->
     <div class="card">
-      <div class="card-header"><div class="card-title">🔬 Diagnóstico Técnico</div></div>
+      <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg> Defeito e serviço</div></div>
       <div class="card-body parts-body">
         <div>
-          <div class="fs-title label-amber">① Defeito Alegado pelo Cliente</div>
+          <div class="fs-title label-amber">1. Defeito informado pelo cliente</div>
           <div class="note-block note-amber">
             {{ os.defeito_alegado or '—' }}
           </div>
         </div>
         <div>
-          <div class="fs-title label-sky">② Defeito Encontrado</div>
+          <div class="fs-title label-sky">2. Defeito encontrado</div>
           <div class="note-block note-sky">
             {{ os.defeito_encontrado or '—' }}
           </div>
         </div>
         <div>
-          <div class="fs-title label-green">③ Solução Aplicada</div>
+          <div class="fs-title label-green">3. Solução aplicada</div>
           <div class="note-block note-green">
             {{ os.solucao or '—' }}
           </div>
@@ -124,8 +139,8 @@
     <!-- Peças — usando pecas_dict com quantidade/valor corretos da tabela os_pecas -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">🧩 Peças Utilizadas</div>
-        <button class="btn btn-ghost btn-sm" data-action="os-peca-adicionar">+ Adicionar</button>
+        <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Peças Utilizadas</div>
+        <button class="btn btn-ghost btn-sm" data-action="os-peca-adicionar">Adicionar</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -140,7 +155,7 @@
                 <td class="td-mono txt-blue txt-r">{{ p.subtotal | moeda }}</td>
                 <td data-stop>
                   <button class="btn btn-ghost btn-xs danger-text"
-                          data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">✕</button>
+                          data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">Remover</button>
                 </td>
               </tr>
               {% endfor %}
@@ -161,7 +176,7 @@
 
     {% if os.checklist_snapshot %}
     <div class="card">
-      <div class="card-header"><div class="card-title">Checklist tecnico</div></div>
+      <div class="card-header"><div class="card-title">Checklist técnico</div></div>
       <div class="card-body">
         {% for item in os.checklist_snapshot %}<label class="check-inline mb8"><input type="checkbox" data-checklist-item="{{ item|e }}" {{ 'checked' if os.checklist_answers and os.checklist_answers.get(item) is sameas true }}> {{ item }}</label>{% endfor %}
         <div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-checklist-salvar">Salvar checklist</button></div>
@@ -170,10 +185,10 @@
     {% endif %}
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Termo de autorizacao</div></div>
+      <div class="card-header"><div class="card-title">Termo de autorização</div></div>
       <div class="card-body">
         {% if os.authorization_accepted_at %}<div class="alert a-green">Aceito por {{ os.authorization_accepted_by }} em {{ os.authorization_accepted_at|fmtdata }}.</div>
-        {% else %}<div class="form-group"><label>Responsavel pelo aceite</label><input id="authorization-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><label class="check-inline"><input id="authorization-accepted" type="checkbox"> Autorizo diagnostico e reparo conforme o orcamento aprovado.</label><div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-autorizacao-salvar">Registrar aceite</button></div>{% endif %}
+        {% else %}<div class="form-group"><label>Responsável pelo aceite</label><input id="authorization-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><label class="check-inline"><input id="authorization-accepted" type="checkbox"> Autorizo diagnóstico e reparo conforme o orçamento aprovado.</label><div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-autorizacao-salvar">Registrar aceite</button></div>{% endif %}
       </div>
     </div>
 
@@ -182,13 +197,13 @@
       <div class="card-body">
         {% set active_signature = os.signatures|selectattr('revoked_at', 'none')|list|first %}
         {% if active_signature %}<img class="signature-preview" src="{{ url_for('os.baixar_assinatura', id=os.id) }}" alt="Assinatura de {{ active_signature.signer_name }}"><div class="muted-sm">{{ active_signature.signer_name }} - {{ active_signature.created_at|fmtdata }} - SHA-256 {{ active_signature.sha256[:12] }}...</div>
-        {% else %}<div class="form-group"><label>Nome do signatario</label><input id="signature-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><canvas id="signature-canvas" class="signature-canvas" width="600" height="180" aria-label="Area para assinatura"></canvas><div class="form-actions"><button class="btn btn-ghost btn-sm" data-action="os-assinatura-limpar">Limpar</button><button class="btn btn-primary btn-sm" data-action="os-assinatura-salvar">Registrar assinatura</button></div>{% endif %}
+        {% else %}<div class="form-group"><label>Nome de quem assina</label><input id="signature-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><canvas id="signature-canvas" class="signature-canvas" width="600" height="180" aria-label="Área para assinatura"></canvas><div class="form-actions"><button class="btn btn-ghost btn-sm" data-action="os-assinatura-limpar">Limpar</button><button class="btn btn-primary btn-sm" data-action="os-assinatura-salvar">Registrar assinatura</button></div>{% endif %}
       </div>
     </div>
 
     <!-- Histórico -->
     <div class="card">
-      <div class="card-header"><div class="card-title">⏱ Histórico de Status</div></div>
+      <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg> Histórico de status</div></div>
       <div class="card-body">
         <div class="timeline">
           {% if historico %}
@@ -202,7 +217,7 @@
               <div class="tl-text">
                 {% if h.status_anterior %}
                   <span class="txt-faint">{{ status_map.get(h.status_anterior, h.status_anterior) }}</span>
-                  → <strong>{{ status_map.get(h.status_novo, h.status_novo) }}</strong>
+                  &gt; <strong>{{ status_map.get(h.status_novo, h.status_novo) }}</strong>
                 {% else %}
                   OS criada · <strong>{{ status_map.get(h.status_novo, h.status_novo) }}</strong>
                 {% endif %}
@@ -235,7 +250,7 @@
         <form method="POST" action="{{ url_for('portal.gerar_link', os_id=os.id) }}">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="purpose" value="budget">
-          <button class="btn btn-outline btn-sm btn-full-start" type="submit">Gerar aprovacao de orcamento</button>
+          <button class="btn btn-outline btn-sm btn-full-start" type="submit">Gerar aprovação de orçamento</button>
         </form>
       </div>
     </div>
@@ -246,22 +261,58 @@
         <div class="card-title txt-green">Financeiro</div>
       </div>
       <div class="card-body">
-        <div class="d-row"><div class="d-label">Mão de Obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
+        <div class="d-row"><div class="d-label">Mão de obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
         <div class="d-row"><div class="d-label">Peças</div><div class="d-value txt-r">{{ os.valor_pecas | moeda }}</div></div>
         {% if os.desconto and os.desconto > 0 %}
         <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">− {{ os.desconto | moeda }}</div></div>
         {% endif %}
+        <div class="d-row"><div class="d-label">Pago</div><div class="d-value txt-r txt-green">{{ valor_pago | moeda }}</div></div>
+        <div class="d-row"><div class="d-label">Restante</div><div class="d-value txt-r {{ 'txt-green' if valor_restante <= 0 else 'txt-red' }}">{{ valor_restante | moeda }}</div></div>
         <div class="total-row">
           <div class="total-row-label">Total</div>
           <div class="total-row-value">{{ os.valor_total | moeda }}</div>
         </div>
+        {% if valor_restante > 0 %}
+        <form method="POST" action="{{ url_for('pages.os_pagamento_parcial', id=os.id) }}" class="payment-partial-form mt16">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <div class="form-row fr2">
+            <div class="form-group form-group-compact">
+              <label>Pagamento parcial</label>
+              <input type="number" name="valor" step="0.01" min="0.01" max="{{ '%.2f'|format(valor_restante) }}" value="{{ '%.2f'|format(valor_restante) }}">
+            </div>
+            <div class="form-group form-group-compact">
+              <label>Forma</label>
+              <select name="forma_pagamento">
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="PIX">PIX</option>
+                <option value="Cartao Debito">Cartão de débito</option>
+                <option value="Cartao Credito">Cartão de crédito</option>
+                <option value="Transferencia">Transferência</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm btn-full-start" type="submit">Registrar pagamento</button>
+        </form>
+        {% endif %}
+        {% if pagamentos %}
+        <div class="payment-history mt16">
+          <div class="muted-xs fw7 mb8">Pagamentos registrados</div>
+          {% for pagamento in pagamentos[:5] %}
+          <div class="payment-history-row">
+            <span>{{ pagamento.data_pagamento | fmtdata if pagamento.data_pagamento else pagamento.criado_em | fmtdata }}</span>
+            <strong>{{ pagamento.valor | moeda }}</strong>
+            <small>{{ pagamento.forma_pagamento or 'Sem forma' }}</small>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
       </div>
     </div>
 
     <!-- Cliente -->
     <div class="card">
       <div class="card-header card-header-gradient">
-        <div class="card-title">👤 Cliente</div>
+        <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg> Cliente</div>
         {% if os.cliente %}
         <a href="{{ url_for('pages.clientes') }}" class="btn btn-sm btn-header-light">Ver todos</a>
         {% endif %}
@@ -269,7 +320,7 @@
       <div class="card-body">
         {% if os.cliente %}
           <div class="customer-name">{{ os.cliente.nome }}</div>
-          {% if os.cliente.telefone %}<div class="d-row d-row-compact"><div class="d-label">Fone</div><div class="d-value">{{ os.cliente.telefone }}</div></div>{% endif %}
+          {% if os.cliente.telefone %}<div class="d-row d-row-compact"><div class="d-label">Telefone</div><div class="d-value">{{ os.cliente.telefone }}</div></div>{% endif %}
           {% if os.cliente.cidade %}<div class="d-row d-row-compact"><div class="d-label">Cidade</div><div class="d-value">{{ os.cliente.cidade }}{% if os.cliente.uf %}/{{ os.cliente.uf }}{% endif %}</div></div>{% endif %}
         {% else %}
           <span class="txt-faint">Cliente não encontrado</span>
@@ -279,24 +330,33 @@
 
     <!-- Alterar Status -->
     <div class="card">
-      <div class="card-header"><div class="card-title">🔄 Alterar Status</div></div>
+      <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg> Alterar status</div></div>
       <div class="card-body status-actions">
         {% for key, label in status_map.items() %}
           {% if key != os.status %}
             {% if key == 'entregue' %}
-                <button type="button" class="btn btn-success btn-sm btn-full-start"
-                  data-action="os-pagamento-abrir">✓ {{ label }}</button>
+              {% if valor_restante > 0 %}
+                <button type="button" class="btn btn-ghost btn-sm btn-full-start" disabled title="Registre o pagamento total antes de finalizar">
+                  Entregar somente após pagamento total
+                </button>
+              {% else %}
+                <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="status" value="{{ key }}">
+                  <button type="submit" class="btn btn-success btn-sm btn-full-start">{{ label }}</button>
+                </form>
+              {% endif %}
             {% elif key == 'cancelado' %}
             <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}" data-confirm="Cancelar esta OS?">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="status" value="{{ key }}">
-              <button type="submit" class="btn btn-danger btn-sm btn-full-start">✕ {{ label }}</button>
+              <button type="submit" class="btn btn-danger btn-sm btn-full-start">{{ label }}</button>
             </form>
             {% else %}
             <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}">
               <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="status" value="{{ key }}">
-              <button type="submit" class="btn btn-ghost btn-sm btn-full-start">→ {{ label }}</button>
+              <button type="submit" class="btn btn-ghost btn-sm btn-full-start">{{ label }}</button>
             </form>
             {% endif %}
           {% endif %}
@@ -304,7 +364,7 @@
       </div>
     </div>
 
-    <!-- Deletar OS (só admin) -->
+    <!-- Excluir OS (só admin) -->
     {% if nivel_usuario == 'admin' %}
         <form method="POST" action="{{ url_for('pages.os_deletar', id=os.id) }}"
           data-confirm="Excluir esta OS permanentemente?">
@@ -318,13 +378,6 @@
   </div>
 </div>
 
-<!-- Form oculto para "Entregue" com forma de pagamento -->
-<form id="form-entregue" method="POST" action="{{ url_for('pages.os_status', id=os.id) }}" class="hidden">
-  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-  <input type="hidden" name="status" value="entregue">
-  <input type="hidden" name="forma_pagamento" id="forma_pgto_hidden">
-</form>
-
 <script nonce="{{ csp_nonce }}">
 const STATUS_LABELS = {
   recepcao:'Recepção', em_analise:'Em Análise', aguardando_aprovacao:'Aprovação',
@@ -337,6 +390,9 @@ const OS_DATA = {
   status:   OS_STATUS,
   statusLabel: STATUS_LABELS[OS_STATUS] || OS_STATUS,
   total:    {{ os.valor_total | moeda | tojson }},
+  pago:     {{ valor_pago | moeda | tojson }},
+  restante: {{ valor_restante | moeda | tojson }},
+  restanteNumero: {{ '%.2f'|format(valor_restante) }},
   solucao:  {{ (os.solucao or '') | tojson }},
   telefone: {{ ((os.cliente.telefone or '') | replace(' ','') | replace('(','') | replace(')','') | replace('-','')) | tojson if os.cliente else '' | tojson }}
 };
@@ -422,34 +478,6 @@ async function salvarAssinatura() {
   if (response.ok) location.reload(); else { const data=await response.json(); showToast(data.erro || 'Falha ao registrar assinatura','red'); }
 }
 
-function abrirModalPagamento() {
-  openModal('Registrar recebimento', `
-    <div class="payment-preview">
-      <div class="payment-preview-label">Valor Total da OS</div>
-      <div class="payment-preview-value">{{ os.valor_total | moeda }}</div>
-    </div>
-    <div class="form-group mb20">
-      <label>Forma de Pagamento *</label>
-      <select id="sel-forma-pgto">
-        <option value="Dinheiro">💵 Dinheiro</option>
-        <option value="PIX">📲 PIX</option>
-        <option value="Cartão Débito">💳 Cartão Débito</option>
-        <option value="Cartão Crédito">💳 Cartão Crédito</option>
-        <option value="Transferência">🏦 Transferência</option>
-      </select>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="os-pagamento-confirmar">✓ Confirmar Recebimento</button>
-    </div>`);
-}
-function confirmarPagamento() {
-  const forma = document.getElementById('sel-forma-pgto')?.value || 'Não informado';
-  document.getElementById('forma_pgto_hidden').value = forma;
-  closeModal();
-  document.getElementById('form-entregue').submit();
-}
-
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
@@ -457,8 +485,6 @@ document.addEventListener('click', (e) => {
   if (action === 'os-whatsapp') return enviarWhatsApp();
   if (action === 'os-peca-adicionar') return abrirModalAdicionarPeca();
   if (action === 'os-peca-confirmar') return confirmarAdicionarPeca();
-  if (action === 'os-pagamento-abrir') return abrirModalPagamento();
-  if (action === 'os-pagamento-confirmar') return confirmarPagamento();
   if (action === 'os-checklist-salvar') return salvarChecklist();
   if (action === 'os-autorizacao-salvar') return salvarAutorizacao();
   if (action === 'os-assinatura-limpar') return limparAssinatura();
@@ -479,4 +505,3 @@ document.addEventListener('change', (e) => {
 {% block extra_scripts %}
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/os_detalhe.js') }}"></script>
 {% endblock %}
-

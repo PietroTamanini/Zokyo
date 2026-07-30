@@ -5,7 +5,7 @@
 <div class="auth-head"><div class="auth-brand-lockup"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>{{ APP_SHORT_NAME }}</span></div><h1 id="title">Verificação em duas etapas</h1><p class="auth-subtitle-lg">Digite o código do autenticador ou um código de recuperação.</p></div>
 {% include 'partials/_flash.html' %}
 <form method="POST"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<div class="form-group"><label for="codigo">Codigo</label><input id="codigo" name="codigo" required autofocus autocomplete="one-time-code" inputmode="numeric"></div>
+<div class="form-group"><label for="codigo">Código</label><input id="codigo" name="codigo" required autofocus autocomplete="one-time-code" inputmode="numeric"></div>
 <button class="btn btn-primary btn-block btn-lg" type="submit">Verificar</button></form>
 <p class="auth-action"><a href="{{ url_for('auth.login_page') }}">Cancelar e voltar</a></p>
 </section></main></body></html>

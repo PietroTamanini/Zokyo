@@ -28,6 +28,8 @@ def _escape_like(q: str) -> str:
 
 
 @pecas_bp.route("/api/pecas", methods=["GET"])
+@pecas_bp.route("/api/v1/produtos", methods=["GET"])
+@pecas_bp.route("/api/v1/pecas", methods=["GET"])
 @login_required
 def listar():
     q             = sanitize_search_query(request.args.get("q", ""), max_length=100)
@@ -42,12 +44,16 @@ def listar():
 
 
 @pecas_bp.route("/api/pecas/<int:id>", methods=["GET"])
+@pecas_bp.route("/api/v1/produtos/<int:id>", methods=["GET"])
+@pecas_bp.route("/api/v1/pecas/<int:id>", methods=["GET"])
 @login_required
 def obter(id):
     return jsonify(Peca.query.filter_by(id=id).first_or_404().to_dict())
 
 
 @pecas_bp.route("/api/pecas", methods=["POST"])
+@pecas_bp.route("/api/v1/produtos", methods=["POST"])
+@pecas_bp.route("/api/v1/pecas", methods=["POST"])
 @nivel_required("admin", "operacional")
 def criar():
     data = request.get_json(silent=True) or {}
@@ -81,7 +87,7 @@ def criar():
 
     fornecedor_id = data.get("fornecedor_id") or None
     if fornecedor_id and not Fornecedor.query.filter_by(id=fornecedor_id, ativo=True).first():
-        return jsonify({"success": False, "erro": "Fornecedor invalido para esta organizacao"}), 400
+        return jsonify({"success": False, "erro": "Fornecedor inválido para esta organização"}), 400
     peca = Peca(
         nome=nome, codigo=codigo,
         quantidade=quantidade, custo=custo, margem=margem,
@@ -97,6 +103,8 @@ def criar():
 
 
 @pecas_bp.route("/api/pecas/<int:id>", methods=["PUT"])
+@pecas_bp.route("/api/v1/produtos/<int:id>", methods=["PUT"])
+@pecas_bp.route("/api/v1/pecas/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
@@ -132,7 +140,7 @@ def atualizar(id):
     if "fornecedor_id" in data:
         fornecedor_id = data["fornecedor_id"] or None
         if fornecedor_id and not Fornecedor.query.filter_by(id=fornecedor_id, ativo=True).first():
-            return jsonify({"success": False, "erro": "Fornecedor invalido para esta organizacao"}), 400
+            return jsonify({"success": False, "erro": "Fornecedor inválido para esta organização"}), 400
         peca.fornecedor_id = fornecedor_id
 
     db.session.commit()
@@ -140,11 +148,13 @@ def atualizar(id):
 
 
 @pecas_bp.route("/api/pecas/<int:id>", methods=["DELETE"])
+@pecas_bp.route("/api/v1/produtos/<int:id>", methods=["DELETE"])
+@pecas_bp.route("/api/v1/pecas/<int:id>", methods=["DELETE"])
 @nivel_required("admin")
 def deletar(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
     if peca.ordens:
-        return jsonify({"success": False, "erro": "Peca usada em OS deve ser preservada"}), 409
+        return jsonify({"success": False, "erro": "Peça usada em OS deve ser preservada"}), 409
     db.session.delete(peca)
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Peça removida"})
@@ -202,13 +212,13 @@ def receber_lote(id):
         return jsonify({"erro": "Quantidade e custo unitario devem ser numericos"}), 400
     supplier_id = data.get("fornecedor_id") or None
     if supplier_id and not Fornecedor.query.filter_by(id=supplier_id, ativo=True).first():
-        return jsonify({"erro": "Fornecedor invalido"}), 400
+        return jsonify({"erro": "Fornecedor inválido"}), 400
     try:
         expires_at = datetime.fromisoformat(str(data["validade"])[:10]) if data.get("validade") else None
     except ValueError:
         return jsonify({"erro": "Validade invalida"}), 400
     if len(code) < 2:
-        return jsonify({"erro": "Codigo do lote e obrigatorio"}), 400
+        return jsonify({"erro": "Código do lote é obrigatório"}), 400
     try:
         lot = receive_lot(
             part, session["usuario_id"], code, quantity, unit_cost, reason,

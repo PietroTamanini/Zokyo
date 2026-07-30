@@ -3,6 +3,7 @@ import types
 from datetime import datetime, timedelta, timezone
 
 import pyotp
+from werkzeug.datastructures import MultiDict
 
 from app import create_app
 from app.extensions import db
@@ -70,7 +71,9 @@ def _admin_session(client, admin_id):
 def _form(client, path, data=None):
     with client.session_transaction() as session:
         session["_csrf_token"] = "edge-csrf"
-    return client.post(path, data={**(data or {}), "_csrf_token": "edge-csrf"}, headers={"X-CSRFToken": "edge-csrf"})
+    payload = MultiDict(data or {})
+    payload.add("_csrf_token", "edge-csrf")
+    return client.post(path, data=payload, headers={"X-CSRFToken": "edge-csrf"})
 
 
 def _json(client, path, payload=None):
@@ -243,6 +246,32 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
         "accent_color": "#222222",
         "dias_vencimento": "x",
     }).status_code == 302
+    assert _form(client, "/configuracoes/os-opcoes", MultiDict([
+        ("status_key[]", "recepcao"),
+        ("status_label[]", "Recepção"),
+        ("status_key[]", "aguardando_peca"),
+        ("status_label[]", "Aguardando peça"),
+        ("status_key[]", "entregue"),
+        ("status_label[]", "Entregue"),
+        ("priority_key[]", "normal"),
+        ("priority_label[]", "Normal"),
+        ("priority_key[]", "alta"),
+        ("priority_label[]", "Alta"),
+        ("attendance_key[]", "balcao"),
+        ("attendance_label[]", "Balcão"),
+        ("attendance_key[]", "coleta"),
+        ("attendance_label[]", "Coleta"),
+        ("entry_checklist_key[]", "liga"),
+        ("entry_checklist_label[]", "Liga"),
+        ("entry_checklist_key[]", "tela"),
+        ("entry_checklist_label[]", "Tela"),
+    ])).status_code == 302
+    with app.app_context():
+        cfg = Configuracao.get()
+        assert cfg.get_os_status_map()["aguardando_peca"] == "Aguardando peça"
+        assert cfg.get_os_priority_map()["alta"] == "Alta"
+        assert cfg.get_attendance_type_map()["coleta"] == "Coleta"
+        assert cfg.get_entry_checklist_options()[1]["label"] == "Tela"
     assert _form(client, "/configuracoes/dashboard", {
         "meta_receita_mensal": "x",
         "alerta_caixa_minimo": "x",

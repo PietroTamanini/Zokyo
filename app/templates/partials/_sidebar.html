@@ -3,131 +3,129 @@
   {% set nav_endpoint = request.endpoint or '' %}
   {% set nav_path = request.path or '' %}
   {% set brand_name = cfg.nome_empresa if cfg else APP_NAME %}
+
   <div class="logo-area">
+    <div class="logo-mark" aria-hidden="true">Z</div>
     <div class="logo-content">
       <div class="logo-brand" title="{{ brand_name }}">{{ brand_name }}</div>
       <div class="logo-tag">Assistência técnica</div>
     </div>
-    <button class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">✕</button>
+    <button class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">x</button>
   </div>
 
   <nav aria-label="Navegação principal">
-    <section class="nav-module" data-nav-module="principal">
-    <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-principal"><span>Principal</span><span class="nav-chevron" aria-hidden="true">⌄</span></button>
-    <div class="nav-module-links" id="nav-principal">
+    <form class="sidebar-search" action="{{ url_for('pages.zokyo_pesquisar') }}" method="GET">
+      <button type="submit" aria-label="Pesquisar"><svg class="ui-icon" aria-hidden="true"><use href="#i-search"></use></svg></button>
+      <input type="search" name="termo" placeholder="Buscar cliente, OS ou produto" autocomplete="off">
+    </form>
 
-    <a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path == '/' }}" href="{{ url_for('pages.dashboard') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-      Dashboard
-    </a>
+    <section class="nav-module" data-nav-module="zokyo">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-zokyo">
+        <span>Atendimento</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-zokyo">
+        <a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path in ['/', '/zokyo', '/home'] }}" href="{{ url_for('pages.dashboard') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-home"></use></svg></span>
+          Início
+        </a>
+        <a class="nav-item {{ 'active' if nav_active and 'clientes' in nav_active or nav_path.startswith('/clientes') }}" href="{{ url_for('pages.clientes') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
+          Clientes
+        </a>
+        <a class="nav-item {{ 'active' if nav_active and 'estoque' in nav_active or nav_path.startswith('/produtos') }}" href="{{ url_for('pages.estoque') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
+          Produtos
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'servicos' or nav_path.startswith('/servicos') }}" href="{{ url_for('pages.servicos') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
+          Servi&ccedil;os
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'vendas' or nav_path.startswith('/vendas') }}" href="{{ url_for('pages.vendas') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
+          Vendas
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint != 'pages.os_baixadas' and (nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or (nav_path.startswith('/os') and not nav_path.startswith('/os/baixadas'))) }}" href="{{ url_for('pages.os_lista') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Ordens de Servi&ccedil;o
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_baixadas' or nav_path.startswith('/os/baixadas') }}" href="{{ url_for('pages.os_baixadas') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-archive"></use></svg></span>
+          OS baixadas
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'garantias' or nav_path.startswith('/garantias') }}" href="{{ url_for('pages.garantias') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>
+          Garantias
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'arquivos' or nav_path.startswith('/arquivos') }}" href="{{ url_for('pages.arquivos') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
+          Arquivos
+        </a>
+        {% if is_financeiro %}
+        <a class="nav-item {{ 'active' if nav_active and 'financeiro' in nav_active or nav_path.startswith('/financeiro') or nav_path.startswith('/lancamentos') }}" href="{{ url_for('pages.financeiro') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
+          Financeiro
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'cobrancas' or nav_path.startswith('/cobrancas') }}" href="{{ url_for('pages.cobrancas') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
+          Cobranças
+        </a>
+        {% endif %}
+      </div>
+    </section>
 
-    <a class="nav-item {{ 'active' if nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or nav_path.startswith('/os') }}" href="{{ url_for('pages.os_lista') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
-      Ordens de Serviço
-    </a>
-
-    <a class="nav-item {{ 'active' if active == 'laudos' }}" href="{{ url_for('laudos.index') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></span>
-      Laudos
-    </a>
-
-    <a class="nav-item {{ 'active' if active == 'coleta' }}" href="{{ url_for('pages.coleta') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
-      Coleta
-    </a>
-
-    <a class="nav-item {{ 'active' if active and 'clientes' in active }}" href="{{ url_for('pages.clientes') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87m-4-12a4 4 0 010 7.75"/></svg></span>
-      Clientes
-    </a>
-    </div></section>
-
-    <section class="nav-module" data-nav-module="operacao">
-    <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-operacao"><span>Operação</span><span class="nav-chevron" aria-hidden="true">⌄</span></button>
-    <div class="nav-module-links" id="nav-operacao">
-
-    <a class="nav-item {{ 'active' if active and 'estoque' in active }}" href="{{ url_for('pages.estoque') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></span>
-      Estoque
-    </a>
-
-    <a class="nav-item {{ 'active' if active and 'fornecedores' in active }}" href="{{ url_for('pages.fornecedores') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span>
-      Fornecedores
-    </a>
-    </div></section>
-
-    {# Financeiro: visível para admin e financeiro — SEMPRE mostrado se perfil correto #}
-    {% if is_financeiro %}
-    <section class="nav-module" data-nav-module="financeiro">
-    <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-financeiro"><span>Financeiro</span><span class="nav-chevron" aria-hidden="true">⌄</span></button>
-    <div class="nav-module-links" id="nav-financeiro">
-    <a class="nav-item {{ 'active' if active and 'financeiro' in active }}" href="{{ url_for('pages.financeiro') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>
-      Financeiro
-    </a>
-    <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg></span>
-      Relatórios
-    </a>
-    </div></section>
-    {% endif %}
-
-    {# Administração: visível apenas para admin — SEMPRE mostrado se admin #}
     {% if is_admin %}
     <section class="nav-module" data-nav-module="administracao">
-    <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-administracao"><span>Administração</span><span class="nav-chevron" aria-hidden="true">⌄</span></button>
-    <div class="nav-module-links" id="nav-administracao">
-
-    <a class="nav-item {{ 'active' if active and 'usuarios' in active }}" href="{{ url_for('usuarios.usuarios_page') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-1a6 6 0 0112 0v1"/></svg></span>
-      Usuários
-    </a>
-
-    <a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
-      Configurações
-    </a>
-
-    <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>
-      Notificações
-    </a>
-
-    <a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2m3 0-1 15H6L5 6"/><path d="M10 11v5m4-5v5"/></svg></span>
-      Retenção de dados
-    </a>
-
-    <a class="nav-item {{ 'active' if active and 'logs' in active }}" href="{{ url_for('logs.index') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
-      Logs do Sistema
-    </a>
-
-    <a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.cplus_page') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
-      Importação CPlus
-    </a>
-    </div></section>
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-administracao">
+        <span>Administração</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-administracao">
+        <a class="nav-item {{ 'active' if active and 'usuarios' in active }}" href="{{ url_for('usuarios.usuarios_page') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-user"></use></svg></span>
+          Usuários
+        </a>
+        <a class="nav-item {{ 'active' if active == 'permissoes' or nav_path.startswith('/permissoes') }}" href="{{ url_for('pages.zokyo_permissoes') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-lock"></use></svg></span>
+          Permissões
+        </a>
+        <a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-settings"></use></svg></span>
+          Dados da empresa
+        </a>
+        <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-mail"></use></svg></span>
+          Mensagens
+        </a>
+        <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
+          Relatórios
+        </a>
+        <a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Auditoria
+        </a>
+        <a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-database"></use></svg></span>
+          Privacidade
+        </a>
+        <a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.bancos_page') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-upload"></use></svg></span>
+          Importar dados
+        </a>
+      </div>
+    </section>
     {% endif %}
-
   </nav>
 
   <div class="sidebar-bottom">
     <a class="nav-item {{ 'active' if active == 'ajuda' }}" href="{{ url_for('pages.ajuda') }}">
-      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 014.8 1c0 2-2.3 2.1-2.3 4"/><path d="M12 18h.01"/></svg></span>
-      Central de Ajuda
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-help"></use></svg></span>
+      Ajuda
     </a>
-    <form method="POST" action="{{ url_for('auth.logout') }}" data-confirm="Sair do sistema?">
+    <form method="POST" action="{{ url_for('auth.logout') }}" class="sidebar-logout-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="user-row-btn">
-        <div class="user-row">
-          <div class="user-avatar">{{ current_user.nome[0].upper() if current_user else 'U' }}</div>
-          <div>
-            <div class="user-name">{{ current_user.nome if current_user else '—' }}</div>
-            <div class="user-sub">{{ current_user.nivel if current_user else '' }}</div>
-          </div>
-        </div>
+      <button class="nav-item" type="submit">
+        <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-log-out"></use></svg></span>
+        Sair
       </button>
     </form>
   </div>

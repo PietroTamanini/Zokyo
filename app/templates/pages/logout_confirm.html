@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sair - Zokyo{% endblock %}
+{% block breadcrumb %}Sair{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Sair do Sistema</div>
+    <div class="page-sub">Confirme para encerrar sua sessão neste dispositivo.</div>
+  </div>
+</div>
+
+<section class="page-section zokyo-form">
+  <form method="POST" action="{{ url_for('pages.zokyo_logout') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div class="form-actions">
+      <a class="btn btn-ghost" href="{{ url_for('pages.dashboard') }}">Cancelar</a>
+      <button class="btn btn-danger" type="submit">Sair</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

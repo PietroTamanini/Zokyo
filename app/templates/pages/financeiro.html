@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block title %}Financeiro — Zokyo{% endblock %}
 {% block breadcrumb %}Financeiro{% endblock %}
 
@@ -7,9 +7,13 @@
 <div class="page-header">
   <div>
     <div class="page-title">Financeiro</div>
-    <div class="page-sub">Receitas, despesas e fluxo de caixa · {{ periodo_label }}</div>
+    <div class="page-sub">Recebimentos, pagamentos e caixa · {{ periodo_label }}</div>
   </div>
-  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('transacoes.contabilidade_csv') }}">Exportar contabilidade</a><button class="btn btn-primary" data-action="transacao-nova">+ Nova Transação</button></div>
+  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('transacoes.contabilidade_csv') }}">Exportar contabilidade</a><a class="btn btn-primary" href="{{ url_for('pages.financeiro_adicionar_alias') }}">Receber ou pagar</a></div>
+</div>
+
+<div class="flow-guide mb20" aria-label="Como usar esta tela">
+  <div><strong>Use esta tela para saber o que entrou, o que saiu e o que ainda falta pagar ou receber.</strong> Para registrar dinheiro novo, clique em Receber ou pagar.</div>
 </div>
 
 <div class="g2 mb20">
@@ -22,11 +26,11 @@
   <div class="card-body">
     <form method="GET" class="filter-form">
       <div class="form-group form-group-compact">
-        <label>Data Inicial</label>
+        <label>Data inicial</label>
         <input type="date" name="data_ini" value="{{ filtros.data_ini }}" class="input-date">
       </div>
       <div class="form-group form-group-compact">
-        <label>Data Final</label>
+        <label>Data final</label>
         <input type="date" name="data_fim" value="{{ filtros.data_fim }}" class="input-date">
       </div>
       <div class="form-group form-group-compact">
@@ -47,11 +51,9 @@
       </div>
       <div class="filter-actions">
         <button type="submit" class="btn btn-primary btn-sm">Filtrar</button>
-        <a href="{{ url_for('pages.financeiro') }}" class="btn btn-ghost btn-sm">Mês Atual</a>
-        <!-- Atalhos rápidos -->
-        <a href="{{ url_for('pages.financeiro', preset='mes') }}" class="btn btn-ghost btn-sm">Este Mês</a>
-        <a href="{{ url_for('pages.financeiro', preset='ano') }}" class="btn btn-ghost btn-sm">Este Ano</a>
-        <a href="{{ url_for('pages.financeiro', preset='semana') }}" class="btn btn-ghost btn-sm">Esta Semana</a>
+        <a href="{{ url_for('pages.financeiro', preset='mes') }}" class="btn btn-ghost btn-sm">Este mês</a>
+        <a href="{{ url_for('pages.financeiro', preset='ano') }}" class="btn btn-ghost btn-sm">Este ano</a>
+        <a href="{{ url_for('pages.financeiro', preset='semana') }}" class="btn btn-ghost btn-sm">Esta semana</a>
       </div>
     </form>
   </div>
@@ -70,7 +72,7 @@
     <div class="fin-meta">pagas no período</div>
   </div>
   <div class="fin-block">
-    <div class="fin-label">Lucro Líquido</div>
+    <div class="fin-label">Resultado líquido</div>
     <div class="fin-val {{ 'txt-green' if lucro >= 0 else 'txt-red' }}">{{ lucro | moeda }}</div>
     <div class="fin-meta">receitas − despesas</div>
   </div>
@@ -80,14 +82,14 @@
 <div class="g2 mb24">
   <div class="card card-accent-green">
     <div class="card-body txt-c">
-      <div class="fin-label">A Receber</div>
+      <div class="fin-label">A receber</div>
       <div class="fin-val fin-val-lg txt-green">{{ a_receber | moeda }}</div>
       <div class="fin-meta">receitas pendentes</div>
     </div>
   </div>
   <div class="card card-accent-red">
     <div class="card-body txt-c">
-      <div class="fin-label">A Pagar</div>
+      <div class="fin-label">A pagar</div>
       <div class="fin-val fin-val-lg txt-red">{{ a_pagar | moeda }}</div>
       <div class="fin-meta">despesas pendentes</div>
     </div>
@@ -97,7 +99,7 @@
 <!-- Tabela de transações -->
 <div class="card">
   <div class="card-header">
-    <span class="card-title">Transações ({{ paginacao.total }})</span>
+    <span class="card-title">Lançamentos financeiros ({{ paginacao.total }})</span>
     <span class="muted-sm">{{ periodo_label }}</span>
   </div>
   <div class="table-wrap">
@@ -120,7 +122,7 @@
           <td class="td-mono txt-faint td-hide-sm">{{ t.data_vencimento | fmtdata if t.data_vencimento else '—' }}</td>
           <td class="td-strong muted-sm">
             {{ t.descricao }}
-            {% if t.os_id %}<span class="chip chip-spaced">OS #{{ '%04d'|format(t.os_id) }}</span>{% endif %}
+            {% if t.os_id %}<span class="chip chip-spaced">OS #{{ t.os.codigo_os if t.os else '%04d'|format(t.os_id) }}</span>{% endif %}
             {% if t.parcela_total > 1 %}<span class="chip chip-spaced">{{ t.parcela_numero }}/{{ t.parcela_total }}</span>{% endif %}
           </td>
           <td class="td-hide-sm"><span class="chip">{{ t.categoria or '—' }}</span></td>
@@ -144,26 +146,28 @@
           <td class="td-mono txt-faint td-hide-sm">{{ t.data_pagamento | fmtdata if t.data_pagamento else '—' }}</td>
           <td data-stop>
             <div class="action-row">
+              <a class="btn btn-nwe btn-xs" href="{{ url_for('pages.transacao_visualizar_alias', id=t.id) }}">Ver</a>
+              <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.transacao_editar_alias', id=t.id) }}">Editar</a>
               {% if t.status == 'pendente' %}
               <form method="POST" action="{{ url_for('pages.transacao_pagar', id=t.id) }}"
                     data-confirm="Confirmar pagamento de {{ t.valor | moeda }}?">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-success btn-xs">✓</button>
+                <button type="submit" class="btn btn-nwe5 btn-xs">Marcar pago</button>
               </form>
               {% endif %}
               {% if not t.conciliado_em %}<form method="POST" action="{{ url_for('pages.transacao_conciliar', id=t.id) }}" class="inline-form">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="referencia" value="manual-{{ t.id }}"><button type="submit" class="btn btn-outline btn-xs" title="Conciliar">C</button>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="referência" value="manual-{{ t.id }}"><button type="submit" class="btn btn-nwe6 btn-xs" title="Conciliar">C</button>
               </form>{% else %}<span class="badge b-blue" title="{{ t.conciliacao_ref }}">Conciliada</span>{% endif %}
               <form method="POST" action="{{ url_for('pages.transacao_deletar', id=t.id) }}"
                     data-confirm="Cancelar/excluir esta transação?">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs" aria-label="Excluir transação">Excluir</button>
+                <button type="submit" class="btn btn-nwe4 btn-xs" aria-label="Excluir transação">Excluir</button>
               </form>
             </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="td-empty">Nenhuma transação no período.</td></tr>
+        <tr><td colspan="8"><div class="empty"><div class="empty-title">Nenhum lançamento no período</div><div class="empty-sub">Altere as datas ou registre um recebimento/pagamento.</div><a class="btn btn-primary btn-sm" href="{{ url_for('pages.financeiro_adicionar_alias') }}">Receber ou pagar</a></div></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -172,11 +176,11 @@
   {% if paginacao.pages > 1 %}
   <div class="card-body pagination">
     {% if paginacao.has_prev %}
-      <a href="?page={{ paginacao.prev_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">← Anterior</a>
+      <a href="?page={{ paginacao.prev_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">Anterior</a>
     {% endif %}
     <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
     {% if paginacao.has_next %}
-      <a href="?page={{ paginacao.next_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">Próximo →</a>
+      <a href="?page={{ paginacao.next_num }}&data_ini={{ filtros.data_ini }}&data_fim={{ filtros.data_fim }}&tipo={{ filtros.tipo }}&status={{ filtros.status }}" class="btn btn-ghost btn-sm">Próximo</a>
     {% endif %}
   </div>
   {% endif %}

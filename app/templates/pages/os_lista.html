@@ -1,20 +1,35 @@
 {% extends 'base.html' %}
-{% block title %}Ordens de Serviço — Zokyo{% endblock %}
-{% block breadcrumb %}Ordens de Serviço{% endblock %}
-{% block topbar_action %}{% if nivel_usuario in ('admin', 'operacional') %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">+ Nova OS</a>{% endif %}{% endblock %}
+{% block title %}{{ 'OS Baixadas' if baixadas else 'Ordens de Serviço' }} — Zokyo{% endblock %}
+{% block breadcrumb %}{{ 'OS Baixadas' if baixadas else 'Ordens de Serviço' }}{% endblock %}
+{% block topbar_action %}{% if nivel_usuario in ('admin', 'operacional') %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">Abrir OS</a>{% endif %}{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <div class="page-title">Ordens de Serviço</div>
+    <div class="page-title">{{ 'OS baixadas' if baixadas else 'Ordens de serviço' }}</div>
     <div class="page-sub">{{ paginacao.total }} OS · Página {{ paginacao.page }}/{{ paginacao.pages }}</div>
   </div>
+  <div class="flex-gap">
+    {% if baixadas %}
+    <a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">Ver OS ativas</a>
+    {% else %}
+    <a href="{{ url_for('pages.os_baixadas') }}" class="btn btn-ghost btn-sm">OS baixadas</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="flow-guide mb20" aria-label="Como usar esta tela">
+  {% if baixadas %}
+  <div><strong>Use esta lista para consultar serviços já retirados.</strong> Quando precisar voltar uma OS para a rotina principal, clique em Restaurar.</div>
+  {% else %}
+  <div><strong>Use esta lista para acompanhar o atendimento.</strong> A ordem mais importante costuma ser: atrasadas, aguardando aprovação, em reparo e prontas para entrega.</div>
+  {% endif %}
 </div>
 
 <!-- Pipeline -->
 <div class="pipeline mb20">
   {% for key, label in status_map.items() %}
-  <a href="{{ url_for('pages.os_lista', status=key) }}" class="pipe-step {{ 'pi' if status_filtro == key }}">
+  <a href="{{ url_for('pages.os_baixadas' if baixadas else 'pages.os_lista', status=key) }}" class="pipe-step {{ 'pi' if status_filtro == key }}">
     <div class="pipe-num">
       {{ pipeline_os.get(key, 0) if pipeline_os is defined else '—' }}
     </div>
@@ -26,27 +41,79 @@
 <!-- Filtros -->
 <form method="GET" class="filter-bar">
   <input type="text" name="q" value="{{ q or '' }}"
-         placeholder="Buscar cliente, marca, modelo..." class="input-search-sm">
+         placeholder="Buscar cliente, número da OS, marca ou modelo" class="input-search-sm">
   <select name="status" class="select-auto" data-auto-submit>
-    <option value="">Todos status</option>
+    <option value="">Todos os status</option>
     {% for key, label in status_map.items() %}
     <option value="{{ key }}" {{ 'selected' if status_filtro == key }}>{{ label }}</option>
     {% endfor %}
   </select>
   <select name="prio" class="select-auto" data-auto-submit>
-    <option value="">Toda prioridade</option>
-    <option value="alta"   {{ 'selected' if prio_filtro == 'alta' }}>Alta</option>
-    <option value="normal" {{ 'selected' if prio_filtro == 'normal' }}>Normal</option>
-    <option value="baixa"  {{ 'selected' if prio_filtro == 'baixa' }}>Baixa</option>
+    <option value="">Todas as prioridades</option>
+    {% for item in priority_options %}
+    <option value="{{ item.key }}" {{ 'selected' if prio_filtro == item.key }}>{{ item.label }}</option>
+    {% endfor %}
   </select>
-  <button type="submit" class="btn btn-ghost btn-sm">Filtrar</button>
-  {% if q or status_filtro or prio_filtro %}
-  <a href="{{ url_for('pages.os_lista') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>
+  <select name="atendimento" class="select-auto" data-auto-submit>
+    <option value="">Todos os atendimentos</option>
+    {% for item in attendance_options %}
+    <option value="{{ item.key }}" {{ 'selected' if atendimento_filtro == item.key }}>{{ item.label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-ghost btn-sm">Aplicar filtros</button>
+  {% if q or status_filtro or prio_filtro or atendimento_filtro %}
+  <a href="{{ url_for('pages.os_baixadas' if baixadas else 'pages.os_lista') }}" class="btn btn-ghost btn-sm">Limpar filtros</a>
   {% endif %}
 </form>
 
+<div class="os-mobile-list">
+  {% for os in os_list %}
+  {% set atrasada = os.data_prev and os.data_prev < hoje_dt and os.status not in ['entregue','cancelado','pronto'] %}
+  {% set sc = {'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red','em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'}.get(os.status,'b-gray') %}
+  {% set tel = ((os.cliente.telefone or '') if os.cliente else '') | replace(' ','') | replace('(','') | replace(')','') | replace('-','') %}
+  {% set msg_wpp = ('Olá *' ~ (os.cliente.nome if os.cliente else '') ~ '*!\n\nSua OS *#' ~ os.codigo_os ~ '* está com status: *' ~ status_map.get(os.status, os.status) ~ '*\n\n' ~ (os.marca or '') ~ ' ' ~ (os.modelo or '') ~ '\nTotal: ' ~ (os.valor_total | moeda) ~ '\n\n' ~ (cfg.nome_empresa if cfg else 'Zokyo')) | urlencode %}
+  <article class="os-mobile-card">
+    <a class="os-mobile-main" href="{{ url_for('pages.os_detalhe', id=os.id) }}">
+      <div class="os-mobile-top">
+        <strong>#{{ os.codigo_os }}</strong>
+        <span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span>
+      </div>
+      <div class="os-mobile-client">{{ os.cliente.nome if os.cliente else 'Sem cliente' }}</div>
+      <div class="os-mobile-device">{{ os.tipo_aparelho or 'Equipamento' }} · {{ os.marca or '' }} {{ os.modelo or '' }}</div>
+      <div class="os-mobile-meta">
+        <span>{{ os.data_entrada | fmtdata }}</span>
+        <span class="{{ 'txt-overdue' if atrasada else '' }}">{{ os.data_prev | fmtdata if os.data_prev else 'Sem previsão' }}</span>
+        <span>{{ os.valor_total | moeda }}</span>
+      </div>
+    </a>
+    <div class="os-mobile-actions" data-stop>
+      <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs">Editar</a>
+      <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank">PDF</a>
+      {% if tel %}<a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener noreferrer">WhatsApp</a>{% endif %}
+      {% if baixadas %}
+      <form method="post" action="{{ url_for('pages.os_restaurar', id=os.id) }}" class="inline-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-ghost btn-xs">Restaurar</button>
+      </form>
+      {% elif nivel_usuario in ('admin', 'operacional') %}
+      <form method="post" action="{{ url_for('pages.os_baixar', id=os.id) }}" class="inline-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-ghost btn-xs">Arquivar</button>
+      </form>
+      {% endif %}
+    </div>
+  </article>
+  {% else %}
+  <div class="empty">
+    <div class="empty-title">Nenhuma OS encontrada</div>
+    <div class="empty-sub">Tente limpar os filtros ou abrir uma nova ordem de serviço.</div>
+    {% if not baixadas and nivel_usuario in ('admin', 'operacional') %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">Abrir OS</a>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
 <!-- Tabela -->
-<div class="card">
+<div class="card os-table-card">
   <div class="table-wrap">
     <table>
       <thead>
@@ -56,7 +123,7 @@
           <th>Equipamento</th>
           <th class="th-hide-sm">Defeito</th>
           <th>Status</th>
-          <th class="th-hide-sm">Prio.</th>
+          <th class="th-hide-sm">Prioridade</th>
           <th class="th-hide-sm">Entrada</th>
           <th class="th-hide-sm">Previsão</th>
           <th>Total</th>
@@ -66,12 +133,12 @@
       <tbody>
         {% for os in os_list %}
         {% set atrasada = os.data_prev and os.data_prev < hoje_dt and os.status not in ['entregue','cancelado','pronto'] %}
-        {% set prio_c = {'alta':'b-red','normal':'b-blue','baixa':'b-gray'} %}
+        {% set prio_c = {'alta':'b-red','urgente':'b-red','critico':'b-red','normal':'b-blue','baixa':'b-gray'} %}
         {% set sc = {'recepcao':'b-gray','em_analise':'b-amber','aguardando_aprovacao':'b-red','em_reparo':'b-blue','pronto':'b-green','entregue':'b-indigo','cancelado':'b-gray'}.get(os.status,'b-gray') %}
         {% set tel = ((os.cliente.telefone or '') if os.cliente else '') | replace(' ','') | replace('(','') | replace(')','') | replace('-','') %}
-        {% set msg_wpp = ('Olá *' ~ (os.cliente.nome if os.cliente else '') ~ '*! 👋\n\nSua OS *#' ~ ('%04d' % os.id) ~ '* está com status: *' ~ status_map.get(os.status, os.status) ~ '*\n\n📱 ' ~ (os.marca or '') ~ ' ' ~ (os.modelo or '') ~ '\n💰 Total: ' ~ (os.valor_total | moeda) ~ '\n\nZokyo Platform — Joinville SC') | urlencode %}
+        {% set msg_wpp = ('Olá *' ~ (os.cliente.nome if os.cliente else '') ~ '*!\n\nSua OS *#' ~ os.codigo_os ~ '* está com status: *' ~ status_map.get(os.status, os.status) ~ '*\n\n' ~ (os.marca or '') ~ ' ' ~ (os.modelo or '') ~ '\nTotal: ' ~ (os.valor_total | moeda) ~ '\n\n' ~ (cfg.nome_empresa if cfg else 'Zokyo')) | urlencode %}
         <tr data-href="{{ url_for('pages.os_detalhe', id=os.id) }}">
-          <td class="td-blue fw7">#{{ '%04d' % os.id }}</td>
+          <td class="td-blue fw7">#{{ os.codigo_os }}</td>
           <td class="td-strong">{{ os.cliente.nome if os.cliente else '—' }}</td>
           <td>
             <span class="chip">{{ os.tipo_aparelho or '—' }}</span>
@@ -81,10 +148,10 @@
             {{ (os.defeito_alegado or '')[:50] }}{{ '…' if (os.defeito_alegado or '')|length > 50 else '' }}
           </td>
           <td><span class="badge {{ sc }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span></td>
-          <td class="th-hide-sm"><span class="badge {{ prio_c.get(os.prio,'b-gray') }}"><span class="dot"></span>{{ (os.prio or 'normal')|capitalize }}</span></td>
+          <td class="th-hide-sm"><span class="badge {{ prio_c.get(os.prio,'b-gray') }}"><span class="dot"></span>{{ priority_map.get(os.prio, os.prio or 'normal') }}</span></td>
           <td class="td-mono txt-faint th-hide-sm">{{ os.data_entrada | fmtdata }}</td>
           <td class="td-mono th-hide-sm {{ 'txt-overdue' if atrasada else 'txt-faint' }}">
-            {{ os.data_prev | fmtdata if os.data_prev else '—' }}{{ ' ⚠' if atrasada else '' }}
+            {{ os.data_prev | fmtdata if os.data_prev else 'Sem previsão' }}{{ ' - atrasada' if atrasada else '' }}
           </td>
           <td class="txt-blue fw7">{{ os.valor_total | moeda }}</td>
           <td data-stop>
@@ -94,6 +161,17 @@
               {% if tel %}
               <a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp">WhatsApp</a>
               {% endif %}
+              {% if baixadas %}
+              <form method="post" action="{{ url_for('pages.os_restaurar', id=os.id) }}" class="inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost btn-xs">Restaurar</button>
+              </form>
+              {% elif nivel_usuario in ('admin', 'operacional') %}
+              <form method="post" action="{{ url_for('pages.os_baixar', id=os.id) }}" class="inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost btn-xs">Arquivar</button>
+              </form>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -101,6 +179,8 @@
         <tr><td colspan="10">
           <div class="empty">
             <div class="empty-title">Nenhuma OS encontrada</div>
+            <div class="empty-sub">Tente limpar os filtros ou abrir uma nova ordem de serviço.</div>
+            {% if not baixadas and nivel_usuario in ('admin', 'operacional') %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">Abrir OS</a>{% endif %}
           </div>
         </td></tr>
         {% endfor %}
@@ -111,11 +191,11 @@
   {% if paginacao.pages > 1 %}
   <div class="card-body pagination">
     {% if paginacao.has_prev %}
-    <a href="{{ url_for('pages.os_lista', page=paginacao.prev_num, q=q, status=status_filtro, prio=prio_filtro) }}" class="btn btn-ghost btn-sm">← Anterior</a>
+    <a href="{{ url_for('pages.os_baixadas' if baixadas else 'pages.os_lista', page=paginacao.prev_num, q=q, status=status_filtro, prio=prio_filtro, atendimento=atendimento_filtro) }}" class="btn btn-ghost btn-sm">Anterior</a>
     {% endif %}
     <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
     {% if paginacao.has_next %}
-    <a href="{{ url_for('pages.os_lista', page=paginacao.next_num, q=q, status=status_filtro, prio=prio_filtro) }}" class="btn btn-ghost btn-sm">Próximo →</a>
+    <a href="{{ url_for('pages.os_baixadas' if baixadas else 'pages.os_lista', page=paginacao.next_num, q=q, status=status_filtro, prio=prio_filtro, atendimento=atendimento_filtro) }}" class="btn btn-ghost btn-sm">Próximo</a>
     {% endif %}
   </div>
   {% endif %}

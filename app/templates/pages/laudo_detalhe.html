@@ -7,7 +7,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</div>
-    <div class="page-sub">OS #{{ '%04d' % laudo.os_id }} · {{ tipo_labels.get(laudo.tipo, laudo.tipo) }} · versão {{ laudo.versao }}</div>
+    <div class="page-sub">OS #{{ laudo.os.codigo_os if laudo.os else '%04d' % laudo.os_id }} · {{ tipo_labels.get(laudo.tipo, laudo.tipo) }} · versão {{ laudo.versao }}</div>
   </div>
   <div class="flex-gap">
     {% if laudo.status == 'draft' %}<a href="{{ url_for('laudos.editar', id=laudo.id) }}" class="btn btn-primary btn-sm">Editar rascunho</a>{% endif %}
@@ -37,7 +37,7 @@
         <div class="d-row"><div class="d-label">Cliente</div><div class="d-value">{{ laudo.cliente.nome if laudo.cliente else '-' }}</div></div>
         <div class="d-row"><div class="d-label">Equipamento</div><div class="d-value">{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</div></div>
         <div class="d-row"><div class="d-label">Série</div><div class="d-value td-mono">{{ laudo.os.numero_serie if laudo.os else '-' }}</div></div>
-        <div class="d-row"><div class="d-label">Tecnico</div><div class="d-value">{{ laudo.tecnico_responsavel_nome or '-' }}</div></div>
+        <div class="d-row"><div class="d-label">Técnico</div><div class="d-value">{{ laudo.tecnico_responsavel_nome or '-' }}</div></div>
         <div class="d-row"><div class="d-label">Emissão</div><div class="d-value">{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</div></div>
         {% if laudo.pdf_sha256 %}<div class="d-row"><div class="d-label">SHA-256</div><div class="d-value td-mono">{{ laudo.pdf_sha256 }}</div></div>{% endif %}
         {% if laudo.verification_token %}<div class="d-row"><div class="d-label">Verificação</div><div class="d-value td-mono">{{ laudo.verification_token }}</div></div>{% endif %}
@@ -45,7 +45,7 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Conteudo tecnico</div></div>
+      <div class="card-header"><div class="card-title">Conteúdo técnico</div></div>
       <div class="card-body parts-body">
         {% for label, value in [
           ('Defeito relatado', laudo.defeito_relatado),
@@ -53,16 +53,16 @@
           ('Testes realizados', laudo.testes_realizados),
           ('Instrumentos e metodos', laudo.instrumentos_metodos),
           ('Medicoes', laudo.medicoes),
-          ('Diagnostico tecnico', laudo.diagnostico_tecnico),
+          ('Diagnóstico técnico', laudo.diagnostico_tecnico),
           ('Causa provavel', laudo.causa_provavel),
-          ('Servicos realizados', laudo.servicos_realizados),
+          ('Serviços realizados', laudo.servicos_realizados),
           ('Peças utilizadas', laudo.pecas_utilizadas),
           ('Conclusão técnica', laudo.conclusao_tecnica),
           ('Estado final', laudo.estado_final),
           ('Recomendacoes', laudo.recomendacoes),
           ('Riscos e limitacoes', laudo.riscos_limitacoes),
           ('Garantia', laudo.garantia),
-          ('Observacoes', laudo.observacoes)
+          ('Observações', laudo.observacoes)
         ] %}
           {% if value %}
           <div>

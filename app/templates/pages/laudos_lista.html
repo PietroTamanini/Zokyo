@@ -74,7 +74,7 @@
         {% for laudo in laudos %}
         <tr>
           <td class="td-strong">{{ laudo.numero or 'Rascunho #' ~ laudo.id }}</td>
-          <td><a href="{{ url_for('pages.os_detalhe', id=laudo.os_id) }}">#{{ '%04d' % laudo.os_id }}</a></td>
+          <td><a href="{{ url_for('pages.os_detalhe', id=laudo.os_id) }}">#{{ laudo.os.codigo_os if laudo.os else '%04d' % laudo.os_id }}</a></td>
           <td class="td-hide-sm">{{ laudo.cliente.nome if laudo.cliente else '-' }}</td>
           <td class="td-hide-sm">{{ laudo.os.tipo_aparelho if laudo.os else '' }} {{ laudo.os.marca if laudo.os else '' }} {{ laudo.os.modelo if laudo.os else '' }}</td>
           <td class="td-hide-sm">{{ laudo.tecnico_responsavel_nome or '-' }}</td>

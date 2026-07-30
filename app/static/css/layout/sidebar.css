@@ -110,7 +110,17 @@
 }
 .nav-group-toggle:hover { background: var(--surface2); color: var(--text-2); }
 .nav-group-toggle:focus-visible { outline: 3px solid var(--blue-ring); outline-offset: 1px; }
-.nav-chevron { font-size: 15px; line-height: 1; transition: transform .18s ease; }
+.nav-chevron {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  transition: transform .18s ease;
+}
 .nav-group-toggle[aria-expanded="false"] .nav-chevron { transform: rotate(-90deg); }
 .nav-module-links[hidden] { display: none; }
 .nav-item {

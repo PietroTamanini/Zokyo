@@ -141,6 +141,8 @@ def create_app(config_name="default"):
             return
         if request.endpoint in app.config.get("CSRF_EXEMPT_ENDPOINTS", set()):
             return
+        if (request.path or "").startswith("/api/v1/") and request.headers.get("Authorization", "").lower().startswith("bearer "):
+            return
         token    = session.get("_csrf_token")
         supplied = (
             request.form.get("_csrf_token")
@@ -379,6 +381,7 @@ def create_app(config_name="default"):
 
     # ── Blueprints ────────────────────────────────────────────────────────
     from app.routes.auth import auth_bp
+    from app.routes.client_api import client_api_bp
     from app.routes.clientes import clientes_bp
     from app.routes.configuracoes import cfg_bp
     from app.routes.defeitos_padrao import defeitos_bp
@@ -401,6 +404,7 @@ def create_app(config_name="default"):
         auth_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
         fornecedores_bp, transacoes_bp, usuarios_bp, defeitos_bp,
         cfg_bp, logs_bp, importacao_bp, laudos_bp, health_bp, portal_bp, relatorios_bp, platform_bp, privacy_bp,
+        client_api_bp,
     ):
         app.register_blueprint(bp)
 

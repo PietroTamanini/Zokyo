@@ -21,7 +21,7 @@
     <dl>
       <dt>Número</dt><dd>{{ laudo.numero or '-' }}</dd>
       <dt>Data</dt><dd>{{ laudo.emitido_em | fmtdata if laudo.emitido_em else '-' }}</dd>
-      <dt>Empresa emissora</dt><dd>{{ (laudo.empresa_snapshot or {}).get('nome_empresa') or 'Zokyo Platform' }}</dd>
+      <dt>Empresa emissora</dt><dd>{{ (laudo.empresa_snapshot or {}).get('nome_empresa') or APP_NAME }}</dd>
       <dt>Status</dt><dd>{{ laudo.status }}</dd>
       <dt>Hash parcial</dt><dd>{{ (laudo.pdf_sha256 or '')[:16] }}</dd>
       <dt>Código</dt><dd>{{ laudo.verification_token }}</dd>

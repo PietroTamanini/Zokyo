@@ -78,7 +78,7 @@
         </div>
 
         <div class="form-group mb16">
-          <label>Observacoes para quem vai coletar</label>
+          <label>Observações para quem vai coletar</label>
           <textarea name="observacoes" rows="3" placeholder="Ex: cliente só está no local após 14h, portão lateral, falar com Maria...">{{ fd.get('observacoes', '') }}</textarea>
         </div>
 
@@ -94,7 +94,7 @@
         <div>
           <div class="card-title">{{ c.cliente.nome if c.cliente else 'Cliente removido' }}</div>
           <div class="muted-sm">
-            {% if c.data_agendada %}{{ c.data_agendada.strftime('%d/%m/%Y %H:%M') }}{% else %}Sem horario definido{% endif %}
+            {% if c.data_agendada %}{{ c.data_agendada.strftime('%d/%m/%Y %H:%M') }}{% else %}Sem horário definido{% endif %}
           </div>
         </div>
         {% set bcls = {'agendada':'b-blue','em_coleta':'b-amber','concluida':'b-green','cancelada':'b-gray'}[c.status] if c.status else 'b-gray' %}

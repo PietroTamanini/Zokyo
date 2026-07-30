@@ -178,7 +178,7 @@ const DJValidators = (() => {
     // E-mail
     if (classes.contains('validate-email')) {
       if (!validarEmail(trimmed)) {
-        showError(el, 'E-mail inválido. Use o formato usuario@dominio.com.');
+        showError(el, 'E-mail inválido. Use o formato usuário@dominio.com.');
         return false;
       }
     }
@@ -204,16 +204,16 @@ const DJValidators = (() => {
       const digits = soDigitos(trimmed);
       if (digits.length === 11) {
         if (!validarCPF(digits)) {
-          showError(el, 'CPF invalido.');
+          showError(el, 'CPF inválido.');
           return false;
         }
       } else if (digits.length === 14) {
         if (!validarCNPJ(digits)) {
-          showError(el, 'CNPJ invalido.');
+          showError(el, 'CNPJ inválido.');
           return false;
         }
       } else {
-        showError(el, 'CPF/CNPJ deve ter 11 ou 14 digitos.');
+        showError(el, 'CPF/CNPJ deve ter 11 ou 14 dígitos.');
         return false;
       }
     }

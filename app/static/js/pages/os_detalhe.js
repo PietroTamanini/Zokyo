@@ -35,7 +35,7 @@ async function enviarWhatsApp() {
     }
 
     if (data.erro) {
-      alert('Erro: ' + data.erro);
+      showToast('Erro: ' + data.erro, 'red');
       return;
     }
 
@@ -57,20 +57,11 @@ async function enviarWhatsApp() {
     }
 
   } catch (err) {
-    alert('Erro de conexão: ' + err.message);
+    showToast('Erro de conexão: ' + err.message, 'red');
   } finally {
     if (btn) {
       btn.disabled = false;
       btn.textContent = '💬 WhatsApp';
     }
   }
-}
-
-function showToast(msg, color = 'blue') {
-  const toast = document.createElement('div');
-  const allowed = ['green', 'blue', 'amber', 'red'];
-  toast.className = `toast toast-${allowed.includes(color) ? color : 'blue'}`;
-  toast.textContent = msg;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3500);
 }

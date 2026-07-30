@@ -90,7 +90,12 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     with sqlite3.connect(database) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         photo_columns = {row[1] for row in connection.execute("PRAGMA table_info(laudo_fotos)")}
+        config_columns = {row[1] for row in connection.execute("PRAGMA table_info(configuracoes)")}
+        order_columns = {row[1] for row in connection.execute("PRAGMA table_info(ordens_servico)")}
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert {"organizations", "usuarios", "clientes", "ordens_servico", "laudos_tecnicos", "laudo_fotos", "laudo_templates", "notifications", "retention_policies"} <= tables
     assert "thumbnail_key" in photo_columns
-    assert revision == "20260718_0001"
+    assert {"subtitulo_empresa", "logo_url", "site_url", "instagram_url", "whatsapp_publico"} <= config_columns
+    assert {"os_status_options", "os_priority_options", "attendance_type_options", "entry_checklist_options"} <= config_columns
+    assert "tipo_atendimento" in order_columns
+    assert revision == "20260730_0006"

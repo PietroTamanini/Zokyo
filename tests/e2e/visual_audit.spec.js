@@ -24,7 +24,7 @@ const pages = [
   ['configuracoes', '/configuracoes'],
   ['notificacoes', '/configuracoes/notificacoes'],
   ['retencao', '/privacidade/retencao'],
-  ['importacao', '/importacao/cplus'],
+  ['importacao', '/importacao/bancos'],
   ['seguranca', '/seguranca/2fa'],
   ['sessoes', '/seguranca/sessoes'],
   ['ajuda', '/ajuda'],
@@ -107,21 +107,22 @@ test('alternancia de tema persiste apos navegacao', async ({ page }) => {
 
 test('modal de cliente abre, valida e fecha sem recarregar', async ({ page }) => {
   await page.goto('/clientes');
-  await page.getByRole('button', { name: 'Novo Cliente' }).click();
-  await expect(page.getByText('Novo Cliente', { exact: true })).toBeVisible();
+  const newClient = page.getByRole('link', { name: /Cadastrar cliente/ });
+  await newClient.click();
+  await expect(page.locator('#modal .modal-title')).toHaveText('Cadastrar cliente');
   await expect(page.locator('#cliente-form [name="nome"]')).toBeFocused();
   await page.getByRole('button', { name: 'Salvar', exact: true }).click();
   await expect(page.locator('#cliente-form [name="nome"]')).toHaveClass(/input-error/);
   await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
   await expect(page.locator('#modal')).not.toHaveClass(/show/);
-  await expect(page.getByRole('button', { name: 'Novo Cliente' })).toBeFocused();
+  await expect(newClient).toBeFocused();
 });
 
 test('indicador do dashboard navega para ordens', async ({ page }) => {
   await page.goto('/');
-  await page.getByText('OS em Aberto', { exact: true }).click();
-  await expect(page).toHaveURL(/\/os$/);
-  await expect(page.locator('#content .page-title')).toHaveText('Ordens de Serviço');
+  await page.getByText('OS em aberto', { exact: true }).click();
+  await expect(page).toHaveURL(/\/os\/?$/);
+  await expect(page.locator('#content .page-title')).toHaveText('Ordens de serviço');
 });
 
 test('menu responsivo gerencia foco e estado acessivel', async ({ page }) => {
@@ -153,15 +154,17 @@ test('gaveta desktop guarda e restaura o estado', async ({ page }) => {
 test('modulos da navegacao expandem e recolhem links', async ({ page }) => {
   await page.goto('/');
   const mobileMenu = page.getByRole('button', { name: 'Abrir menu' });
-  if (await mobileMenu.isVisible()) await mobileMenu.click();
-  const operation = page.getByRole('button', { name: 'Operação' });
-  const initiallyExpanded = await operation.getAttribute('aria-expanded') === 'true';
-  if (initiallyExpanded) await operation.click();
-  await expect(operation).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByRole('link', { name: 'Estoque', exact: true })).toBeHidden();
-  await operation.click();
-  await expect(operation).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('link', { name: 'Estoque', exact: true })).toBeVisible();
+  if ((page.viewportSize()?.width || 0) <= 900 && await mobileMenu.isVisible()) await mobileMenu.click();
+  const principal = page.getByRole('button', { name: 'Atendimento' });
+  const atendimentoLinks = page.locator('#nav-zokyo');
+  const produtos = atendimentoLinks.getByRole('link', { name: 'Produtos', exact: true });
+  const initiallyExpanded = await principal.getAttribute('aria-expanded') === 'true';
+  if (initiallyExpanded) await principal.click();
+  await expect(principal).toHaveAttribute('aria-expanded', 'false');
+  await expect(produtos).toBeHidden();
+  await principal.click();
+  await expect(principal).toHaveAttribute('aria-expanded', 'true');
+  await expect(produtos).toBeVisible();
 });
 
 test('navegacao rola dentro da gaveta com todos os modulos abertos', async ({ page }) => {

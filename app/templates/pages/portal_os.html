@@ -21,7 +21,24 @@
   <div class="public-detail-row"><span>Equipamento</span><strong>{{ os.tipo_aparelho or '' }} {{ os.marca or '' }} {{ os.modelo or '' }}</strong></div>
   <div class="public-detail-row"><span>Entrada</span><strong>{{ os.data_entrada.strftime('%d/%m/%Y') if os.data_entrada else '-' }}</strong></div>
   <div class="public-detail-row"><span>Previsão</span><strong>{{ os.data_prev.strftime('%d/%m/%Y') if os.data_prev else '-' }}</strong></div>
+  <div class="public-detail-row"><span>Total</span><span class="public-total">R$ {{ '%.2f'|format(os.valor_total)|replace('.', ',') }}</span></div>
   </div>
+
+  <div class="public-actions">
+    <a class="public-button" href="{{ url_for('portal.publico_pdf', token=request.view_args.token) }}">Baixar comprovante</a>
+  </div>
+
+  {% if historico %}
+  <h2 class="public-section-title">Histórico</h2>
+  <div class="public-detail-list">
+    {% for evento in historico %}
+    <div class="public-detail-row">
+      <span>{{ evento.criado_em.strftime('%d/%m/%Y') if evento.criado_em else '-' }}</span>
+      <strong>{{ status_labels.get(evento.status_novo, evento.status_novo).replace('_', ' ')|title }}</strong>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   {% if portal_token.purpose == 'budget' %}
   <h2 class="public-section-title">Orçamento</h2>

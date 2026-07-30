@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Visualizar Produto - Zokyo{% endblock %}
+{% block breadcrumb %}Produtos / Visualizar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
+    <h5>Visualizar Produto</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Produto</div>
+          <h2>{{ produto.nome }}</h2>
+          <div class="muted-sm">{{ produto.codigo or 'Sem código' }}</div>
+        </div>
+        <div class="action-row">
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.produtos_editar_alias', id=produto.id) }}">Editar</a>
+          <a class="btn btn-nwe5 btn-xs" href="{{ url_for('pages.estoque', q=produto.nome) }}">Atualizar estoque</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.estoque') }}">Voltar</a>
+        </div>
+      </div>
+
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>Código</span>
+          <strong>{{ produto.codigo or '-' }}</strong>
+        </div>
+        <div>
+          <span>Categoria</span>
+          <strong>{{ produto.categoria or '-' }}</strong>
+        </div>
+        <div>
+          <span>Localização</span>
+          <strong>{{ produto.localizacao or '-' }}</strong>
+        </div>
+        <div>
+          <span>Fornecedor</span>
+          <strong>{{ produto.fornecedor.nome if produto.fornecedor else '-' }}</strong>
+        </div>
+        <div>
+          <span>Estoque</span>
+          <strong>{{ produto.quantidade }}</strong>
+        </div>
+        <div>
+          <span>Estoque mínimo</span>
+          <strong>{{ produto.estoque_minimo }}</strong>
+        </div>
+        <div>
+          <span>Reservado</span>
+          <strong>{{ produto.quantidade_reservada }}</strong>
+        </div>
+        <div>
+          <span>Disponível</span>
+          <strong>{{ produto.quantidade_disponivel }}</strong>
+        </div>
+        <div>
+          <span>Preço de compra</span>
+          <strong>{{ produto.custo | moeda }}</strong>
+        </div>
+        <div>
+          <span>Margem</span>
+          <strong>{{ produto.margem or 0 }}%</strong>
+        </div>
+        <div>
+          <span>Preço de venda</span>
+          <strong>{{ produto.preco_venda | moeda }}</strong>
+        </div>
+        <div>
+          <span>Cadastrado em</span>
+          <strong>{{ produto.criado_em | fmtdata if produto.criado_em else '-' }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

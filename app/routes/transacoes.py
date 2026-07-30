@@ -63,7 +63,7 @@ def _valid_os_id(value):
     try:
         os_id = int(value)
     except (TypeError, ValueError):
-        return None, "os_id invalido"
+        return None, "os_id inválido"
     if not OrdemServico.query.filter_by(id=os_id).first():
         return None, "OS invalida para esta organizacao"
     return os_id, None
@@ -140,7 +140,7 @@ def criar():
         installments = int(data.get("parcelas", 1))
         commission_user_id = int(data["comissao_usuario_id"]) if data.get("comissao_usuario_id") else None
         if commission_user_id and not Usuario.query.filter_by(id=commission_user_id, ativo=True).first():
-            return jsonify({"success": False, "erro": "Usuario de comissao invalido"}), 400
+            return jsonify({"success": False, "erro": "Usuário de comissão inválido"}), 400
         created = create_installments(
             organization_id=None,
             installments=installments,
@@ -252,11 +252,11 @@ def conciliar(id):
     data, _ = get_request_data()
     reference = sanitize_text(data.get("referencia", ""), max_length=120)
     if len(reference) < 3:
-        return jsonify({"erro": "Referencia de conciliacao e obrigatoria"}), 400
+        return jsonify({"erro": "Referência de conciliação é obrigatória"}), 400
     transaction.conciliado_em = _now()
     transaction.conciliado_por_id = session["usuario_id"]
     transaction.conciliacao_ref = reference
-    registrar("conciliacao", "financeiro", f"Transacao #{id} conciliada: {reference}")
+    registrar("conciliacao", "financeiro", f"Transação #{id} conciliada: {reference}")
     db.session.commit()
     return jsonify(transaction.to_dict())
 
@@ -268,7 +268,7 @@ def desconciliar(id):
     transaction.conciliado_em = None
     transaction.conciliado_por_id = None
     transaction.conciliacao_ref = None
-    registrar("conciliacao", "financeiro", f"Conciliacao removida da transacao #{id}")
+    registrar("conciliacao", "financeiro", f"Conciliação removida da transação #{id}")
     db.session.commit()
     return jsonify(transaction.to_dict())
 
@@ -306,7 +306,7 @@ def dre():
 def contabilidade_csv():
     output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["ID", "Tipo", "Categoria", "Descricao", "Valor", "Vencimento", "Pagamento", "Status", "Conciliacao"])
+    writer.writerow(["ID", "Tipo", "Categoria", "Descrição", "Valor", "Vencimento", "Pagamento", "Status", "Conciliação"])
     for item in Transacao.query.order_by(Transacao.criado_em).all():
         description = str(item.descricao or "")
         if description.startswith(("=", "+", "-", "@", "\t", "\r")):

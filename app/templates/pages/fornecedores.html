@@ -7,15 +7,19 @@
 <div class="page-header">
   <div>
     <div class="page-title">Fornecedores</div>
-    <div class="page-sub">{{ paginacao.total }} fornecedores cadastrados</div>
+    <div class="page-sub">{{ paginacao.total }} fornecedores cadastrados para compras, peças e serviços externos.</div>
   </div>
-  {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary" data-action="fornecedor-novo">+ Novo Fornecedor</button>{% endif %}
+  {% if nivel_usuario in ('admin', 'operacional') %}<a class="btn btn-primary" href="{{ url_for('pages.fornecedores_adicionar_alias') }}">Cadastrar fornecedor</a>{% endif %}
+</div>
+
+<div class="flow-guide mb20" aria-label="Como usar esta tela">
+  <div><strong>Use fornecedores para manter compras organizadas.</strong> Cadastre quem vende peças, acessórios ou serviços terceirizados.</div>
 </div>
 
 <form method="GET" class="filter-bar">
-  <input type="text" name="q" value="{{ q or '' }}" placeholder="Buscar nome ou CNPJ..." class="input-search">
+  <input type="text" name="q" value="{{ q or '' }}" placeholder="Buscar por nome, fantasia ou CNPJ" class="input-search">
   <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
-  {% if q %}<a href="{{ url_for('pages.fornecedores') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>{% endif %}
+  {% if q %}<a href="{{ url_for('pages.fornecedores') }}" class="btn btn-ghost btn-sm">Limpar busca</a>{% endif %}
 </form>
 
 
@@ -23,7 +27,7 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Razão Social / Fantasia</th><th>CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Razão social / fantasia</th><th>CNPJ</th><th>Telefone</th><th>E-mail</th><th>Cidade</th><th>Status</th><th>Opções</th></tr>
       </thead>
       <tbody>
         {% for f in fornecedores %}
@@ -44,19 +48,20 @@
           </td>
           <td data-stop>
             <div class="action-wrap">
-              {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-outline btn-xs" data-action="fornecedor-editar" data-id="{{ f.id }}">Editar</button>{% endif %}
+              <a class="btn btn-nwe btn-xs" href="{{ url_for('pages.fornecedores_visualizar_alias', id=f.id) }}">Ver</a>
+              {% if nivel_usuario in ('admin', 'operacional') %}<a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.fornecedores_editar_alias', id=f.id) }}">Editar</a>{% endif %}
               {% if is_admin %}
               <form method="POST" action="{{ url_for('pages.fornecedor_deletar', id=f.id) }}"
-                    data-confirm="Arquivar este fornecedor preservando o historico?" class="inline-form">
+                    data-confirm="Arquivar este fornecedor preservando o histórico?" class="inline-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs" aria-label="Arquivar fornecedor">Arquivar</button>
+                <button type="submit" class="btn btn-nwe4 btn-xs" aria-label="Arquivar fornecedor">Arquivar</button>
               </form>
               {% endif %}
             </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="7"><div class="empty"><div class="empty-title">Nenhum fornecedor cadastrado</div></div></td></tr>
+        <tr><td colspan="7"><div class="empty"><div class="empty-title">Nenhum fornecedor encontrado</div><div class="empty-sub">Cadastre fornecedores para deixar compras e estoque mais organizados.</div>{% if nivel_usuario in ('admin', 'operacional') %}<a class="btn btn-primary btn-sm" href="{{ url_for('pages.fornecedores_adicionar_alias') }}">Cadastrar fornecedor</a>{% endif %}</div></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -65,9 +70,9 @@
 
 {% if paginacao.pages > 1 %}
 <div class="pagination">
-  {% if paginacao.has_prev %}<a href="?page={{ paginacao.prev_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+  {% if paginacao.has_prev %}<a href="?page={{ paginacao.prev_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">Anterior</a>{% endif %}
   <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
-  {% if paginacao.has_next %}<a href="?page={{ paginacao.next_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">Próximo →</a>{% endif %}
+  {% if paginacao.has_next %}<a href="?page={{ paginacao.next_num }}&q={{ q or '' }}" class="btn btn-ghost btn-sm">Próximo</a>{% endif %}
 </div>
 {% endif %}
 

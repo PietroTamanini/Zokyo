@@ -36,7 +36,7 @@ def test_email_delivery_testing_simulacao_smtp_e_fallback(monkeypatch):
         assert email_delivery.send_email("user@example.com", "Assunto", "Corpo") == {
             "sucesso": False,
             "modo": "simulacao",
-            "aviso": "SMTP nao configurado",
+            "aviso": "SMTP não configurado",
         }
 
     class FakeSMTP:
@@ -87,7 +87,7 @@ def test_email_delivery_testing_simulacao_smtp_e_fallback(monkeypatch):
         assert email_delivery.send_email("user@example.com", "Assunto", "Corpo") == {
             "sucesso": False,
             "modo": "fallback",
-            "erro": "Falha temporaria de e-mail",
+                "erro": "Falha temporária de e-mail",
         }
 
 

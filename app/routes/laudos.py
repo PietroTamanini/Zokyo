@@ -58,7 +58,7 @@ laudos_bp = Blueprint("laudos", __name__, url_prefix="/laudos")
 @laudos_bp.cli.command("storage-audit")
 @click.option("--delete", "delete_files", is_flag=True, help="Remove os arquivos orfaos encontrados.")
 def storage_audit(delete_files):
-    """Lista ou remove arquivos de laudos sem referencia no banco."""
+    """Lista ou remove arquivos de laudos sem referéncia no banco."""
     encontrados = arquivos_orfaos()
     for path in encontrados:
         click.echo(path)
@@ -280,7 +280,7 @@ def editar(id):
     laudo = _get_laudo(id)
     _require_manage_laudo(laudo)
     if laudo.status != "draft":
-        flash("Laudos finalizados ou cancelados nao podem ser editados. Crie uma revisao formal.", "warning")
+        flash("Laudos finalizados ou cancelados não podem ser editados. Crie uma revisão formal.", "warning")
         return redirect(url_for("laudos.detalhe", id=id))
     return render_template(
         "pages/laudo_form.html",
@@ -461,7 +461,7 @@ def baixar_pdf(id):
     laudo = _get_laudo(id)
     usuario = _require_laudo_permission("laudos.download_pdf", laudo)
     if not laudo.pdf_path:
-        flash("PDF ainda nao foi gerado.", "warning")
+        flash("PDF ainda não foi gerado.", "warning")
         return redirect(url_for("laudos.detalhe", id=id))
     target = safe_file_path(laudo.pdf_path)
     if not target.exists():

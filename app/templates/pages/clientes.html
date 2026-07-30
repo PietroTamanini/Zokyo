@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block title %}Clientes — Zokyo{% endblock %}
 {% block breadcrumb %}Clientes{% endblock %}
 {% block topbar_action %}{% endblock %}
@@ -7,19 +7,23 @@
 <div class="page-header">
   <div>
     <div class="page-title">Clientes</div>
-    <div class="page-sub">{{ clientes | length }} clientes cadastrados</div>
+    <div class="page-sub">{{ clientes | length }} clientes nesta tela. Cadastre ou encontre a pessoa antes de abrir uma OS.</div>
   </div>
-  {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<button class="btn btn-primary" data-action="cliente-novo">+ Novo Cliente</button>{% endif %}
+  {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<a class="btn btn-primary" href="{{ url_for('pages.clientes_adicionar_alias') }}" data-action="cliente-novo">Cadastrar cliente</a>{% endif %}
+</div>
+
+<div class="flow-guide mb20" aria-label="Como usar esta tela">
+  <div><strong>Procure primeiro pelo telefone ou nome.</strong> Se não encontrar, cadastre o cliente e depois abra a ordem de serviço.</div>
 </div>
 
 <form method="GET" class="filter-bar">
     <input type="text" name="q" value="{{ q or '' }}"
-      placeholder="Buscar nome, CPF, CNPJ ou telefone..." class="input-search"
+      placeholder="Buscar por nome, CPF, CNPJ ou telefone" class="input-search"
       data-auto-submit>
   <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
-  {% if q %}<a href="{{ url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">✕ Limpar</a>{% endif %}
+  {% if q %}<a href="{{ url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">Limpar busca</a>{% endif %}
   <select name="ativo" class="select-auto" data-auto-submit>
-    <option value="">Todos</option>
+    <option value="">Todos os clientes</option>
     <option value="1" {{ 'selected' if ativo_filtro == '1' }}>Ativos</option>
     <option value="0" {{ 'selected' if ativo_filtro == '0' }}>Inativos</option>
   </select>
@@ -29,7 +33,7 @@
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Nome</th><th class="th-hide-sm">CPF/CNPJ</th><th>Telefone</th><th class="th-hide-sm">Endereço</th><th class="th-hide-sm">Cidade</th><th class="th-hide-sm">Status</th><th class="th-hide-sm">OS</th><th>Ações</th></tr>
+        <tr><th>Nome</th><th class="th-hide-sm">CPF/CNPJ</th><th>Telefone</th><th class="th-hide-sm">Endereço</th><th class="th-hide-sm">Cidade</th><th class="th-hide-sm">Status</th><th class="th-hide-sm">OS</th><th>Opções</th></tr>
       </thead>
       <tbody>
         {% for c in clientes %}
@@ -50,21 +54,22 @@
           <td data-stop>
             <div class="action-wrap">
               {% if is_admin %}<a class="btn btn-ghost btn-xs" href="{{ url_for('privacy.client_privacy', client_id=c.id) }}">Privacidade</a>{% endif %}
-              {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<button class="btn btn-outline btn-xs"
-                      data-action="cliente-editar" data-id="{{ c.id }}">Editar</button>
+              <a class="btn btn-nwe btn-xs" href="{{ url_for('pages.clientes_visualizar_alias', id=c.id) }}">Ver</a>
+              {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<a class="btn btn-nwe3 btn-xs"
+                      href="{{ url_for('pages.clientes_editar_alias', id=c.id) }}">Editar</a>
               {% endif %}
               {% if is_admin %}
               <form method="POST" action="{{ url_for('pages.cliente_deletar', id=c.id) }}"
-                    data-confirm="Arquivar este cliente preservando o historico?" class="inline-form">
+                    data-confirm="Arquivar este cliente preservando o histórico?" class="inline-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-danger btn-xs" aria-label="Arquivar cliente">Arquivar</button>
+                <button type="submit" class="btn btn-nwe4 btn-xs" aria-label="Arquivar cliente">Arquivar</button>
               </form>
               {% endif %}
             </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8"><div class="empty"><div class="empty-title">Nenhum cliente cadastrado</div></div></td></tr>
+        <tr><td colspan="8"><div class="empty"><div class="empty-title">Nenhum cliente encontrado</div><div class="empty-sub">Confira a busca ou cadastre um novo cliente para continuar.</div>{% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<a class="btn btn-primary btn-sm" href="{{ url_for('pages.clientes_adicionar_alias') }}">Cadastrar cliente</a>{% endif %}</div></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -74,9 +79,9 @@
 {# Dados para modais #}
 {% if paginacao.pages > 1 %}
 <div class="pagination">
-  {% if paginacao.has_prev %}<a href="?page={{ paginacao.prev_num }}&q={{ q }}&ativo={{ ativo_filtro }}" class="btn btn-ghost btn-sm">← Anterior</a>{% endif %}
+  {% if paginacao.has_prev %}<a href="?page={{ paginacao.prev_num }}&q={{ q }}&ativo={{ ativo_filtro }}" class="btn btn-ghost btn-sm">Anterior</a>{% endif %}
   <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }} — {{ paginacao.total }} clientes</span>
-  {% if paginacao.has_next %}<a href="?page={{ paginacao.next_num }}&q={{ q }}&ativo={{ ativo_filtro }}" class="btn btn-ghost btn-sm">Próximo →</a>{% endif %}
+  {% if paginacao.has_next %}<a href="?page={{ paginacao.next_num }}&q={{ q }}&ativo={{ ativo_filtro }}" class="btn btn-ghost btn-sm">Próximo</a>{% endif %}
 </div>
 {% endif %}
 

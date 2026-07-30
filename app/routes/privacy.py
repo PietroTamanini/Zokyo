@@ -17,7 +17,7 @@ def retention():
     if request.method == "POST":
         approved = request.form.get("legal_approval") == "yes"
         if not approved and any(request.form.get(f"active_{key}") for key in CATEGORIES):
-            flash("Confirme a aprovacao da politica antes de ativar a eliminacao automatica.", "error")
+            flash("Confirme a aprovação da política antes de ativar a eliminação automática.", "error")
             return redirect(url_for("privacy.retention"))
         from datetime import datetime, timezone
         for category in CATEGORIES:

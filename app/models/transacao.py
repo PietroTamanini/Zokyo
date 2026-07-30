@@ -29,6 +29,16 @@ class Transacao(db.Model):
     comissao_usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
     comissao_percentual = db.Column(db.Numeric(5,2), default=0)
     comissao_valor = db.Column(db.Numeric(10,2), default=0)
+    payment_gateway = db.Column(db.String(40))
+    payment_method = db.Column(db.String(40))
+    payment_provider_id = db.Column(db.String(160))
+    payment_status = db.Column(db.String(40))
+    payment_url = db.Column(db.String(600))
+    payment_link = db.Column(db.String(600))
+    payment_barcode = db.Column(db.String(300))
+    payment_payload = db.Column(db.Text)
+    payment_expires_at = db.Column(db.DateTime)
+    os = db.relationship("OrdemServico", foreign_keys=[os_id])
     parent = db.relationship("Transacao", remote_side=[id], backref=db.backref("parcelas", lazy=True))
     def to_dict(self):
         return {"id":self.id,"os_id":self.os_id,"tipo":self.tipo,
@@ -46,4 +56,13 @@ class Transacao(db.Model):
                 "conciliacao_ref": self.conciliacao_ref,
                 "comissao_usuario_id": self.comissao_usuario_id,
                 "comissao_percentual": float(self.comissao_percentual or 0),
-                "comissao_valor": float(self.comissao_valor or 0)}
+                "comissao_valor": float(self.comissao_valor or 0),
+                "payment_gateway": self.payment_gateway,
+                "payment_method": self.payment_method,
+                "payment_provider_id": self.payment_provider_id,
+                "payment_status": self.payment_status,
+                "payment_url": self.payment_url,
+                "payment_link": self.payment_link,
+                "payment_barcode": self.payment_barcode,
+                "payment_payload": self.payment_payload,
+                "payment_expires_at": self.payment_expires_at.isoformat() if self.payment_expires_at else None}

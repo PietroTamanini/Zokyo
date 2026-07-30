@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Visualizar Cliente - Zokyo{% endblock %}
+{% block breadcrumb %}Clientes / Visualizar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
+    <h5>Visualizar Cliente</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Cliente</div>
+          <h2>{{ cliente.nome }}</h2>
+          <div class="muted-sm">{{ cliente.documento or 'Sem documento' }}</div>
+        </div>
+        <div class="action-row">
+          {% if is_admin %}<a class="btn btn-nwe5 btn-xs" href="{{ url_for('privacy.client_privacy', client_id=cliente.id) }}">Privacidade</a>{% endif %}
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.clientes_editar_alias', id=cliente.id) }}">Editar</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.clientes') }}">Voltar</a>
+        </div>
+      </div>
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>CPF/CNPJ</span>
+          <strong>{{ cliente.documento or '-' }}</strong>
+        </div>
+        <div>
+          <span>Telefone</span>
+          <strong>{{ cliente.telefone or '-' }}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{{ 'Ativo' if cliente.ativo else 'Inativo' }}</strong>
+        </div>
+        <div>
+          <span>Ordens de serviço</span>
+          <strong>{{ os_count }}</strong>
+        </div>
+        <div>
+          <span>CEP</span>
+          <strong>{{ cliente.cep or '-' }}</strong>
+        </div>
+        <div>
+          <span>Endereço</span>
+          <strong>{{ cliente.endereco or '-' }}{% if cliente.numero_casa %}, {{ cliente.numero_casa }}{% endif %}</strong>
+        </div>
+        <div>
+          <span>Cidade</span>
+          <strong>{{ cliente.cidade or '-' }}</strong>
+        </div>
+        <div>
+          <span>UF</span>
+          <strong>{{ cliente.uf or '-' }}</strong>
+        </div>
+        <div>
+          <span>Cadastrado em</span>
+          <strong>{{ cliente.criado_em | fmtdata if cliente.criado_em else '-' }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

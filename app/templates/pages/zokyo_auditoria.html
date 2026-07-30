@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block title %}Auditoria - Zokyo{% endblock %}
+{% block breadcrumb %}Auditoria{% endblock %}
+
+{% block content %}
+<div class="page-header zokyo-page-header">
+  <div>
+    <div class="page-title">Auditoria</div>
+    <div class="page-sub">Registro de eventos do sistema.</div>
+  </div>
+  <form method="POST" action="{{ url_for('pages.zokyo_auditoria_clean') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-nwe4">Limpar</button>
+  </form>
+</div>
+
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+    <h5>Auditoria</h5>
+  </div>
+  <form class="zokyo-toolbar" method="GET">
+    <input type="date" name="data_ini" value="{{ filtros.data_ini }}">
+    <input type="date" name="data_fim" value="{{ filtros.data_fim }}">
+    <select name="usuario_id">
+      <option value="">Todos usuarios</option>
+      {% for usuario in usuarios %}
+      <option value="{{ usuario.id }}" {{ 'selected' if filtros.usuario_id|string == usuario.id|string }}>{{ usuario.nome }}</option>
+      {% endfor %}
+    </select>
+    <select name="tipo">
+      <option value="">Todos tipos</option>
+      {% for item in tipos %}
+      <option value="{{ item }}" {{ 'selected' if filtros.tipo == item }}>{{ item }}</option>
+      {% endfor %}
+    </select>
+    <select name="modulo">
+      <option value="">Todos modulos</option>
+      {% for item in modulos %}
+      <option value="{{ item }}" {{ 'selected' if filtros.modulo == item }}>{{ item }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
+  </form>
+  <div class="card">
+    <div class="table-wrap">
+      <table class="zokyo-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Usuário</th>
+            <th>Tipo</th>
+            <th>Módulo</th>
+            <th>Operacao</th>
+            <th>Descrição</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for evento in eventos %}
+          <tr class="tr-static">
+            <td class="td-mono">{{ evento.criado_em | fmtdata if evento.criado_em else '-' }}</td>
+            <td>{{ evento.usuario_nome or '-' }}</td>
+            <td><span class="badge b-blue"><span class="dot"></span>{{ evento.tipo }}</span></td>
+            <td>{{ evento.modulo or '-' }}</td>
+            <td>{{ evento.operacao or '-' }}</td>
+            <td>{{ evento.descricao or '-' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="td-empty">Nenhum evento encontrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if paginacao.pages > 1 %}
+    <div class="card-body pagination">
+      {% if paginacao.has_prev %}
+      <a href="{{ url_for('pages.zokyo_auditoria', page=paginacao.prev_num, data_ini=filtros.data_ini, data_fim=filtros.data_fim, usuario_id=filtros.usuario_id, tipo=filtros.tipo, modulo=filtros.modulo) }}" class="btn btn-ghost btn-sm">Anterior</a>
+      {% endif %}
+      <span class="pagination-label">{{ paginacao.page }}/{{ paginacao.pages }}</span>
+      {% if paginacao.has_next %}
+      <a href="{{ url_for('pages.zokyo_auditoria', page=paginacao.next_num, data_ini=filtros.data_ini, data_fim=filtros.data_fim, usuario_id=filtros.usuario_id, tipo=filtros.tipo, modulo=filtros.modulo) }}" class="btn btn-ghost btn-sm">Próximo</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

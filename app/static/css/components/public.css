@@ -38,7 +38,7 @@ body.public-page {
 .public-notice { background: #fff8e6; border: 1px solid #f2d790; color: #684d00; }
 .public-error { background: #fff0ef; border: 1px solid #f2b8b5; color: #8f1d16; }
 .public-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-.public-button { min-height: 44px; border-radius: 6px; padding: 11px 16px; font: inherit; font-weight: 750; cursor: pointer; }
+.public-button { display: inline-grid; place-items: center; min-height: 44px; border: 1px solid var(--public-blue); border-radius: 6px; padding: 11px 16px; background: var(--public-blue); color: #fff; font: inherit; font-weight: 750; text-align: center; text-decoration: none; cursor: pointer; }
 .public-button-approve { border: 1px solid var(--public-green); background: var(--public-green); color: #fff; }
 .public-button-reject { border: 1px solid var(--public-red); background: #fff; color: var(--public-red); }
 .public-button:focus-visible { outline: 3px solid rgba(37,99,235,.28); outline-offset: 2px; }

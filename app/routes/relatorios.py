@@ -110,7 +110,7 @@ def save_report():
         flash("Nome ou frequencia invalida.", "error")
         return redirect(url_for("relatorios.index"))
     if frequency and not validar_email(recipient):
-        flash("E-mail e obrigatorio para agendamento.", "error")
+        flash("E-mail é obrigatório para agendamento.", "error")
         return redirect(url_for("relatorios.index"))
     now = datetime.now()
     report = SavedReport(

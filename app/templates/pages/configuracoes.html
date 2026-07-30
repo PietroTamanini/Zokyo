@@ -1,11 +1,11 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Configurações — Zokyo{% endblock %}
 {% block breadcrumb %}Configurações{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div><div class="page-title">Configurações</div><div class="page-sub">Empresa, indicadores e comunicação</div></div>
-  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Seguranca da conta</a>
+  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Segurança da conta</a>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -17,6 +17,7 @@
 <!-- Tabs -->
 <div class="tabs">
   <button class="tab-btn active" data-action="cfg-tab" data-tab="geral">Empresa</button>
+  <button class="tab-btn" data-action="cfg-tab" data-tab="os">OS</button>
   <button class="tab-btn" data-action="cfg-tab" data-tab="dashboard">Dashboard e alertas</button>
   <button class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">WhatsApp</button>
 </div>
@@ -35,10 +36,24 @@
             <input type="text" name="cnpj" value="{{ cfg.cnpj or '' }}" class="mask-cnpj"></div>
         </div>
         <div class="form-row fr2">
+          <div class="form-group"><label>Texto abaixo do nome</label>
+            <input type="text" name="subtitulo_empresa" value="{{ cfg.subtitulo_empresa or '' }}" placeholder="Assistência técnica e manutenção"></div>
+          <div class="form-group"><label>Logo</label>
+            <input type="url" name="logo_url" value="{{ cfg.logo_url or '' }}" placeholder="https://site.com/logo.png ou /static/img/logo.png"></div>
+        </div>
+        <div class="form-row fr2">
           <div class="form-group"><label>Telefone</label>
             <input type="text" name="telefone" value="{{ cfg.telefone or '' }}" class="mask-phone"></div>
           <div class="form-group"><label>E-mail</label>
             <input type="email" name="email" value="{{ cfg.email or '' }}"></div>
+        </div>
+        <div class="form-row fr3">
+          <div class="form-group"><label>WhatsApp público</label>
+            <input type="text" name="whatsapp_publico" value="{{ cfg.whatsapp_publico or '' }}" class="mask-phone"></div>
+          <div class="form-group"><label>Site</label>
+            <input type="url" name="site_url" value="{{ cfg.site_url or '' }}" placeholder="https://suaempresa.com.br"></div>
+          <div class="form-group"><label>Instagram</label>
+            <input type="url" name="instagram_url" value="{{ cfg.instagram_url or '' }}" placeholder="https://instagram.com/suaempresa"></div>
         </div>
         <div class="form-row fr3">
           <div class="form-group form-span-2"><label>Endereço</label>
@@ -59,6 +74,75 @@
         <div class="form-row fr2"><div class="form-group"><label>Cor principal</label><input type="color" name="primary_color" value="{{ cfg.primary_color or '#2563eb' }}"></div><div class="form-group"><label>Cor de destaque</label><input type="color" name="accent_color" value="{{ cfg.accent_color or '#6366f1' }}"></div></div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: OS -->
+<div id="tab-os" class="tab-content hidden">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Opções das ordens de serviço</span></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('configuracoes.salvar_os_opcoes') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row fr3">
+          <div class="form-group">
+            <label>Status</label>
+            <div class="option-list" data-options-list="status">
+              {% for item in cfg.get_os_status_options() %}
+              <div class="option-row">
+                <input type="text" name="status_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="status_label[]" value="{{ item.label }}" placeholder="Nome exibido">
+                <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="status">Adicionar status</button>
+          </div>
+          <div class="form-group">
+            <label>Prioridades</label>
+            <div class="option-list" data-options-list="priority">
+              {% for item in cfg.get_os_priority_options() %}
+              <div class="option-row">
+                <input type="text" name="priority_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="priority_label[]" value="{{ item.label }}" placeholder="Nome exibido">
+                <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="priority">Adicionar prioridade</button>
+          </div>
+          <div class="form-group">
+            <label>Tipo de atendimento</label>
+            <div class="option-list" data-options-list="attendance">
+              {% for item in cfg.get_attendance_type_options() %}
+              <div class="option-row">
+                <input type="text" name="attendance_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="attendance_label[]" value="{{ item.label }}" placeholder="Nome exibido">
+                <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="attendance">Adicionar tipo</button>
+          </div>
+          <div class="form-group">
+            <label>Checklist de entrada</label>
+            <div class="option-list" data-options-list="entry_checklist">
+              {% for item in cfg.get_entry_checklist_options() %}
+              <div class="option-row">
+                <input type="text" name="entry_checklist_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="entry_checklist_label[]" value="{{ item.label }}" placeholder="Nome exibido">
+                <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
+              </div>
+              {% endfor %}
+            </div>
+            <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="entry_checklist">Adicionar item</button>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Salvar opções</button>
         </div>
       </form>
     </div>
@@ -153,6 +237,20 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
+function addOptionRow(target) {
+  const list = document.querySelector(`[data-options-list="${target}"]`);
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'option-row';
+  row.innerHTML = `
+    <input type="text" name="${target}_key[]" value="" placeholder="codigo">
+    <input type="text" name="${target}_label[]" value="" placeholder="Nome exibido">
+    <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
+  `;
+  list.appendChild(row);
+  row.querySelector('input').focus();
+}
+
 
 async function verificarWpp() {
   const badge = document.getElementById('wpp-badge');
@@ -192,8 +290,13 @@ document.addEventListener('click', (e) => {
   if (action === 'cfg-tab') {
     return showTab(el.getAttribute('data-tab'), el);
   }
+  if (action === 'cfg-option-add') return addOptionRow(el.getAttribute('data-target'));
+  if (action === 'cfg-option-remove') {
+    const row = el.closest('.option-row');
+    if (row) row.remove();
+    return;
+  }
   if (action === 'wpp-status') return verificarWpp();
 });
 </script>
 {% endblock %}
-

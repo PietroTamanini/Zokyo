@@ -2,7 +2,7 @@ import hashlib
 
 from app import create_app
 from app.extensions import db
-from app.models import Cliente, OrdemServico, Organization, OSHistorico, PortalToken, Usuario
+from app.models import Cliente, OrdemServico, Organization, OSHistorico, PortalToken, Transacao, Usuario
 from app.services.portal import criar_link_portal
 
 
@@ -52,6 +52,14 @@ def test_portal_armazena_so_hash_e_nao_expoe_dados_internos():
     assert "SERIE-SECRETA" not in body
     assert "DIAGNOSTICO INTERNO" not in body
     assert "Cliente Sigiloso" not in body
+    assert "Baixar comprovante" in body
+
+    pdf = app.test_client().get(f"/portal/os/{raw}/pdf")
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data.startswith(b"%PDF")
+    assert b"SERIE-SECRETA" not in pdf.data
+    assert b"DIAGNOSTICO INTERNO" not in pdf.data
 
 
 def test_aprovacao_e_idempotente_e_registra_transicao():
@@ -91,3 +99,61 @@ def test_novo_link_revoga_o_anterior():
     client = app.test_client()
     assert client.get(f"/portal/os/{old}").status_code == 404
     assert client.get(f"/portal/os/{new}").status_code == 200
+
+
+def test_api_client_usa_token_portal_e_isola_cliente():
+    app = make_app()
+    user_id, os_id = seed(app)
+    with app.app_context():
+        user = db.session.get(Usuario, user_id)
+        service_order = db.session.get(OrdemServico, os_id)
+        raw = criar_link_portal(service_order, user, "tracking")
+        other_client = Cliente(nome="Outro Cliente", telefone="4711111111", organization_id=1)
+        db.session.add(other_client)
+        db.session.flush()
+        other_order = OrdemServico(
+            organization_id=1,
+            cliente_id=other_client.id,
+            usuario_id=user.id,
+            tipo_aparelho="Celular",
+            defeito_alegado="Tela quebrada",
+            status="recepcao",
+        )
+        charge = Transacao(
+            organization_id=1,
+            os_id=service_order.id,
+            tipo="receita",
+            categoria="servico",
+            descricao="OS portal",
+            valor=250,
+            status="pendente",
+        )
+        db.session.add_all([other_order, charge])
+        db.session.commit()
+        other_order_id = other_order.id
+
+    client = app.test_client()
+    assert client.get("/api/v1/client").status_code == 401
+    auth = client.post("/api/v1/client/auth", json={"portal_token": raw})
+    assert auth.status_code == 200
+    assert auth.json["cliente"]["nome"] == "Cliente Sigiloso"
+
+    headers = {"Authorization": f"Bearer {raw}"}
+    orders = client.get("/api/v1/client/os", headers=headers)
+    assert orders.status_code == 200
+    assert [item["id"] for item in orders.json["result"]["Os"]] == [os_id]
+    assert client.get(f"/api/v1/client/os/{other_order_id}", headers=headers).status_code == 404
+
+    compras = client.get("/api/v1/client/compras", headers=headers)
+    assert compras.status_code == 200
+    assert compras.json["result"]["Compras"][0]["descricao"] == "OS portal"
+    cobrancas = client.get("/api/v1/client/cobrancas", headers=headers)
+    assert cobrancas.status_code == 200
+    assert cobrancas.json["result"][0]["status"] == "pendente"
+
+    created = client.post("/api/v1/client/os", headers=headers, json={
+        "descricaoProduto": "Tablet",
+        "defeito": "Nao carrega",
+    })
+    assert created.status_code == 201
+    assert created.json["result"]["equipamento"] == "Tablet"

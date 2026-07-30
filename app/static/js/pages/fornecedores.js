@@ -74,3 +74,10 @@ document.addEventListener('click', (e) => {
     if (id) return abrirModalEditarFornecedor(id);
   }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('novo') === '1') abrirModalNovoFornecedor();
+  const editId = parseInt(params.get('editar') || '');
+  if (editId) abrirModalEditarFornecedor(editId);
+});

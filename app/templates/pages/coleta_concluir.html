@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Concluir coleta #{{ coleta.id }} — Zokyo{% endblock %}
 {% block breadcrumb %}Concluir coleta{% endblock %}
-{% block topbar_action %}<a href="{{ url_for('pages.coleta') }}" class="btn btn-ghost btn-sm">← Coletas</a>{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.coleta') }}" class="btn btn-ghost btn-sm">Voltar para coletas</a>{% endblock %}
 
 {% block content %}
 {% set fd = form_data or {} %}
@@ -10,7 +10,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Concluir coleta #{{ coleta.id }}</div>
-    <div class="page-sub">No local, preencha equipamento, defeito e fotos. Isso cria a OS.</div>
+    <div class="page-sub">No local, preencha equipamento, defeito e fotos. Ao salvar, a OS será criada.</div>
   </div>
 </div>
 
@@ -67,10 +67,10 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Diagnostico inicial</div></div>
+      <div class="card-header"><div class="card-title">Diagnóstico inicial</div></div>
       <div class="card-body">
         <div class="form-group mb16">
-          <label>Defeito alegado <span class="req">*</span></label>
+            <label>Defeito informado pelo cliente <span class="req">*</span></label>
           <textarea name="defeito_alegado" rows="4" class="{{ 'input-error' if fe.get('defeito_alegado') }}" required>{{ fd.get('defeito_alegado', '') }}</textarea>
         </div>
         <div class="form-group mb16">
@@ -78,25 +78,36 @@
           <textarea name="defeito_encontrado" rows="3">{{ fd.get('defeito_encontrado', '') }}</textarea>
         </div>
         <div class="form-group mb16">
-          <label>Observacoes / acessorios</label>
-          <textarea name="observacoes" rows="3" placeholder="Ex: acompanha carregador, senha, riscos visiveis...">{{ fd.get('observacoes', '') }}</textarea>
+          <label>Observações e acessórios</label>
+          <textarea name="observacoes" rows="3" placeholder="Ex: acompanha carregador, senha, riscos visíveis.">{{ fd.get('observacoes', '') }}</textarea>
         </div>
         <div class="form-row fr3">
           <div class="form-group">
             <label>Prioridade</label>
             {% set prio_v = fd.get('prio', 'normal') %}
             <select name="prio">
-              <option value="normal" {{ 'selected' if prio_v == 'normal' }}>Normal</option>
-              <option value="urgente" {{ 'selected' if prio_v == 'urgente' }}>Urgente</option>
-              <option value="critico" {{ 'selected' if prio_v == 'critico' }}>Critico</option>
+              {% for item in priority_options %}
+              <option value="{{ item.key }}" {{ 'selected' if prio_v == item.key }}>{{ item.label }}</option>
+              {% endfor %}
             </select>
           </div>
           <div class="form-group">
-            <label>Previsão</label>
+            <label>Previsão de entrega</label>
             <input type="date" name="data_prev" value="{{ fd.get('data_prev', '') }}">
           </div>
           <div class="form-group">
-            <label>Garantia dias</label>
+            <label>Tipo de atendimento</label>
+            {% set atendimento_v = fd.get('tipo_atendimento', 'coleta') %}
+            <select name="tipo_atendimento">
+              {% for item in attendance_options %}
+              <option value="{{ item.key }}" {{ 'selected' if atendimento_v == item.key }}>{{ item.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Garantia em dias</label>
             <input type="number" name="garantia_dias" value="{{ fd.get('garantia_dias', 90) }}" min="0">
           </div>
         </div>
@@ -104,7 +115,7 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><div class="card-title">Fotos obrigatorias</div></div>
+      <div class="card-header"><div class="card-title">Fotos obrigatórias</div></div>
       <div class="card-body">
         <div class="form-group">
           <label>Fotos do equipamento e estado externo <span class="req">*</span></label>
@@ -119,12 +130,12 @@
 
   <div class="os-column coleta-side-hint">
     <div class="card">
-      <div class="card-header"><div class="card-title">Checklist rapido</div></div>
+      <div class="card-header"><div class="card-title">Checklist rápido</div></div>
       <div class="card-body">
         <label class="check-inline"><input type="checkbox" class="input-check"> Foto frontal do equipamento</label>
         <label class="check-inline"><input type="checkbox" class="input-check"> Foto traseira / etiqueta / série</label>
-        <label class="check-inline"><input type="checkbox" class="input-check"> Foto de dano visivel</label>
-        <label class="check-inline"><input type="checkbox" class="input-check"> Acessorios anotados</label>
+        <label class="check-inline"><input type="checkbox" class="input-check"> Foto de dano visível</label>
+        <label class="check-inline"><input type="checkbox" class="input-check"> Acessórios anotados</label>
       </div>
     </div>
   </div>

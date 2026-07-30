@@ -1,4 +1,4 @@
-"""Servico de importacao CPlus/Firebird para o Zokyo."""
+"""Importação de bancos externos Firebird para o Zokyo."""
 from __future__ import annotations
 
 import json
@@ -13,13 +13,14 @@ from typing import Any
 from flask import current_app, has_app_context
 
 from app.extensions import db
-from app.models import Cliente, OrdemServico, OSHistorico, Peca
+from app.models import Cliente, OrdemServico, OSHistorico, Peca, Transacao, proximo_numero_os
+from app.models.ordem_servico import os_pecas
 from app.utils.sanitizers import sanitize_cep, sanitize_phone, sanitize_text
 from app.utils.validators import validar_cnpj, validar_cpf
 
 
-class CPlusImportError(RuntimeError):
-    """Erro amigavel de importacao CPlus."""
+class ExternalImportError(RuntimeError):
+    """Erro amigável de importação de banco externo."""
 
 
 @dataclass
@@ -41,6 +42,14 @@ def _json_safe(value: Any):
     if isinstance(value, Decimal):
         return float(value)
     return value
+
+
+def _to_datetime(value: Any):
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, date):
+        return datetime(value.year, value.month, value.day)
+    return None
 
 
 def _type_name(field_type, subtype, length, precision, scale):
@@ -67,7 +76,7 @@ def _type_name(field_type, subtype, length, precision, scale):
     return base
 
 
-class CPlusFirebirdImporter:
+class ExternalFirebirdImporter:
     def __init__(self, credentials: FirebirdCredentials):
         self.credentials = credentials
         self._driver = None
@@ -75,7 +84,7 @@ class CPlusFirebirdImporter:
     def _connect(self):
         db_path = Path(self.credentials.database_path)
         if not db_path.exists():
-            raise CPlusImportError("Arquivo .fdb nao encontrado no servidor.")
+            raise ExternalImportError("Arquivo .fdb não encontrado no servidor.")
 
         errors = []
 
@@ -116,10 +125,10 @@ class CPlusFirebirdImporter:
         except Exception as exc:
             errors.append(str(exc))
 
-        detail = " | ".join(errors) or "Cliente Firebird indisponivel."
-        raise CPlusImportError(
-            "Nao foi possivel abrir o Firebird. Instale Firebird Client/Server "
-            "compativel com o .fdb ou defina FIREBIRD_CLIENT_LIBRARY. Detalhe: "
+        detail = " | ".join(errors) or "Cliente Firebird indisponível."
+        raise ExternalImportError(
+            "Não foi possível abrir o Firebird. Instale Firebird Client/Server "
+            "compatível com o .fdb ou defina FIREBIRD_CLIENT_LIBRARY. Detalhe: "
             f"{detail}"
         )
 
@@ -231,6 +240,13 @@ class CPlusFirebirdImporter:
             "clientes_auxiliares": [t for t in ("CLIENTEENDERECO", "CONTATOSCLI", "CIDADE", "UF") if t in tables],
             "produtos": [t for t in ("PRODUTO", "PRODUTOESTOQUE", "PRODUTOPRECO", "SECAO", "UNIDADE") if t in tables],
             "ordens_servico": [t for t in ("OS_ORDEMSERVICO", "OS_STATUS", "OS_TECNICO", "OS_PRODSERV") if t in tables],
+            "financeiro": [t for t in ("CONTARECEBER", "CONTAPAGAR") if t in tables],
+            "compatibilidade": {
+                "firebird_assistencia": bool({"CLIENTE", "PRODUTO", "OS_ORDEMSERVICO"} & tables),
+                "assistencia_mysql": bool({"clientes", "produtos", "os", "lancamentos"} & tables),
+                "ordesk_like": bool({"customers", "orders", "services", "products"} & tables),
+                "csv_generico": False,
+            },
         }
 
     def _split_address(self, endereco):
@@ -256,6 +272,7 @@ class CPlusFirebirdImporter:
             "cpf": cpf or None,
             "cnpj": cnpj or None,
             "telefone": sanitize_phone(row.get("TELEFONE")) or None,
+            "email": sanitize_text(row.get("EMAIL"), max_length=254) or None,
             "cep": sanitize_cep(row.get("CEP")) or None,
             "endereco": endereco,
             "numero_casa": numero,
@@ -277,11 +294,22 @@ class CPlusFirebirdImporter:
             found = Cliente.query.filter_by(nome=item["nome"], telefone=item["telefone"]).first()
             if found:
                 return found, "nome + telefone ja existem"
+        if item.get("nome") and item.get("endereco"):
+            found = Cliente.query.filter(
+                db.func.lower(Cliente.nome) == item["nome"].lower(),
+                db.func.lower(Cliente.endereco) == item["endereco"].lower(),
+            ).first()
+            if found:
+                return found, "nome + endereco ja existem"
+        if item.get("nome") and not any(item.get(key) for key in ("cpf", "cnpj", "telefone", "endereco")):
+            found = Cliente.query.filter(db.func.lower(Cliente.nome) == item["nome"].lower()).first()
+            if found:
+                return found, "nome ja existe"
         return None, None
 
     def _cliente_rows(self):
         return self._rows("""
-            SELECT CODCLI, NOMECLI, CPF, CNPJ, TELEFONE, CEP, ENDERECO, CIDADE, ESTADO
+            SELECT CODCLI, NOMECLI, CPF, CNPJ, TELEFONE, EMAIL, CEP, ENDERECO, CIDADE, ESTADO
             FROM CLIENTE
             ORDER BY CODCLI
         """)
@@ -331,7 +359,7 @@ class CPlusFirebirdImporter:
 
     def _os_rows(self):
         return self._rows("""
-            SELECT os.CODOS, os.CODCLI, os.EQUIPAMENTO, os.IDENTIFICADOR, os.MARCAMODELO,
+            SELECT os.CODOS, os.NUMOS, os.CODCLI, os.EQUIPAMENTO, os.IDENTIFICADOR, os.MARCAMODELO,
                    os.TIPO, os.OCORRENCIA, os.OBS, os.SOLUCAO, os.DATA, os.DATSAI,
                    os.GARANTIA, os.CODSTATUS, os.CODTEC,
                    st.STATUS AS STATUS_NOME,
@@ -341,11 +369,30 @@ class CPlusFirebirdImporter:
             LEFT JOIN OS_STATUS st ON st.CODSTATUS = os.CODSTATUS
             LEFT JOIN OS_TECNICO tec ON tec.CODTEC = os.CODTEC
             LEFT JOIN OS_PRODSERV ps ON ps.CODOS = os.CODOS
-            GROUP BY os.CODOS, os.CODCLI, os.EQUIPAMENTO, os.IDENTIFICADOR, os.MARCAMODELO,
+            GROUP BY os.CODOS, os.NUMOS, os.CODCLI, os.EQUIPAMENTO, os.IDENTIFICADOR, os.MARCAMODELO,
                      os.TIPO, os.OCORRENCIA, os.OBS, os.SOLUCAO, os.DATA, os.DATSAI,
                      os.GARANTIA, os.CODSTATUS, os.CODTEC, st.STATUS, tec.TECNICO
             ORDER BY os.CODOS
         """)
+
+    def _os_item_rows(self):
+        return self._rows("""
+            SELECT ps.CODOS, ps.CODPROD, ps.QUANTIDADE, ps.TIPO, ps.VALORUNITARIO,
+                   ps.VALORTOTAL, ps.COMPLEMENTO, p.NOMEPROD
+            FROM OS_PRODSERV ps
+            LEFT JOIN PRODUTO p ON p.CODPROD = ps.CODPROD
+            ORDER BY ps.CODOS, ps.CODPRODSERV
+        """)
+
+    def _items_by_os(self):
+        grouped = {}
+        try:
+            rows = self._os_item_rows()
+        except Exception:
+            return grouped
+        for row in rows:
+            grouped.setdefault(str(row.get("CODOS") or "").strip(), []).append(row)
+        return grouped
 
     def _status_zokyo(self, status_nome):
         s = sanitize_text(status_nome, max_length=60).lower()
@@ -375,6 +422,7 @@ class CPlusFirebirdImporter:
         cliente = cliente_by_source.get(str(row.get("CODCLI") or "").strip())
         return {
             "source_id": str(row.get("CODOS") or "").strip(),
+            "numero": int(row.get("NUMOS") or 0) or None,
             "cliente": cliente,
             "cliente_source_id": str(row.get("CODCLI") or "").strip(),
             "tipo_aparelho": sanitize_text(row.get("EQUIPAMENTO") or row.get("TIPO"), max_length=100) or None,
@@ -385,8 +433,8 @@ class CPlusFirebirdImporter:
             "solucao": sanitize_text(row.get("SOLUCAO"), max_length=5000) or None,
             "observacoes": sanitize_text(row.get("OBS"), max_length=5000) or None,
             "status": self._status_zokyo(row.get("STATUS_NOME")),
-            "data_entrada": row.get("DATA"),
-            "data_saida": row.get("DATSAI"),
+            "data_entrada": _to_datetime(row.get("DATA")),
+            "data_saida": _to_datetime(row.get("DATSAI")),
             "valor_servico": float(row.get("VALOR") or 0),
             "garantia_dias": int(row.get("GARANTIA") or 90),
             "tecnico_nome": sanitize_text(row.get("TECNICO_NOME"), max_length=120) or None,
@@ -395,6 +443,12 @@ class CPlusFirebirdImporter:
     def _os_duplicate(self, item):
         if not item.get("cliente"):
             return None, "cliente ausente"
+        if item.get("numero"):
+            found = OrdemServico.query.filter_by(numero=item["numero"]).filter(
+                OrdemServico.deletado_em.is_(None)
+            ).first()
+            if found:
+                return found, "numero de OS ja existe"
         q = OrdemServico.query.filter_by(cliente_id=item["cliente"].id).filter(
             OrdemServico.deletado_em.is_(None)
         )
@@ -409,13 +463,55 @@ class CPlusFirebirdImporter:
             return found, "OS semelhante ja existe"
         return None, None
 
+    def _contapagar_rows(self):
+        return self._rows("""
+            SELECT CODCP, CREDOR, VALOR, DATENTR, DATVENC, ORIGEM, LOCAL, OBS,
+                   FLAGPAGO, DATPAG, VALORPG
+            FROM CONTAPAGAR
+            ORDER BY CODCP
+        """)
+
+    def _contareceber_rows(self):
+        return self._rows("""
+            SELECT CODCR, CODCLI, DEVEDOR, VALOR, DATENTR, DATVENC, ORIGEM, LOCAL, OBS,
+                   FLAGPAGO, DATPAG, VALORPG
+            FROM CONTARECEBER
+            ORDER BY CODCR
+        """)
+
+    def _map_financeiro(self, row, tipo: str):
+        paid = str(row.get("FLAGPAGO") or "").upper() == "Y"
+        source_id = str(row.get("CODCP") or row.get("CODCR") or "").strip()
+        descricao = sanitize_text(row.get("ORIGEM") or row.get("CREDOR") or row.get("DEVEDOR"), max_length=240)
+        if not descricao:
+            descricao = f"Lançamento importado #{source_id}"
+        return {
+            "source_id": source_id,
+            "tipo": tipo,
+            "categoria": "fornecedor" if tipo == "despesa" else "servico",
+            "descricao": f"{descricao} [origem externa {source_id}]",
+            "valor": float(row.get("VALORPG") or row.get("VALOR") or 0),
+            "forma_pagamento": sanitize_text(row.get("LOCAL"), max_length=50) or None,
+            "status": "pago" if paid else "pendente",
+            "data_vencimento": _to_datetime(row.get("DATVENC") or row.get("DATENTR")),
+            "data_pagamento": _to_datetime(row.get("DATPAG")) if paid else None,
+        }
+
+    def _transacao_duplicate(self, item):
+        return Transacao.query.filter_by(
+            tipo=item["tipo"],
+            descricao=item["descricao"],
+            valor=Decimal(str(item["valor"])),
+            data_vencimento=item["data_vencimento"],
+        ).first()
+
     def preview(self) -> dict[str, Any]:
         schema = self.inspect_schema()
         tables = set(schema["tables"])
         selected = []
-        invalid = {"clientes": [], "produtos": [], "ordens_servico": []}
-        duplicates = {"clientes": [], "produtos": [], "ordens_servico": []}
-        examples = {"clientes": [], "produtos": [], "ordens_servico": []}
+        invalid = {"clientes": [], "produtos": [], "ordens_servico": [], "financeiro": []}
+        duplicates = {"clientes": [], "produtos": [], "ordens_servico": [], "financeiro": []}
+        examples = {"clientes": [], "produtos": [], "ordens_servico": [], "financeiro": []}
 
         if "CLIENTE" in tables:
             selected.append("CLIENTE")
@@ -446,18 +542,20 @@ class CPlusFirebirdImporter:
         if "OS_ORDEMSERVICO" in tables:
             selected.extend([t for t in ("OS_ORDEMSERVICO", "OS_STATUS", "OS_TECNICO", "OS_PRODSERV") if t in tables])
             cliente_by_source = {}
+            cliente_name_by_source = {}
             cliente_sources = set()
             for row in self._cliente_rows() if "CLIENTE" in tables else []:
                 item = self._map_cliente(row)
                 if item.get("nome"):
                     cliente_sources.add(item["source_id"])
+                    cliente_name_by_source[item["source_id"]] = item["nome"]
                 dup, _ = self._cliente_duplicate(item)
                 if dup:
                     cliente_by_source[item["source_id"]] = dup
             for row in self._os_rows():
                 item = self._map_os(row, cliente_by_source)
                 if item["cliente_source_id"] not in cliente_sources:
-                    invalid["ordens_servico"].append({"source_id": item["source_id"], "reason": "cliente CPlus ausente ou sem nome"})
+                    invalid["ordens_servico"].append({"source_id": item["source_id"], "reason": "cliente externo ausente ou sem nome"})
                 elif item.get("cliente"):
                     dup, reason = self._os_duplicate(item)
                     if dup:
@@ -465,7 +563,32 @@ class CPlusFirebirdImporter:
                 if len(examples["ordens_servico"]) < 10:
                     copy = dict(item)
                     copy["cliente"] = item["cliente"].id if item.get("cliente") else None
+                    copy["cliente_previsto"] = cliente_name_by_source.get(item["cliente_source_id"])
                     examples["ordens_servico"].append(copy)
+
+        if "CONTAPAGAR" in tables:
+            selected.append("CONTAPAGAR")
+            for row in self._contapagar_rows():
+                item = self._map_financeiro(row, "despesa")
+                if item["valor"] <= 0:
+                    invalid["financeiro"].append({"source_id": item["source_id"], "reason": "valor vazio ou zerado"})
+                    continue
+                if self._transacao_duplicate(item):
+                    duplicates["financeiro"].append({"source_id": item["source_id"], "reason": "lançamento semelhante já existe"})
+                if len(examples["financeiro"]) < 10:
+                    examples["financeiro"].append(item)
+
+        if "CONTARECEBER" in tables:
+            selected.append("CONTARECEBER")
+            for row in self._contareceber_rows():
+                item = self._map_financeiro(row, "receita")
+                if item["valor"] <= 0:
+                    invalid["financeiro"].append({"source_id": item["source_id"], "reason": "valor vazio ou zerado"})
+                    continue
+                if self._transacao_duplicate(item):
+                    duplicates["financeiro"].append({"source_id": item["source_id"], "reason": "lançamento semelhante já existe"})
+                if len(examples["financeiro"]) < 10:
+                    examples["financeiro"].append(item)
 
         return {
             "success": True,
@@ -477,6 +600,10 @@ class CPlusFirebirdImporter:
                 "clientes": self._scalar("SELECT COUNT(*) FROM CLIENTE") if "CLIENTE" in tables else 0,
                 "produtos": self._scalar("SELECT COUNT(*) FROM PRODUTO") if "PRODUTO" in tables else 0,
                 "ordens_servico": self._scalar("SELECT COUNT(*) FROM OS_ORDEMSERVICO") if "OS_ORDEMSERVICO" in tables else 0,
+                "financeiro": (
+                    (self._scalar("SELECT COUNT(*) FROM CONTAPAGAR") if "CONTAPAGAR" in tables else 0)
+                    + (self._scalar("SELECT COUNT(*) FROM CONTARECEBER") if "CONTARECEBER" in tables else 0)
+                ),
             },
             "mapped_fields": self.mapping_report(),
             "ignored_fields": self.ignored_fields_report(),
@@ -488,15 +615,18 @@ class CPlusFirebirdImporter:
 
     def commit(self, admin_user: str | None = None, admin_user_id: int | None = None) -> dict[str, Any]:
         if not admin_user_id:
-            raise CPlusImportError("Usuario admin da sessao nao identificado.")
+            raise ExternalImportError("Usuário admin da sessão não identificado.")
         preview = self.preview()
-        created = {"clientes": 0, "produtos": 0, "ordens_servico": 0}
-        skipped = {"clientes": 0, "produtos": 0, "ordens_servico": 0}
+        tables = set(preview.get("schema", {}).get("tables", {}))
+        created = {"clientes": 0, "produtos": 0, "ordens_servico": 0, "financeiro": 0, "itens_os": 0}
+        skipped = {"clientes": 0, "produtos": 0, "ordens_servico": 0, "financeiro": 0, "itens_os": 0}
         errors = []
         cliente_by_source = {}
+        produto_by_source = {}
+        items_by_os = self._items_by_os() if "OS_PRODSERV" in tables else {}
 
         try:
-            for row in self._cliente_rows():
+            for row in self._cliente_rows() if "CLIENTE" in tables else []:
                 item = self._map_cliente(row)
                 if not item["nome"]:
                     skipped["clientes"] += 1
@@ -511,6 +641,7 @@ class CPlusFirebirdImporter:
                     cpf=item["cpf"],
                     cnpj=item["cnpj"],
                     telefone=item["telefone"],
+                    email=item["email"],
                     cep=item["cep"],
                     endereco=item["endereco"],
                     numero_casa=item["numero_casa"],
@@ -522,16 +653,17 @@ class CPlusFirebirdImporter:
                 cliente_by_source[item["source_id"]] = cliente
                 created["clientes"] += 1
 
-            for row in self._produto_rows():
+            for row in self._produto_rows() if "PRODUTO" in tables else []:
                 item = self._map_produto(row)
                 if not item["nome"]:
                     skipped["produtos"] += 1
                     continue
                 dup, _ = self._produto_duplicate(item)
                 if dup:
+                    produto_by_source[item["source_id"]] = dup
                     skipped["produtos"] += 1
                     continue
-                db.session.add(Peca(
+                peca = Peca(
                     nome=item["nome"],
                     codigo=item["codigo"],
                     categoria=item["categoria"],
@@ -539,10 +671,13 @@ class CPlusFirebirdImporter:
                     estoque_minimo=0,
                     custo=item["custo"],
                     margem=item["margem"],
-                ))
+                )
+                db.session.add(peca)
+                db.session.flush()
+                produto_by_source[item["source_id"]] = peca
                 created["produtos"] += 1
 
-            for row in self._os_rows():
+            for row in self._os_rows() if "OS_ORDEMSERVICO" in tables else []:
                 item = self._map_os(row, cliente_by_source)
                 if not item.get("cliente"):
                     skipped["ordens_servico"] += 1
@@ -552,6 +687,7 @@ class CPlusFirebirdImporter:
                     skipped["ordens_servico"] += 1
                     continue
                 os_obj = OrdemServico(
+                    numero=item["numero"] or proximo_numero_os(),
                     cliente_id=item["cliente"].id,
                     usuario_id=admin_user_id,
                     tipo_aparelho=item["tipo_aparelho"],
@@ -570,8 +706,54 @@ class CPlusFirebirdImporter:
                 )
                 db.session.add(os_obj)
                 db.session.flush()
+                valor_pecas = Decimal("0")
+                valor_servicos = Decimal("0")
+                for item_row in items_by_os.get(item["source_id"], []):
+                    qty = Decimal(str(item_row.get("QUANTIDADE") or 0))
+                    unit = Decimal(str(item_row.get("VALORUNITARIO") or 0))
+                    total = Decimal(str(item_row.get("VALORTOTAL") or (qty * unit) or 0))
+                    source_prod = str(item_row.get("CODPROD") or "").strip()
+                    item_type = str(item_row.get("TIPO") or "").upper()
+                    peca = produto_by_source.get(source_prod)
+                    if item_type == "P" and peca:
+                        db.session.execute(
+                            os_pecas.insert().values(
+                                os_id=os_obj.id,
+                                peca_id=peca.id,
+                                quantidade=int(qty or 1),
+                                valor_unitario=unit,
+                            )
+                        )
+                        valor_pecas += total
+                        created["itens_os"] += 1
+                    else:
+                        valor_servicos += total
+                        if item_row.get("NOMEPROD"):
+                            extra = sanitize_text(item_row.get("NOMEPROD"), max_length=200)
+                            os_obj.observacoes = "\n".join(part for part in [os_obj.observacoes, f"Serviço importado: {extra}"] if part)
+                            created["itens_os"] += 1
+                if valor_pecas:
+                    os_obj.valor_pecas = valor_pecas
+                if valor_servicos:
+                    os_obj.valor_servico = valor_servicos
                 db.session.add(OSHistorico(os_id=os_obj.id, usuario_id=admin_user_id, status_anterior=None, status_novo=os_obj.status))
                 created["ordens_servico"] += 1
+
+            for row in self._contapagar_rows() if "CONTAPAGAR" in tables else []:
+                item = self._map_financeiro(row, "despesa")
+                if item["valor"] <= 0 or self._transacao_duplicate(item):
+                    skipped["financeiro"] += 1
+                    continue
+                db.session.add(Transacao(**{k: v for k, v in item.items() if k != "source_id"}))
+                created["financeiro"] += 1
+
+            for row in self._contareceber_rows() if "CONTARECEBER" in tables else []:
+                item = self._map_financeiro(row, "receita")
+                if item["valor"] <= 0 or self._transacao_duplicate(item):
+                    skipped["financeiro"] += 1
+                    continue
+                db.session.add(Transacao(**{k: v for k, v in item.items() if k != "source_id"}))
+                created["financeiro"] += 1
 
             db.session.commit()
         except Exception as exc:
@@ -600,6 +782,7 @@ class CPlusFirebirdImporter:
                 "CLIENTE.CPF": "Cliente.cpf",
                 "CLIENTE.CNPJ": "Cliente.cnpj",
                 "CLIENTE.TELEFONE": "Cliente.telefone",
+                "CLIENTE.EMAIL": "Cliente.email",
                 "CLIENTE.CEP": "Cliente.cep",
                 "CLIENTE.ENDERECO": "Cliente.endereco + Cliente.numero_casa quando separavel",
                 "CLIENTE.CIDADE": "Cliente.cidade",
@@ -614,6 +797,7 @@ class CPlusFirebirdImporter:
                 "PRODUTOPRECO.PRECO": "Peca.margem calculada",
             },
             "ordens_servico": {
+                "OS_ORDEMSERVICO.NUMOS": "OrdemServico.numero",
                 "OS_ORDEMSERVICO.CODCLI": "OrdemServico.cliente_id via CLIENTE.CODCLI",
                 "OS_ORDEMSERVICO.EQUIPAMENTO": "OrdemServico.tipo_aparelho",
                 "OS_ORDEMSERVICO.MARCAMODELO": "OrdemServico.marca/modelo quando separavel",
@@ -625,23 +809,33 @@ class CPlusFirebirdImporter:
                 "OS_ORDEMSERVICO.DATA": "OrdemServico.data_entrada",
                 "OS_ORDEMSERVICO.DATSAI": "OrdemServico.data_saida",
                 "OS_PRODSERV.VALORTOTAL": "OrdemServico.valor_servico somado",
+                "OS_PRODSERV.TIPO='P'": "Peças vinculadas na OS quando o produto existir",
+                "OS_PRODSERV.TIPO!='P'": "Serviços somados em mão de obra e anotados em observações",
                 "OS_TECNICO.TECNICO": "OrdemServico.tecnico_nome",
+            },
+            "financeiro": {
+                "CONTAPAGAR": "Transacao despesa",
+                "CONTARECEBER": "Transacao receita",
+                "VALOR/VALORPG": "Transacao.valor",
+                "DATVENC": "Transacao.data_vencimento",
+                "DATPAG": "Transacao.data_pagamento",
+                "FLAGPAGO": "Transacao.status",
             },
         }
 
     def ignored_fields_report(self):
         return {
-            "clientes": ["CLIENTE.EMAIL (cliente nao usa mais e-mail)", "CLIENTE.OBS", "CLIENTE.FOTO", "campos fiscais/comerciais"],
-            "produtos": ["PRODUTO.UNIDADE (modelo Peca nao possui unidade)", "PRODUTO.OBS (modelo Peca nao possui observacoes)", "campos fiscais"],
-            "ordens_servico": ["acessorios sem campo dedicado ficam em observacoes", "campos de agenda/KM/cupom/movenda"],
+            "clientes": ["CLIENTE.OBS", "CLIENTE.FOTO", "campos fiscais/comerciais sem equivalente direto"],
+            "produtos": ["PRODUTO.UNIDADE", "PRODUTO.OBS", "campos fiscais sem equivalente direto"],
+            "ordens_servico": ["acessórios sem campo dedicado ficam em observações", "campos de agenda/KM/cupom/movenda"],
         }
 
     def manual_confirmation_report(self):
         return [
-            "Confirmar se todos os status OS_STATUS devem seguir a normalizacao automatica.",
-            "Confirmar separacao marca/modelo quando MARCAMODELO nao contiver '/' ou '-'.",
-            "Confirmar se produtos de servico devem entrar no estoque ou ficar fora.",
-            "Commit exige usuario admin autenticado para vincular historico de OS importada.",
+            "Confirmar se todos os status devem seguir a normalização automática.",
+            "Confirmar separação marca/modelo quando o campo de origem não contiver '/' ou '-'.",
+            "Confirmar se produtos marcados como serviço devem entrar no estoque ou ficar apenas nas observações da OS.",
+            "Commit exige usuário admin autenticado para vincular histórico de OS importada.",
         ]
 
     def _write_log(self, admin_user, created, skipped, errors, preview):
@@ -652,12 +846,12 @@ class CPlusFirebirdImporter:
         payload = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "admin_user": admin_user,
-            "database_path": self.credentials.database_path,
+            "source_type": "firebird",
             "created": created,
             "skipped": skipped,
             "errors": errors,
             "problematic_records": preview.get("invalid_records", {}),
             "probable_duplicates": preview.get("probable_duplicates", {}),
         }
-        path = folder / f"cplus_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        path = folder / f"external_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")

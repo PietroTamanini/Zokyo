@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Visualizar Garantia - Zokyo{% endblock %}
+{% block breadcrumb %}Garantias / Visualizar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>
+    <h5>Visualizar Garantia</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Termo de Garantia</div>
+          <h2>OS #{{ '%04d'|format(garantia.id) }}</h2>
+          <div class="muted-sm">{{ garantia.cliente.nome if garantia.cliente else 'Sem cliente' }}</div>
+        </div>
+        <div class="action-row">
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.garantias_editar_alias', id=garantia.id) }}">Editar</a>
+          <a class="btn btn-nwe6 btn-xs" href="{{ url_for('pages.os_pdf', id=garantia.id) }}" target="_blank" rel="noopener">PDF</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.garantias') }}">Voltar</a>
+        </div>
+      </div>
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>Cliente</span>
+          <strong>{{ garantia.cliente.nome if garantia.cliente else '-' }}</strong>
+        </div>
+        <div>
+          <span>Equipamento</span>
+          <strong>{{ [garantia.tipo_aparelho, garantia.marca, garantia.modelo]|select|join(' ') or '-' }}</strong>
+        </div>
+        <div>
+          <span>Saida</span>
+          <strong>{{ garantia.data_saida | fmtdata if garantia.data_saida else '-' }}</strong>
+        </div>
+        <div>
+          <span>Garantia</span>
+          <strong>{{ garantia.garantia_dias or 0 }} dias</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{{ 'Em garantia' if garantia.em_garantia else 'Expirada' }}</strong>
+        </div>
+        <div>
+          <span>Valor OS</span>
+          <strong>{{ garantia.valor_total | moeda }}</strong>
+        </div>
+        <div>
+          <span>Serie</span>
+          <strong>{{ garantia.numero_serie or '-' }}</strong>
+        </div>
+        <div>
+          <span>Tecnico</span>
+          <strong>{{ garantia.tecnico_nome or '-' }}</strong>
+        </div>
+      </div>
+      {% if garantia.observacoes %}
+      <div class="zokyo-notes">
+        <span>Observações</span>
+        <p>{{ garantia.observacoes }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Visualizar Arquivo - Zokyo{% endblock %}
+{% block breadcrumb %}Arquivos / Visualizar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
+    <h5>Visualizar Arquivo</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Arquivo FOS{{ '%04d'|format(arquivo.id) }}</div>
+          <h2>{{ arquivo.original_filename or 'Foto da OS' }}</h2>
+          <div class="muted-sm">OS #{{ '%04d'|format(arquivo.os_id) }}</div>
+        </div>
+        <div class="action-row">
+          <a class="btn btn-nwe6 btn-xs" href="{{ url_for('pages.os_foto', foto_id=arquivo.id) }}" target="_blank" rel="noopener">Abrir</a>
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.os_detalhe', id=arquivo.os_id) }}">OS</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.arquivos') }}">Voltar</a>
+        </div>
+      </div>
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>Nome</span>
+          <strong>{{ arquivo.original_filename or '-' }}</strong>
+        </div>
+        <div>
+          <span>Módulo</span>
+          <strong>OS</strong>
+        </div>
+        <div>
+          <span>Referência</span>
+          <strong>OS #{{ '%04d'|format(arquivo.os_id) }}</strong>
+        </div>
+        <div>
+          <span>Cliente</span>
+          <strong>{{ arquivo.os.cliente.nome if arquivo.os and arquivo.os.cliente else '-' }}</strong>
+        </div>
+        <div>
+          <span>Tipo</span>
+          <strong>{{ arquivo.mime_type or '-' }}</strong>
+        </div>
+        <div>
+          <span>Tamanho</span>
+          <strong>{{ ((arquivo.tamanho_bytes or 0) / 1024) | round(1) }} KB</strong>
+        </div>
+        <div>
+          <span>Descrição</span>
+          <strong>{{ arquivo.descricao or '-' }}</strong>
+        </div>
+        <div>
+          <span>Criado em</span>
+          <strong>{{ arquivo.criado_em | fmtdata if arquivo.criado_em else '-' }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

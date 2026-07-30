@@ -8,7 +8,7 @@
   <div class="card-body parts-body">
     {% if erro %}<div class="alert a-red">{{ erro }}</div>{% else %}
     <div class="alert a-amber">Gerar outro link da mesma finalidade revoga este link.</div>
-    <div class="form-group"><label>Link {{ 'de aprovacao' if purpose == 'budget' else 'de acompanhamento' }}</label><input id="portal-link" value="{{ link }}" readonly></div>
+    <div class="form-group"><label>Link {{ 'de aprovação' if purpose == 'budget' else 'de acompanhamento' }}</label><input id="portal-link" value="{{ link }}" readonly></div>
     <a class="btn btn-primary" href="{{ link }}" target="_blank" rel="noopener">Abrir portal</a>
     {% endif %}
   </div>

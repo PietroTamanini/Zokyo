@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Seguranca da conta - Zokyo{% endblock %}
-{% block breadcrumb %}Seguranca da conta{% endblock %}
+{% block title %}Segurança da conta - Zokyo{% endblock %}
+{% block breadcrumb %}Segurança da conta{% endblock %}
 {% block content %}
-<div class="page-header"><div><div class="page-title">Autenticacao em duas etapas</div><div class="page-sub">Protecao adicional para contas administrativas</div></div><a class="btn btn-outline" href="{{ url_for('auth.sessions_page') }}">Sessoes e dispositivos</a></div>
+<div class="page-header"><div><div class="page-title">Autenticação em duas etapas</div><div class="page-sub">Proteção adicional para contas administrativas</div></div><a class="btn btn-outline" href="{{ url_for('auth.sessions_page') }}">Sessões e dispositivos</a></div>
 {% include 'partials/_flash.html' %}
 <div class="card"><div class="card-body">
 {% if enabled %}
   <div class="alert a-green mb20">A autenticação em duas etapas está ativa.</div>
-  <form method="POST" action="{{ url_for('auth.two_factor_disable') }}" data-confirm="Desativar a autenticacao em duas etapas?">
+  <form method="POST" action="{{ url_for('auth.two_factor_disable') }}" data-confirm="Desativar a autenticação em duas etapas?">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <div class="form-row fr2"><div class="form-group"><label for="senha">Senha atual</label><input id="senha" type="password" name="senha" required autocomplete="current-password"></div>
-    <div class="form-group"><label for="codigo">Codigo TOTP</label><input id="codigo" name="codigo" required inputmode="numeric" autocomplete="one-time-code"></div></div>
+    <div class="form-group"><label for="codigo">Código TOTP</label><input id="codigo" name="codigo" required inputmode="numeric" autocomplete="one-time-code"></div></div>
     <button class="btn btn-danger" type="submit">Desativar 2FA</button>
   </form>
 {% else %}
-  <p>Escaneie o QR Code no aplicativo autenticador e confirme com o codigo de seis digitos.</p>
+  <p>Escaneie o QR Code no aplicativo autenticador e confirme com o codigo de seis dígitos.</p>
   <img src="{{ qr }}" alt="QR Code para configurar autenticador" width="240" height="240">
   <div class="form-group"><label>Chave manual</label><input value="{{ secret }}" readonly></div>
   <form method="POST"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <div class="form-group"><label for="codigo">Codigo de confirmacao</label><input id="codigo" name="codigo" required inputmode="numeric" autocomplete="one-time-code"></div>
+    <div class="form-group"><label for="codigo">Código de confirmação</label><input id="codigo" name="codigo" required inputmode="numeric" autocomplete="one-time-code"></div>
     <button class="btn btn-primary" type="submit">Ativar 2FA</button>
   </form>
 {% endif %}

@@ -24,7 +24,7 @@ function clienteFormHtml(c = null) {
           <label>Nome *</label>
           <input type="text" name="nome" value="${escapeHtml(c?.nome)}" required
                  data-label="Nome" class="validate-required" data-min="2"
-                 placeholder="Ex: Joao da Silva">
+                 placeholder="Ex: João da Silva">
         </div>
         <div class="form-group">
           <label>CPF/CNPJ</label>
@@ -89,13 +89,13 @@ function clienteFormHtml(c = null) {
 }
 
 function abrirModalNovoCliente() {
-  openModal('Novo Cliente', clienteFormHtml());
+  openModal('Cadastrar cliente', clienteFormHtml());
 }
 
 function abrirModalEditarCliente(id) {
   const c = CLIENTES_EDITAR.find(x => x.id === id);
   if (!c) return;
-  openModal('Editar Cliente', clienteFormHtml(c));
+  openModal('Editar cliente', clienteFormHtml(c));
 }
 
 function aplicarErrosCliente(errors = {}) {
@@ -108,9 +108,9 @@ function restaurarClienteComErro() {
   if (typeof CLIENTE_FORM_STATE === 'undefined' || !CLIENTE_FORM_STATE.mode) return;
   const data = CLIENTE_FORM_STATE.data || {};
   if (CLIENTE_FORM_STATE.mode === 'edit') {
-    openModal('Editar Cliente', clienteFormHtml(data));
+    openModal('Editar cliente', clienteFormHtml(data));
   } else {
-    openModal('Novo Cliente', clienteFormHtml(data));
+    openModal('Cadastrar cliente', clienteFormHtml(data));
   }
   const form = document.getElementById('cliente-form');
   form?.querySelectorAll('.mask-cpf-cnpj, .mask-phone, .mask-cep').forEach((el) => {
@@ -179,15 +179,26 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const action = el.getAttribute('data-action');
-  if (action === 'cliente-novo') return abrirModalNovoCliente();
+  if (action === 'cliente-novo') {
+    e.preventDefault();
+    return abrirModalNovoCliente();
+  }
   if (action === 'cliente-editar') {
+    e.preventDefault();
     const id = parseInt(el.getAttribute('data-id'));
     if (id) return abrirModalEditarCliente(id);
   }
   if (action === 'cliente-salvar') {
+    e.preventDefault();
     const id = parseInt(el.getAttribute('data-id'));
     return salvarCliente(id || null);
   }
 });
 
-document.addEventListener('DOMContentLoaded', restaurarClienteComErro);
+document.addEventListener('DOMContentLoaded', () => {
+  restaurarClienteComErro();
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('novo') === '1') abrirModalNovoCliente();
+  const editId = parseInt(params.get('editar') || '');
+  if (editId) abrirModalEditarCliente(editId);
+});

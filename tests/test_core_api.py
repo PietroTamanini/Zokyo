@@ -254,6 +254,11 @@ def test_branding_por_organizacao_valida_cores():
     response = client.post("/configuracoes/salvar", data={
         "_csrf_token": "csrf-api", "nome_empresa": "Marca Tenant",
         "primary_color": "#123456", "accent_color": "#abcdef",
+        "subtitulo_empresa": "Assistência técnica premium",
+        "logo_url": "/static/img/logo.png",
+        "site_url": "https://example.com",
+        "instagram_url": "https://instagram.com/marcateste",
+        "whatsapp_publico": "(47) 99999-8888",
     })
     assert response.status_code == 302
     with app.app_context():
@@ -261,6 +266,18 @@ def test_branding_por_organizacao_valida_cores():
         config = Configuracao.query.one()
         assert config.primary_color == "#123456"
         assert config.accent_color == "#abcdef"
+        assert config.subtitulo_empresa == "Assistência técnica premium"
+        assert config.logo_url == "/static/img/logo.png"
+        assert config.site_url == "https://example.com"
+        assert config.instagram_url == "https://instagram.com/marcateste"
+        assert config.whatsapp_publico == "47999998888"
+
+    invalid = client.post("/configuracoes/salvar", data={
+        "_csrf_token": "csrf-api", "nome_empresa": "Marca Tenant",
+        "primary_color": "#123456", "accent_color": "#abcdef",
+        "site_url": "ftp://example.com",
+    })
+    assert invalid.status_code == 302
 
 
 def test_chaves_estrangeiras_de_outro_tenant_sao_rejeitadas():

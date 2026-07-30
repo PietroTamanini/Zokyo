@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Visualizar Fornecedor - Zokyo{% endblock %}
+{% block breadcrumb %}Fornecedores / Visualizar{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
+    <h5>Visualizar Fornecedor</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="zokyo-detail-head">
+        <div>
+          <div class="muted-xs">Fornecedor</div>
+          <h2>{{ fornecedor.nome }}</h2>
+          <div class="muted-sm">{{ fornecedor.cnpj or 'Sem CNPJ' }}</div>
+        </div>
+        <div class="action-row">
+          <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.fornecedores_editar_alias', id=fornecedor.id) }}">Editar</a>
+          <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.fornecedores') }}">Voltar</a>
+        </div>
+      </div>
+      <div class="zokyo-detail-grid">
+        <div>
+          <span>CNPJ</span>
+          <strong>{{ fornecedor.cnpj or '-' }}</strong>
+        </div>
+        <div>
+          <span>Telefone</span>
+          <strong>{{ fornecedor.telefone or '-' }}</strong>
+        </div>
+        <div>
+          <span>E-mail</span>
+          <strong>{{ fornecedor.email or '-' }}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{{ 'Ativo' if fornecedor.ativo else 'Inativo' }}</strong>
+        </div>
+        <div>
+          <span>CEP</span>
+          <strong>{{ fornecedor.cep or '-' }}</strong>
+        </div>
+        <div>
+          <span>Cidade</span>
+          <strong>{{ fornecedor.cidade or '-' }}</strong>
+        </div>
+        <div>
+          <span>Endereço</span>
+          <strong>{{ fornecedor.endereco or '-' }}</strong>
+        </div>
+        <div>
+          <span>Cadastrado em</span>
+          <strong>{{ fornecedor.criado_em | fmtdata if fornecedor.criado_em else '-' }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

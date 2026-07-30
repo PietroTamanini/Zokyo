@@ -2,26 +2,28 @@
 {% block title %}Central de Ajuda{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">{{ 'Primeiros passos' if onboarding else 'Central de ajuda' }}</div><div class="page-sub">Configure a operação e acesse os fluxos principais</div></div>
+  <div><div class="page-title">{{ 'Primeiros passos' if onboarding else 'Central de ajuda' }}</div><div class="page-sub">Use esta tela quando alguém novo precisar aprender a rotina do sistema.</div></div>
 </div>
 
 <section class="page-section">
-  <h2 class="section-title">Checklist da empresa</h2>
+  <h2 class="section-title">Antes de começar</h2>
   <div class="table-wrap"><table><thead><tr><th>Etapa</th><th>Status</th><th></th></tr></thead><tbody>
-  {% for label, done, href in checklist %}<tr><td class="td-strong">{{ label }}</td><td><span class="badge b-{{ 'green' if done else 'yellow' }}">{{ 'Concluido' if done else 'Pendente' }}</span></td><td><a class="btn btn-ghost btn-sm" href="{{ href }}">Abrir</a></td></tr>{% endfor %}
+  {% for label, done, href in checklist %}<tr><td class="td-strong">{{ label }}</td><td><span class="badge b-{{ 'green' if done else 'yellow' }}">{{ 'Concluído' if done else 'Pendente' }}</span></td><td><a class="btn btn-ghost btn-sm" href="{{ href }}">Abrir</a></td></tr>{% endfor %}
   </tbody></table></div>
 </section>
 
 <section class="page-section">
-  <h2 class="section-title">Fluxos rápidos</h2>
+  <h2 class="section-title">Rotina mais usada</h2>
   <div class="quick-actions">
-    <a class="btn btn-ghost" href="{{ url_for('pages.clientes') }}">Consultar clientes</a>
+    <a class="btn btn-ghost" href="{{ url_for('pages.clientes', novo=1) }}">1. Cadastrar cliente</a>
     {% if is_admin or current_user.nivel == 'operacional' %}
-    <a class="btn btn-ghost" href="{{ url_for('pages.os_nova') }}">Abrir ordem de serviço</a>
-    <a class="btn btn-ghost" href="{{ url_for('laudos.novo') }}">Criar laudo</a>
+    <a class="btn btn-ghost" href="{{ url_for('pages.os_nova') }}">2. Abrir ordem de serviço</a>
+    <a class="btn btn-ghost" href="{{ url_for('pages.os_lista') }}">3. Acompanhar serviços</a>
+    <a class="btn btn-ghost" href="{{ url_for('laudos.novo') }}">Criar laudo técnico</a>
     {% endif %}
     {% if is_financeiro %}
-    <a class="btn btn-ghost" href="{{ url_for('relatorios.index') }}">Consultar relatorios</a>
+    <a class="btn btn-ghost" href="{{ url_for('pages.financeiro') }}">Receber pagamento</a>
+    <a class="btn btn-ghost" href="{{ url_for('relatorios.index') }}">Consultar relatórios</a>
     {% endif %}
   </div>
 </section>

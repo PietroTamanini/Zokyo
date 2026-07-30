@@ -1,5 +1,7 @@
 """Configuracoes administrativas do sistema."""
 import re
+import unicodedata
+from urllib.parse import urlparse
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 
@@ -10,6 +12,50 @@ from app.utils.sanitizers import sanitize_cnpj, sanitize_email, sanitize_phone, 
 from app.utils.validators import validar_cnpj, validar_email, validar_telefone
 
 cfg_bp = Blueprint("configuracoes", __name__)
+
+PROTECTED_STATUS_KEYS = {"recepcao", "entregue", "cancelado"}
+
+
+def _slug_option(value: str) -> str:
+    text = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-zA-Z0-9]+", "_", text).strip("_").lower()
+    return text[:50]
+
+
+def _parse_options(prefix: str, *, protected_keys=()):
+    keys = request.form.getlist(f"{prefix}_key[]")
+    labels = request.form.getlist(f"{prefix}_label[]")
+    options = []
+    seen = set()
+    for raw_key, raw_label in zip(keys, labels):
+        label = sanitize_text(raw_label, max_length=80)
+        key = _slug_option(raw_key) or _slug_option(label)
+        if not key or not label or key in seen:
+            continue
+        options.append({"key": key, "label": label})
+        seen.add(key)
+    for key in protected_keys:
+        if key not in seen:
+            current_label = {
+                "recepcao": "Recepção",
+                "entregue": "Entregue",
+                "cancelado": "Cancelado",
+            }.get(key, key.title())
+            options.append({"key": key, "label": current_label})
+            seen.add(key)
+    return options
+
+
+def _public_url(value: str | None, *, max_length: int = 300, allow_static_path: bool = False) -> str | None:
+    text = sanitize_text(value or "", max_length=max_length).strip()
+    if not text:
+        return None
+    if allow_static_path and text.startswith("/static/") and not any(char in text for char in ("\r", "\n", "\\")):
+        return text
+    parsed = urlparse(text)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.username or parsed.password:
+        return None
+    return text
 
 
 @cfg_bp.route("/configuracoes")
@@ -88,6 +134,22 @@ def salvar():
     cfg.endereco        = sanitize_text(data.get("endereco", ""), max_length=300) or None
     cfg.cidade          = sanitize_text(data.get("cidade", ""), max_length=100) or None
     cfg.uf              = sanitize_text(data.get("uf", ""), max_length=2).upper() or None
+    cfg.subtitulo_empresa = sanitize_text(data.get("subtitulo_empresa", ""), max_length=160) or None
+    for field in ("logo_url", "site_url", "instagram_url"):
+        value = _public_url(
+            data.get(field),
+            max_length=600 if field == "logo_url" else 300,
+            allow_static_path=field == "logo_url",
+        )
+        if data.get(field) and not value:
+            flash("Informe links públicos válidos começando com http:// ou https://.", "error")
+            return redirect(url_for("configuracoes.index"))
+        setattr(cfg, field, value)
+    whatsapp_publico = sanitize_phone(data.get("whatsapp_publico", ""))
+    if whatsapp_publico and not validar_telefone(whatsapp_publico):
+        flash("WhatsApp público inválido.", "error")
+        return redirect(url_for("configuracoes.index"))
+    cfg.whatsapp_publico = whatsapp_publico or None
     for field, default in (("primary_color", "#2563eb"), ("accent_color", "#6366f1")):
         value = (data.get(field) or default).strip().lower()
         if not re.fullmatch(r"#[0-9a-f]{6}", value):
@@ -125,6 +187,36 @@ def salvar_dashboard():
     return redirect(url_for("configuracoes.index"))
 
 
+@cfg_bp.route("/configuracoes/os-opcoes", methods=["POST"])
+@page_nivel_required("admin")
+def salvar_os_opcoes():
+    cfg = Configuracao.get()
+    status_options = _parse_options("status", protected_keys=PROTECTED_STATUS_KEYS)
+    priority_options = _parse_options("priority")
+    attendance_options = _parse_options("attendance")
+    checklist_options = _parse_options("entry_checklist")
+    if not status_options:
+        flash("Informe pelo menos um status de OS.", "error")
+        return redirect(url_for("configuracoes.index"))
+    if not priority_options:
+        flash("Informe pelo menos uma prioridade.", "error")
+        return redirect(url_for("configuracoes.index"))
+    if not attendance_options:
+        flash("Informe pelo menos um tipo de atendimento.", "error")
+        return redirect(url_for("configuracoes.index"))
+    if not checklist_options:
+        flash("Informe pelo menos um item no checklist de entrada.", "error")
+        return redirect(url_for("configuracoes.index"))
+    cfg.set_os_status_options(status_options)
+    cfg.set_os_priority_options(priority_options)
+    cfg.set_attendance_type_options(attendance_options)
+    cfg.set_entry_checklist_options(checklist_options)
+    registrar("edicao", "configuracoes", "Opções de OS salvas")
+    db.session.commit()
+    flash("Opções de OS salvas.", "success")
+    return redirect(url_for("configuracoes.index"))
+
+
 @cfg_bp.route("/configuracoes/whatsapp", methods=["POST"])
 @page_nivel_required("admin")
 def salvar_whatsapp():
@@ -153,6 +245,30 @@ def whatsapp_status():
     return jsonify(status_wpp())
 
 
+@cfg_bp.route("/api/v1/emitente")
+@nivel_required("admin", "operacional", "consulta")
+def emitente_v1():
+    cfg = Configuracao.get()
+    return jsonify({
+        "id": cfg.id,
+        "nome": cfg.nome_empresa or "",
+        "nome_empresa": cfg.nome_empresa or "",
+        "cnpj": cfg.cnpj or "",
+        "telefone": cfg.telefone or "",
+        "email": cfg.email or "",
+        "endereco": cfg.endereco or "",
+        "cidade": cfg.cidade or "",
+        "uf": cfg.uf or "",
+        "subtitulo_empresa": cfg.subtitulo_empresa or "",
+        "logo_url": cfg.logo_url or "",
+        "site_url": cfg.site_url or "",
+        "instagram_url": cfg.instagram_url or "",
+        "whatsapp_publico": cfg.whatsapp_publico or "",
+        "dados_pagamento": cfg.dados_pagamento or "",
+        "pix_chave": cfg.pix_chave or "",
+    })
+
+
 @cfg_bp.route("/api/whatsapp/teste", methods=["POST"])
 @nivel_required("admin")
 def whatsapp_teste():
@@ -161,7 +277,7 @@ def whatsapp_teste():
     data   = request.get_json(silent=True) or {}
     numero = data.get("numero", "").strip()
     if not numero:
-        return jsonify({"erro": "numero é obrigatório"}), 400
+        return jsonify({"erro": "número é obrigatório"}), 400
     resultado = enviar_whatsapp(numero, "✅ Teste Zokyo — WhatsApp funcionando!")
     return jsonify(resultado)
 
@@ -187,7 +303,7 @@ def message_templates_create():
     subject = sanitize_text(data.get("subject", ""), max_length=200) or None
     body = sanitize_text(data.get("body", ""), max_length=5000)
     if not event_type or channel not in {"email", "whatsapp"} or not body:
-        return jsonify({"erro": "Evento, canal valido e mensagem sao obrigatorios"}), 400
+        return jsonify({"erro": "Evento, canal válido e mensagem são obrigatórios"}), 400
     previous = MessageTemplate.query.filter_by(event_type=event_type, channel=channel).order_by(
         MessageTemplate.version.desc(),
     ).first()

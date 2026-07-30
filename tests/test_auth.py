@@ -65,7 +65,7 @@ def test_usuario_lista_e_revoga_sessao_secundaria():
         })
     page = first.get("/seguranca/sessoes")
     assert page.status_code == 200
-    assert b"Sessoes e dispositivos" in page.data
+    assert "Sessões e dispositivos".encode("utf-8") in page.data
     with app.app_context():
         second_record_id = UserSession.query.order_by(UserSession.id.desc()).first().id
     assert first.post(

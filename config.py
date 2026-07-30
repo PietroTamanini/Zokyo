@@ -60,7 +60,12 @@ class Config:
     REPORTS_PUBLIC_VERIFICATION = os.environ.get("REPORTS_PUBLIC_VERIFICATION", "true").lower() in ("1", "true", "yes", "on")
     # O schema da aplicacao e gerenciado exclusivamente pelo Alembic.
     DISABLE_CREATE_ALL = True
-    CSRF_EXEMPT_ENDPOINTS = {"platform.sandbox_webhook"}
+    CSRF_EXEMPT_ENDPOINTS = {
+        "platform.sandbox_webhook",
+        "auth.api_v1_login",
+        "client_api.auth",
+        "client_api.os_collection",
+    }
     SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "false").lower() in ("1", "true", "yes", "on")
 
     # ── WhatsApp ───────────────────────────────────────────────────────────
@@ -81,6 +86,13 @@ class Config:
     ALERT_WEBHOOK_URL = os.environ.get("ALERT_WEBHOOK_URL", "").strip() or None
     REQUIRE_ADMIN_2FA = os.environ.get("REQUIRE_ADMIN_2FA", "false").lower() in ("1", "true", "yes", "on")
     ALLOW_LEGACY_SESSIONS = True
+    ASAAS_API_KEY = os.environ.get("ASAAS_API_KEY", "").strip() or None
+    ASAAS_TOKEN = os.environ.get("ASAAS_TOKEN", "").strip() or None
+    ASAAS_ACCESS_TOKEN = os.environ.get("ASAAS_ACCESS_TOKEN", "").strip() or None
+    ASAAS_SANDBOX = os.environ.get("ASAAS_SANDBOX", "true").lower() in ("1", "true", "yes", "on")
+    ASAAS_BASE_URL = os.environ.get("ASAAS_BASE_URL", "").strip() or None
+    ASAAS_TIMEOUT = float(os.environ.get("ASAAS_TIMEOUT", "15"))
+    ASAAS_USER_AGENT = os.environ.get("ASAAS_USER_AGENT", "").strip() or "Zokyo/1.0 (Flask)"
 
     # ── Sessão ─────────────────────────────────────────────────────────────
     # M06: timeout absoluto de 8h; inatividade tratada no middleware

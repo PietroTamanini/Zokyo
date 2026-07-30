@@ -17,6 +17,20 @@ def healthz():
     return jsonify({"status": "ok"}), 200
 
 
+@health_bp.route("/api/v1")
+@nivel_required("admin", "operacional", "consulta")
+def api_v1_index():
+    return jsonify({
+        "status": True,
+        "name": "Zokyo API",
+        "version": "v1",
+        "resources": [
+            "clientes", "produtos", "servicos", "usuarios", "os",
+            "emitente", "audit", "calendario",
+        ],
+    })
+
+
 @health_bp.route("/readyz")
 def readyz():
     try:

@@ -1,4 +1,4 @@
-"""Entrega SMTP sem expor credenciais ou detalhes internos ao usuario."""
+"""Entrega SMTP sem expor credenciais ou detalhes internos ao usuário."""
 import smtplib
 from email.message import EmailMessage
 
@@ -12,7 +12,7 @@ def send_email(recipient: str, subject: str, body: str) -> dict:
     host = current_app.config.get("SMTP_HOST")
     sender = current_app.config.get("MAIL_FROM")
     if not host or not sender:
-        return {"sucesso": False, "modo": "simulacao", "aviso": "SMTP nao configurado"}
+        return {"sucesso": False, "modo": "simulacao", "aviso": "SMTP não configurado"}
     message = EmailMessage()
     message["Subject"] = subject[:200]
     message["From"] = sender
@@ -29,4 +29,4 @@ def send_email(recipient: str, subject: str, body: str) -> dict:
         return {"sucesso": True, "modo": "smtp"}
     except (OSError, smtplib.SMTPException) as exc:
         current_app.logger.warning("Falha de entrega SMTP: %s", exc)
-        return {"sucesso": False, "modo": "fallback", "erro": "Falha temporaria de e-mail"}
+        return {"sucesso": False, "modo": "fallback", "erro": "Falha temporária de e-mail"}

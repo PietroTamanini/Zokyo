@@ -12,6 +12,7 @@ from app import create_app
 from app.extensions import db
 from app.models import (
     Cliente,
+    Configuracao,
     DefeitoPadrao,
     EventoLog,
     InventoryLot,
@@ -26,6 +27,7 @@ from app.models import (
     PortalToken,
     RetentionPolicy,
     StockReservation,
+    Transacao,
     UserSession,
     Usuario,
 )
@@ -178,6 +180,87 @@ def test_billing_cobre_eventos_invalidos_plano_cancelamento_e_limites(monkeypatc
         assert billing.assert_limit(1, "bad", 10) is None
         with pytest.raises(PermissionError, match="max_os"):
             billing.assert_limit(1, "max_os", 1)
+
+
+def test_payment_gateways_cria_cobranca_asaas_pix_com_cliente_e_qrcode(monkeypatch):
+    from app.services.payment_gateways import apply_payment, generate_payment
+
+    ctx = _make_app()
+    app = ctx["app"]
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, status_code, payload):
+            self.status_code = status_code
+            self._payload = payload
+            self.text = json.dumps(payload)
+
+        def json(self):
+            return self._payload
+
+    def fake_request(method, url, headers=None, timeout=None, **kwargs):
+        calls.append({
+            "method": method,
+            "url": url,
+            "headers": headers or {},
+            "timeout": timeout,
+            "payload": json.loads(kwargs["data"]) if kwargs.get("data") else None,
+            "params": kwargs.get("params"),
+        })
+        assert headers["access_token"] == "asaas-test-token"
+        assert headers["user-agent"] == "Zokyo Test/1.0"
+        if method == "GET" and url.endswith("/customers"):
+            return FakeResponse(200, {"data": []})
+        if method == "POST" and url.endswith("/customers"):
+            assert calls[-1]["payload"]["externalReference"] == f"zokyo_cliente_{ctx['client_id']}"
+            return FakeResponse(200, {"id": "cus_123"})
+        if method == "POST" and url.endswith("/payments"):
+            payload = calls[-1]["payload"]
+            assert payload["customer"] == "cus_123"
+            assert payload["billingType"] == "PIX"
+            assert payload["value"] == 123.45
+            assert payload["externalReference"].startswith("zokyo_transacao_")
+            return FakeResponse(200, {
+                "id": "pay_123",
+                "status": "PENDING",
+                "invoiceUrl": "https://sandbox.asaas.com/i/pay_123",
+            })
+        if method == "GET" and url.endswith("/payments/pay_123/pixQrCode"):
+            return FakeResponse(200, {"payload": "000201ASAASPIX"})
+        return FakeResponse(404, {"errors": [{"description": "não encontrado"}]})
+
+    monkeypatch.setattr("app.services.payment_gateways.requests.request", fake_request)
+    with app.app_context():
+        app.config.update(
+            ASAAS_API_KEY="asaas-test-token",
+            ASAAS_SANDBOX=True,
+            ASAAS_TIMEOUT=7,
+            ASAAS_USER_AGENT="Zokyo Test/1.0",
+        )
+        Configuracao.get().nome_empresa = "Contratos"
+        order = db.session.get(OrdemServico, ctx["order_id"])
+        transacao = Transacao(
+            organization_id=1,
+            os_id=order.id,
+            tipo="receita",
+            descricao="Cobrança Asaas",
+            valor=Decimal("123.45"),
+            status="pendente",
+        )
+        db.session.add(transacao)
+        db.session.commit()
+
+        result = generate_payment(transacao, gateway="asaas", method="pix", days=5)
+        apply_payment(transacao, result)
+        db.session.commit()
+
+        assert result.gateway == "asaas"
+        assert result.provider_id == "pay_123"
+        assert result.payment_url == "https://sandbox.asaas.com/i/pay_123"
+        assert result.payload == "000201ASAASPIX"
+        assert transacao.payment_gateway == "asaas"
+        assert transacao.payment_payload == "000201ASAASPIX"
+        assert len(calls) == 4
 
 
 def test_inventory_lotes_reservas_consumo_e_cancelamento():

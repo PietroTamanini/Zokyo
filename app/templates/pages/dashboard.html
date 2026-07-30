@@ -1,15 +1,13 @@
-﻿{% extends "base.html" %}
-{% block title %}Dashboard — Zokyo{% endblock %}
-{% block breadcrumb %}Dashboard{% endblock %}
+{% extends "base.html" %}
+{% block title %}Início — Zokyo{% endblock %}
+{% block breadcrumb %}Início{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="page-title">Dashboard operacional</div>
-  </div>
+<div class="zokyo-dashboard-title">
+  <div class="bemv">Início</div>
+  <div class="page-sub">Atendimento do dia em poucos passos, com os atalhos mais usados primeiro.</div>
 </div>
 
-<!-- ALERTAS INTELIGENTES -->
 {% if alertas %}
 <div class="page-alerts">
   {% for a in alertas %}
@@ -18,108 +16,279 @@
 </div>
 {% endif %}
 
-<!-- META DO MÊS -->
+<section class="zokyo-start-panel mb20" aria-label="Comece aqui">
+  <div class="zokyo-start-head">
+    <div>
+      <div class="zokyo-priority-title">Comece aqui</div>
+      <div class="zokyo-priority-sub">Siga estes atalhos para atender sem procurar no menu.</div>
+    </div>
+  </div>
+  <div class="zokyo-start-grid">
+    <a href="{{ url_for('pages.clientes', novo=1) }}" class="zokyo-start-card">
+      <span class="zokyo-step-badge">1</span>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg></span>
+      <strong>Cadastrar cliente</strong>
+      <small>Use quando a pessoa ainda não está no sistema.</small>
+    </a>
+    <a href="{{ url_for('pages.os_nova') }}" class="zokyo-start-card">
+      <span class="zokyo-step-badge">2</span>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg></span>
+      <strong>Abrir ordem de serviço</strong>
+      <small>Registre aparelho, defeito, prazo e orçamento.</small>
+    </a>
+    <a href="{{ url_for('pages.os_lista') }}" class="zokyo-start-card">
+      <span class="zokyo-step-badge">3</span>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg></span>
+      <strong>Acompanhar serviços</strong>
+      <small>Veja o que está em análise, reparo ou pronto.</small>
+    </a>
+    {% if is_financeiro %}
+    <a href="{{ url_for('pages.financeiro') }}" class="zokyo-start-card">
+      <span class="zokyo-step-badge">4</span>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg></span>
+      <strong>Receber pagamento</strong>
+      <small>Controle entradas, saídas e cobranças do dia.</small>
+    </a>
+    {% endif %}
+  </div>
+</section>
+
+<section class="zokyo-priority-panel mb20" aria-label="Prioridades de hoje">
+  <div class="zokyo-priority-head">
+    <div>
+      <div class="zokyo-priority-title">Prioridades de hoje</div>
+      <div class="zokyo-priority-sub">O que precisa de atenção agora.</div>
+    </div>
+  </div>
+  <div class="zokyo-priority-grid">
+    <a href="{{ url_for('pages.os_lista') }}" class="zokyo-priority-item {{ 'is-urgent' if os_atrasadas else '' }}">
+      <span>{{ os_atrasadas }}</span>
+      <strong>Atrasadas</strong>
+      <small>Resolver primeiro</small>
+    </a>
+    <a href="{{ url_for('pages.os_lista', status='pronto') }}" class="zokyo-priority-item {{ 'is-good' if os_prontas else '' }}">
+      <span>{{ os_prontas }}</span>
+      <strong>Prontas para entrega</strong>
+      <small>Avisar cliente</small>
+    </a>
+    <a href="{{ url_for('pages.os_lista', status='aguardando_aprovacao') }}" class="zokyo-priority-item {{ 'is-urgent' if os_aprovacao else '' }}">
+      <span>{{ os_aprovacao }}</span>
+      <strong>Aguardando aprovação</strong>
+      <small>Enviar orçamento</small>
+    </a>
+    <a href="{{ url_for('pages.estoque', critico=1) }}" class="zokyo-priority-item {{ 'is-warn' if estoque_critico else '' }}">
+      <span>{{ estoque_critico }}</span>
+      <strong>Estoque baixo</strong>
+      <small>Comprar peças</small>
+    </a>
+  </div>
+</section>
+
+<ul class="zokyo-card-box">
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.clientes') }}">
+      <div>
+        <div class="numbers">Clientes</div>
+        <div class="cardName">Cadastrar ou buscar</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg></span>
+    </a>
+  </li>
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.estoque') }}">
+      <div>
+        <div class="numbers">Produtos</div>
+        <div class="cardName">Ver estoque</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg></span>
+    </a>
+  </li>
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.servicos') }}">
+      <div>
+        <div class="numbers">Serviços</div>
+        <div class="cardName">Tabela de serviços</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg></span>
+    </a>
+  </li>
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.os_lista') }}">
+      <div>
+        <div class="numbers">Ordens de Serviço</div>
+        <div class="cardName">Abrir e acompanhar</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg></span>
+    </a>
+  </li>
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.vendas') }}">
+      <div>
+        <div class="numbers">Vendas</div>
+        <div class="cardName">Registrar venda</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-cart"></use></svg></span>
+    </a>
+  </li>
+  {% if is_financeiro %}
+  <li class="zokyo-action-card">
+    <a href="{{ url_for('pages.financeiro') }}">
+      <div>
+        <div class="numbers">Financeiro</div>
+        <div class="cardName">Receber e pagar</div>
+      </div>
+      <span class="zokyo-card-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg></span>
+    </a>
+  </li>
+  {% endif %}
+</ul>
+
+<div class="zokyo-dashboard-grid">
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Últimas ordens</div>
+    <div class="zokyo-widget-body">
+      <form class="zokyo-agenda-filter" method="GET" action="{{ url_for('pages.os_lista') }}">
+        <select name="status">
+          <option value="">Todos os status</option>
+          {% for value, label in status_map.items() %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-primary btn-sm" type="submit">Ver</button>
+      </form>
+
+      <div class="zokyo-mini-table">
+        {% for os in ultimas_os %}
+        <a href="{{ url_for('pages.os_detalhe', id=os.id) }}">
+          <span class="zokyo-mini-code">OS {{ os.codigo_os }}</span>
+          <span>{{ os.cliente.nome if os.cliente else "Cliente" }}</span>
+          <strong>{{ status_map.get(os.status, os.status) }}</strong>
+        </a>
+        {% else %}
+        <div class="zokyo-empty-line">Nenhuma OS recente.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Atalhos rápidos</div>
+    <div class="zokyo-widget-body">
+      <div class="zokyo-stat-buttons">
+        <a href="{{ url_for('pages.clientes', novo=1) }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg></span>
+          <strong>{{ total_clientes }}</strong>
+          <small>Clientes</small>
+        </a>
+        <a href="{{ url_for('pages.estoque', novo=1) }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg></span>
+          <strong>{{ total_pecas }}</strong>
+          <small>Produtos</small>
+        </a>
+        <a href="{{ url_for('pages.servicos_adicionar_alias') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg></span>
+          <strong>{{ os_abertas + os_prontas }}</strong>
+          <small>Serviços</small>
+        </a>
+        <a href="{{ url_for('pages.os_lista') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg></span>
+          <strong>{{ os_abertas }}</strong>
+          <small>OS em aberto</small>
+        </a>
+        <a href="{{ url_for('pages.garantias') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-shield"></use></svg></span>
+          <strong>{{ pipeline_counts.entregue }}</strong>
+          <small>Garantias</small>
+        </a>
+        <a href="{{ url_for('pages.vendas_adicionar_alias') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-cart"></use></svg></span>
+          <strong>{{ vendas_dia | moeda }}</strong>
+          <small>Vendas hoje</small>
+        </a>
+        {% if is_financeiro %}
+        <a href="{{ url_for('pages.financeiro') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-chart"></use></svg></span>
+          <strong>{{ saldo_mes | moeda }}</strong>
+          <small>Receita do mês</small>
+        </a>
+        <a href="{{ url_for('pages.financeiro', tipo='despesa') }}">
+          <span><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg></span>
+          <strong>{{ despesas_mes | moeda }}</strong>
+          <small>Despesa do mês</small>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+</div>
+
 {% if meta_receita_mensal and meta_receita_mensal > 0 %}
-<div class="card mb20">
-  <div class="card-body card-body-compact">
+<div class="zokyo-widget-panel mb20">
+  <div class="zokyo-widget-header">Meta de receita mensal</div>
+  <div class="zokyo-widget-body">
     <div class="flex jbet items-c mb16">
-      <span class="fw7 muted-sm">Meta de receita mensal</span>
-      <span class="fw8 txt-blue">{{ pct_meta }}% — {{ receitas_mes | moeda }} / {{ meta_receita_mensal | moeda }}</span>
+      <span class="fw7 muted-sm">{{ receitas_mes | moeda }} / {{ meta_receita_mensal | moeda }}</span>
+      <span class="fw8 txt-blue">{{ pct_meta }}%</span>
     </div>
     <div class="prog-wrap"><progress class="progress {{ 'is-success' if pct_meta >= 100 }}" value="{{ [pct_meta, 100]|min }}" max="100">{{ pct_meta }}%</progress></div>
   </div>
 </div>
 {% endif %}
 
-<!-- CAIXA + VENDAS DIA -->
-<div class="stats-grid stats-grid-2">
-  <div class="stat-card c-blue">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M16 8.5c-.8-.7-2-1-3.4-1-1.8 0-3.1.8-3.1 2s1.1 1.8 3.3 2.3 3.2 1.1 3.2 2.5-1.4 2.2-3.4 2.2c-1.5 0-2.9-.4-3.8-1.2M12 5v14"/></svg></div>
-    <div class="stat-label">Caixa Acumulado</div>
-    <div class="stat-value stat-value-md">{{ caixa | moeda }}</div>
-    <div class="stat-meta">Receitas pagas − Despesas pagas (total)</div>
-  </div>
-  <div class="stat-card c-green">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 10.4A2 2 0 0 0 9.4 16h7.8a2 2 0 0 0 2-1.6L21 7H6"/></svg></div>
-    <div class="stat-label">Vendas Hoje</div>
-    <div class="stat-value stat-value-md">{{ vendas_dia | moeda }}</div>
-    <div class="stat-meta">Receitas pagas no dia</div>
-  </div>
-</div>
+<div class="zokyo-dashboard-grid">
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Resumo financeiro</div>
+    <div class="zokyo-widget-body">
+      <div class="fin-trio zokyo-fin-trio">
+        <div class="fin-block">
+          <div class="fin-label">Receitas do mês</div>
+          <div class="fin-val txt-green">{{ receitas_mes | moeda }}</div>
+          <div class="fin-meta">A receber: {{ a_receber | moeda }}</div>
+        </div>
+        <div class="fin-block">
+          <div class="fin-label">Despesas do mês</div>
+          <div class="fin-val txt-red">{{ despesas_mes | moeda }}</div>
+          <div class="fin-meta">A pagar: {{ a_pagar | moeda }}</div>
+        </div>
+        <div class="fin-block">
+          <div class="fin-label">Saldo do mês</div>
+          <div class="fin-val {{ 'txt-green' if saldo_mes >= 0 else 'txt-red' }}">{{ saldo_mes | moeda }}</div>
+          <div class="fin-meta">Caixa: {{ caixa | moeda }}</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-<!-- FINANCEIRO MÊS -->
-<div class="fin-trio mb20">
-  <div class="fin-block">
-    <div class="fin-label">Receitas do Mês</div>
-    <div class="fin-val txt-green">{{ receitas_mes | moeda }}</div>
-    <div class="fin-meta">A receber: {{ a_receber | moeda }}</div>
-  </div>
-  <div class="fin-block">
-    <div class="fin-label">Despesas do Mês</div>
-    <div class="fin-val txt-red">{{ despesas_mes | moeda }}</div>
-    <div class="fin-meta">A pagar: {{ a_pagar | moeda }}</div>
-  </div>
-  <div class="fin-block">
-    <div class="fin-label">Saldo do Mês</div>
-    <div class="fin-val {{ 'txt-green' if saldo_mes >= 0 else 'txt-red' }}">{{ saldo_mes | moeda }}</div>
-    <div class="fin-meta">Receitas − Despesas pagas</div>
-  </div>
-</div>
-
-<!-- STATS OPERACIONAIS -->
-<div class="stats-grid mb24">
-  <div class="stat-card c-blue" data-href="/os">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/></svg></div>
-    <div class="stat-label">OS em Aberto</div>
-    <div class="stat-value">{{ os_abertas }}</div>
-    <div class="stat-meta">{{ os_atrasadas }} atrasada(s)</div>
-  </div>
-  <div class="stat-card c-green" data-href="/os?status=pronto">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></div>
-    <div class="stat-label">Prontos p/ Retirada</div>
-    <div class="stat-value">{{ os_prontas }}</div>
-    <div class="stat-meta">{{ os_aprovacao }} aguardando aprovação</div>
-  </div>
-  <div class="stat-card c-amber" data-href="/estoque?critico=1">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="M4 7v10l8 4 8-4V7M12 11v10"/></svg></div>
-    <div class="stat-label">Estoque Crítico</div>
-    <div class="stat-value">{{ estoque_critico }}</div>
-    <div class="stat-meta">{{ total_pecas }} peças no total · {{ valor_estoque | moeda }}</div>
-  </div>
-  <div class="stat-card c-blue" data-href="/clientes">
-    <div class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 4a4 4 0 0 1 0 8M17 15a5 5 0 0 1 4 5"/></svg></div>
-    <div class="stat-label">Clientes Ativos</div>
-    <div class="stat-value">{{ total_clientes }}</div>
-    <div class="stat-meta">{{ total_fornecedores }} fornecedores · {{ total_usuarios }} usuários</div>
-  </div>
-</div>
-
-<!-- PIPELINE DE STATUS -->
-<div class="pipeline mb24">
-  <div class="pipe-step {% if pipeline_counts.recepcao > 0 %}pi{% endif %}" data-href="/os?status=recepcao">
-    <div class="pipe-num">{{ pipeline_counts.recepcao }}</div>
-    <div class="pipe-label">Recepção</div>
-  </div>
-  <div class="pipe-step {% if pipeline_counts.em_analise > 0 %}pi{% endif %}" data-href="/os?status=em_analise">
-    <div class="pipe-num">{{ pipeline_counts.em_analise }}</div>
-    <div class="pipe-label">Análise</div>
-  </div>
-  <div class="pipe-step {% if pipeline_counts.aguardando_aprovacao > 0 %}pa{% endif %}" data-href="/os?status=aguardando_aprovacao">
-    <div class="pipe-num">{{ pipeline_counts.aguardando_aprovacao }}</div>
-    <div class="pipe-label">Aprovação</div>
-  </div>
-  <div class="pipe-step {% if pipeline_counts.em_reparo > 0 %}pi{% endif %}" data-href="/os?status=em_reparo">
-    <div class="pipe-num">{{ pipeline_counts.em_reparo }}</div>
-    <div class="pipe-label">Reparo</div>
-  </div>
-  <div class="pipe-step {% if pipeline_counts.pronto > 0 %}pr{% endif %}" data-href="/os?status=pronto">
-    <div class="pipe-num">{{ pipeline_counts.pronto }}</div>
-    <div class="pipe-label">Pronto</div>
-  </div>
-  <div class="pipe-step" data-href="/os?status=entregue">
-    <div class="pipe-num">{{ pipeline_counts.entregue }}</div>
-    <div class="pipe-label">Entregue</div>
-  </div>
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Etapas das ordens</div>
+    <div class="zokyo-widget-body">
+      <div class="pipeline zokyo-pipeline">
+        <div class="pipe-step {% if pipeline_counts.recepcao > 0 %}pi{% endif %}" data-href="/os?status=recepcao">
+          <div class="pipe-num">{{ pipeline_counts.recepcao }}</div>
+          <div class="pipe-label">Recepção</div>
+        </div>
+        <div class="pipe-step {% if pipeline_counts.em_analise > 0 %}pi{% endif %}" data-href="/os?status=em_analise">
+          <div class="pipe-num">{{ pipeline_counts.em_analise }}</div>
+          <div class="pipe-label">Análise</div>
+        </div>
+        <div class="pipe-step {% if pipeline_counts.aguardando_aprovacao > 0 %}pa{% endif %}" data-href="/os?status=aguardando_aprovacao">
+          <div class="pipe-num">{{ pipeline_counts.aguardando_aprovacao }}</div>
+          <div class="pipe-label">Aprovação</div>
+        </div>
+        <div class="pipe-step {% if pipeline_counts.em_reparo > 0 %}pi{% endif %}" data-href="/os?status=em_reparo">
+          <div class="pipe-num">{{ pipeline_counts.em_reparo }}</div>
+          <div class="pipe-label">Reparo</div>
+        </div>
+        <div class="pipe-step {% if pipeline_counts.pronto > 0 %}pr{% endif %}" data-href="/os?status=pronto">
+          <div class="pipe-num">{{ pipeline_counts.pronto }}</div>
+          <div class="pipe-label">Pronto</div>
+        </div>
+        <div class="pipe-step" data-href="/os?status=entregue">
+          <div class="pipe-num">{{ pipeline_counts.entregue }}</div>
+          <div class="pipe-label">Entregue</div>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 {% endblock %}
-

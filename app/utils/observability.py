@@ -47,5 +47,5 @@ def init_sentry(app):
         )
         return True
     except ImportError:
-        app.logger.warning("SENTRY_DSN configurado, mas sentry-sdk nao esta instalado.")
+        app.logger.warning("SENTRY_DSN configurado, mas sentry-sdk não está instalado.")
         return False

@@ -136,6 +136,11 @@ def upgrade():
     sa.Column('endereco', sa.String(length=300), nullable=True),
     sa.Column('cidade', sa.String(length=100), nullable=True),
     sa.Column('uf', sa.String(length=2), nullable=True),
+    sa.Column('subtitulo_empresa', sa.String(length=160), nullable=True),
+    sa.Column('logo_url', sa.String(length=600), nullable=True),
+    sa.Column('site_url', sa.String(length=300), nullable=True),
+    sa.Column('instagram_url', sa.String(length=300), nullable=True),
+    sa.Column('whatsapp_publico', sa.String(length=20), nullable=True),
     sa.Column('primary_color', sa.String(length=7), nullable=True),
     sa.Column('accent_color', sa.String(length=7), nullable=True),
     sa.Column('dias_vencimento', sa.Integer(), nullable=True),
@@ -345,6 +350,7 @@ def upgrade():
     op.create_index(op.f('ix_laudo_templates_organization_id'), 'laudo_templates', ['organization_id'], unique=False)
     op.create_table('ordens_servico',
     sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('numero', sa.Integer(), nullable=True),
     sa.Column('organization_id', sa.Integer(), nullable=False),
     sa.Column('cliente_id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
@@ -376,15 +382,22 @@ def upgrade():
     sa.Column('data_saida', sa.DateTime(), nullable=True),
     sa.Column('atualizado_em', sa.DateTime(), nullable=True),
     sa.Column('deletado_em', sa.DateTime(), nullable=True),
+    sa.Column('baixada_em', sa.DateTime(), nullable=True),
+    sa.Column('baixada_por_id', sa.Integer(), nullable=True),
+    sa.Column('baixa_observacao', sa.String(length=300), nullable=True),
     sa.ForeignKeyConstraint(['checklist_template_id'], ['service_checklist_templates.id'], ),
+    sa.ForeignKeyConstraint(['baixada_por_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['cliente_id'], ['clientes.id'], ),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['warranty_return_of_id'], ['ordens_servico.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_ordens_servico_numero', 'ordens_servico', ['numero'], unique=False)
+    op.create_index('ix_ordens_servico_baixada_em', 'ordens_servico', ['baixada_em'], unique=False)
     op.create_index(op.f('ix_ordens_servico_organization_id'), 'ordens_servico', ['organization_id'], unique=False)
     op.create_index(op.f('ix_ordens_servico_warranty_return_of_id'), 'ordens_servico', ['warranty_return_of_id'], unique=False)
+    op.create_index('uq_ordens_servico_org_numero', 'ordens_servico', ['organization_id', 'numero'], unique=True)
     op.create_table('password_reset_tokens',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
@@ -727,6 +740,15 @@ def upgrade():
     sa.Column('comissao_usuario_id', sa.Integer(), nullable=True),
     sa.Column('comissao_percentual', sa.Numeric(precision=5, scale=2), nullable=True),
     sa.Column('comissao_valor', sa.Numeric(precision=10, scale=2), nullable=True),
+    sa.Column('payment_gateway', sa.String(length=40), nullable=True),
+    sa.Column('payment_method', sa.String(length=40), nullable=True),
+    sa.Column('payment_provider_id', sa.String(length=160), nullable=True),
+    sa.Column('payment_status', sa.String(length=40), nullable=True),
+    sa.Column('payment_url', sa.String(length=600), nullable=True),
+    sa.Column('payment_link', sa.String(length=600), nullable=True),
+    sa.Column('payment_barcode', sa.String(length=300), nullable=True),
+    sa.Column('payment_payload', sa.Text(), nullable=True),
+    sa.Column('payment_expires_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['comissao_usuario_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['conciliado_por_id'], ['usuarios.id'], ),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),

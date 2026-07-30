@@ -8,15 +8,15 @@
 {% set obj = laudo %}
 <div class="page-header">
   <div>
-    <div class="page-title">{{ 'Novo laudo tecnico' if modo == 'novo' else 'Rascunho de laudo' }}</div>
+    <div class="page-title">{{ 'Novo laudo técnico' if modo == 'novo' else 'Rascunho de laudo' }}</div>
     <div class="page-sub">
-      {% if obj %}OS #{{ '%04d' % obj.os_id }} · {{ obj.cliente.nome if obj.cliente else '' }}{% else %}Selecione uma OS para preencher os dados existentes{% endif %}
+      {% if obj %}OS #{{ obj.os.codigo_os if obj.os else '%04d' % obj.os_id }} · {{ obj.cliente.nome if obj.cliente else '' }}{% else %}Selecione uma OS para preencher os dados existentes{% endif %}
     </div>
   </div>
   {% if obj %}
   <div class="flex-gap">
     <a class="btn btn-ghost btn-sm" href="{{ url_for('laudos.detalhe', id=obj.id) }}">Visualizar</a>
-    <form method="POST" action="{{ url_for('laudos.finalizar', id=obj.id) }}" data-confirm="Finalizar e gerar PDF? Depois disso o conteudo fica imutavel.">
+    <form method="POST" action="{{ url_for('laudos.finalizar', id=obj.id) }}" data-confirm="Finalizar e gerar PDF? Depois disso o conteúdo fica imutável.">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-primary btn-sm" type="submit">Finalizar e gerar PDF</button>
     </form>
@@ -32,7 +32,7 @@
       <div class="card-body">
         <div class="form-row fr2">
           <div class="form-group">
-            <label>Ordem de servico *</label>
+            <label>Ordem de serviço *</label>
             {% if modo == 'novo' %}
             <select name="os_id" required>
               <option value="">Selecione</option>
@@ -57,7 +57,7 @@
           <label>Template do documento</label>
           {% if modo == 'novo' %}
           <select name="template_id">
-            <option value="">Padrao do sistema ou automatico pelo tipo</option>
+            <option value="">Padrão do sistema ou automático pelo tipo</option>
             {% for template in template_options %}
             <option value="{{ template.id }}">{{ template.nome }} v{{ template.versao }} - {{ tipo_labels.get(template.tipo_laudo, template.tipo_laudo) }}</option>
             {% endfor %}
@@ -67,13 +67,13 @@
           {% endif %}
         </div>
         <div class="form-row fr3">
-          <div class="form-group"><label>Tecnico responsavel</label><input type="text" name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
+          <div class="form-group"><label>Técnico responsável</label><input type="text" name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
           <div class="form-group"><label>Data da analise</label><input type="date" name="analisado_em" value="{{ obj.analisado_em.strftime('%Y-%m-%d') if obj and obj.analisado_em else '' }}"></div>
           <div class="form-group"><label>Estado final *</label><input type="text" name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120"></div>
         </div>
       </div>
 
-      <div class="card-header"><div class="card-title">Conteudo tecnico</div></div>
+      <div class="card-header"><div class="card-title">Conteúdo técnico</div></div>
       <div class="card-body laudo-fields">
         {% for field, label, required in [
           ('defeito_relatado','Defeito relatado pelo cliente', True),
@@ -81,15 +81,15 @@
           ('testes_realizados','Testes realizados', True),
           ('instrumentos_metodos','Instrumentos e metodos', False),
           ('medicoes','Medicoes', False),
-          ('diagnostico_tecnico','Diagnostico tecnico', True),
+          ('diagnostico_tecnico','Diagnóstico técnico', True),
           ('causa_provavel','Causa provavel', False),
-          ('servicos_realizados','Servicos realizados', False),
+          ('servicos_realizados','Serviços realizados', False),
           ('pecas_utilizadas','Peças utilizadas', False),
           ('conclusao_tecnica','Conclusão técnica', True),
           ('recomendacoes','Recomendacoes', False),
           ('riscos_limitacoes','Riscos e limitacoes', False),
           ('garantia','Garantia', False),
-          ('observacoes','Observacoes', False)
+          ('observacoes','Observações', False)
         ] %}
         <div class="form-group">
           <label>{{ label }}{% if required %} *{% endif %}</label>
@@ -144,7 +144,7 @@
             </form>
           </div>
           {% else %}
-          <div class="empty-state">Adicione as cinco fotos obrigatorias antes de finalizar.</div>
+          <div class="empty-state">Adicione as cinco fotos obrigatórias antes de finalizar.</div>
           {% endfor %}
         </div>
         <form id="photo-order-form" method="POST" action="{{ url_for('laudos.reordenar_fotos_rota', id=obj.id) }}" hidden>
@@ -157,16 +157,16 @@
 
   <aside class="laudo-preview">
     <div class="a4-preview">
-      <div class="preview-company">{{ cfg.nome_empresa if cfg else 'Zokyo Platform' }}</div>
-      <h2>Laudo tecnico</h2>
+      <div class="preview-company">{{ cfg.nome_empresa if cfg else APP_NAME }}</div>
+      <h2>Laudo técnico</h2>
       <div class="muted-sm">{{ obj.numero if obj and obj.numero else 'Número gerado na finalização' }}</div>
       <hr>
       <p><strong>Cliente:</strong> {{ obj.cliente.nome if obj and obj.cliente else 'Cliente da OS selecionada' }}</p>
       <p><strong>Equipamento:</strong> {% if obj and obj.os %}{{ obj.os.tipo_aparelho }} {{ obj.os.marca }} {{ obj.os.modelo }}{% else %}-{% endif %}</p>
       <p><strong>Defeito:</strong> <span data-preview="defeito_relatado">{{ obj.defeito_relatado if obj else '-' }}</span></p>
-      <p><strong>Diagnostico:</strong> <span data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</span></p>
+      <p><strong>Diagnóstico:</strong> <span data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</span></p>
       <p><strong>Conclusão:</strong> <span data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</span></p>
-      <div class="signature-row">Responsavel tecnico</div>
+      <div class="signature-row">Responsável técnico</div>
       <div class="signature-row">Cliente / ciencia</div>
     </div>
   </aside>

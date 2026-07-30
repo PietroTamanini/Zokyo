@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Backup - Zokyo{% endblock %}
+{% block breadcrumb %}Backup{% endblock %}
+
+{% block content %}
+<div class="page-header zokyo-page-header">
+  <div>
+    <div class="page-title">Backup</div>
+    <div class="page-sub">Resumo das tabelas principais para conferencia antes do backup externo.</div>
+  </div>
+</div>
+
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-database"></use></svg></span>
+    <h5>Backup</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <div class="alert a-amber mb20">
+        <div>O backup fisico do banco deve ser feito pelo MySQL/hosting. Esta tela mostra a saude dos dados e evita prometer um arquivo falso.</div>
+      </div>
+      <div class="zokyo-detail-grid">
+        {% for tabela, total in contagens.items() %}
+        <div>
+          <span>{{ tabela }}</span>
+          <strong>{{ total }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

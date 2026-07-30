@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% set editando = garantia is not none %}
+{% block title %}{{ 'Editar Garantia' if editando else 'Adicionar Garantia' }} - Zokyo{% endblock %}
+{% block breadcrumb %}Garantias / {{ 'Editar' if editando else 'Adicionar' }}{% endblock %}
+
+{% block content %}
+<div class="zokyo-widget">
+  <div class="widget-title">
+    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>
+    <h5>{{ 'Editar Garantia' if editando else 'Adicionar Garantia' }}</h5>
+  </div>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ action_url }}" class="zokyo-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        {% if not editando %}
+        <div class="form-group">
+          <label>OS *</label>
+          <select name="os_id" required autofocus>
+            <option value="">Selecione</option>
+            {% for os in ordens %}
+            <option value="{{ os.id }}">OS #{{ '%04d'|format(os.id) }} - {{ os.cliente.nome if os.cliente else 'Sem cliente' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+        <div class="zokyo-detail-grid mb20">
+          <div>
+            <span>OS</span>
+            <strong>#{{ '%04d'|format(garantia.id) }}</strong>
+          </div>
+          <div>
+            <span>Cliente</span>
+            <strong>{{ garantia.cliente.nome if garantia.cliente else '-' }}</strong>
+          </div>
+          <div>
+            <span>Equipamento</span>
+            <strong>{{ [garantia.tipo_aparelho, garantia.marca, garantia.modelo]|select|join(' ') or '-' }}</strong>
+          </div>
+          <div>
+            <span>Status</span>
+            <strong>{{ garantia.status }}</strong>
+          </div>
+        </div>
+        {% endif %}
+        <div class="form-row fr2">
+          <div class="form-group">
+            <label>Data de saida *</label>
+            <input type="date" name="data_saida" required value="{{ garantia.data_saida.strftime('%Y-%m-%d') if editando and garantia.data_saida else today }}">
+          </div>
+          <div class="form-group">
+            <label>Garantia dias *</label>
+            <input type="number" name="garantia_dias" min="0" step="1" required value="{{ garantia.garantia_dias if editando else 90 }}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Observações</label>
+          <textarea name="observacoes" rows="5" placeholder="Condições e observações do termo">{{ garantia.observacoes if editando and garantia.observacoes else '' }}</textarea>
+        </div>
+        <div class="modal-actions">
+          <a class="btn btn-ghost" href="{{ url_for('pages.garantias') }}">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

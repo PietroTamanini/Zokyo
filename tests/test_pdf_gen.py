@@ -16,11 +16,18 @@ def test_pdf_os_reportlab_aceita_texto_com_marcacao(monkeypatch):
         db.drop_all()
         db.create_all()
         db.session.add(Organization(id=1, nome="Teste", slug="teste"))
-        db.session.add(Configuracao(organization_id=1, nome_empresa="Empresa <Segura> & Cia"))
+        db.session.add(Configuracao(
+            organization_id=1,
+            nome_empresa="Empresa <Segura> & Cia",
+            subtitulo_empresa="Assistência técnica",
+            site_url="https://empresa.example",
+            instagram_url="https://instagram.com/empresa",
+            whatsapp_publico="47999999999",
+        ))
         db.session.commit()
         order = SimpleNamespace(
             id=1, status="aberta", data_entrada=None,
-            cliente=SimpleNamespace(nome="Cliente <Teste>", telefone="47999999999"),
+            cliente=SimpleNamespace(nome="Cliente <Teste>", telefone="47999999999", email="cliente@example.com", documento="123"),
             tipo_aparelho="Notebook", marca="A&B", modelo="<Pro>", numero_serie="ABC<123",
             tecnico_nome="Tecnico & Cia", prio="normal", garantia_dias=90,
             defeito_alegado="Nao liga <script>", defeito_encontrado="Fonte & cabo",

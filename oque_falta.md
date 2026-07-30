@@ -1,19 +1,23 @@
 # O que falta para o Zokyo ficar ainda mais profissional
 
-Atualizado em 2026-07-18 apos nova varredura local de seguranca, testes e interface publica.
+Atualizado em 2026-07-29 apos varredura local ampla de seguranca, rotas, APIs, testes e frontend autenticado.
 
 O sistema esta funcional e possui uma base ampla de seguranca, testes e operacao. Este arquivo registra somente entregas comprovadas e pendencias reais.
 
 ## Resumo atual
 
-- 74 itens concluidos no repositorio.
+- 74 itens estruturais concluidos no repositorio.
 - 5 ativacoes externas pendentes.
-- 174 testes Python aprovados.
-- Playwright publico revalidado em cinco viewports: 20 cenarios aprovados.
-- Auditoria Playwright autenticada ampla continua dependente de `E2E_EMAIL` e `E2E_PASSWORD` reais.
+- 186 testes Python aprovados.
+- Playwright autenticado revalidado em desktop e mobile para dashboard, produto, permissoes e backup.
+- Auditoria automatica de rotas Flask cobriu 189 rotas GET autenticadas sem erro 500.
+- Auditorias mutaveis permanentes cobrem visitante sem autenticacao e sessao sem CSRF em rotas POST/PUT/PATCH/DELETE.
+- Auditoria permanente confirma que rotas GET privadas nao retornam conteudo 2xx para visitante.
+- Auditoria permanente confirma que Bearer invalido nao autoriza rotas mutaveis `/api/v1`.
+- Auditoria permanente confirma headers de seguranca e CSP sem `unsafe-inline` nas respostas principais.
 - Cobertura automatizada atual: 100% global e 100% no nucleo de dominio/servicos.
-- MariaDB na revisao Alembic `20260712_0026`.
-- `pip-audit` e `npm audit` sem vulnerabilidades conhecidas.
+- MariaDB preparada para uso local; a revisao Alembic deve ser confirmada no host real antes de producao.
+- `pip-audit`, `bandit`, `ruff`, validacao Jinja, CSRF e Axe serious/critical sem falhas locais.
 - Compose YAML valido; container local nao foi revalidado neste ambiente porque Docker nao esta instalado.
 
 ## Situacao da fase interna
