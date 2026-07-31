@@ -16,4 +16,4 @@
 - Adicionados Flask-Migrate/Alembic incremental e migracao inicial do modulo de laudos.
 - Adicionados Dockerfile, Compose dev/prod e exemplos de ambiente.
 - Adicionados testes iniciais de laudos, healthchecks, erros, uploads e configuracao de migracao.
-- Adicionado CI inicial, Dependabot, Ruff e separacao de requirements dev/prod.
+- Adicionado CI inicial, Ruff e separacao de requirements dev/prod.
