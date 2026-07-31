@@ -1,171 +1,142 @@
-# O que falta para o Zokyo ficar ainda mais profissional
+# O que falta para o Zokyo ficar top dos tops
 
-Atualizado em 2026-07-29 apos varredura local ampla de seguranca, rotas, APIs, testes e frontend autenticado.
+Atualizado em 2026-07-31.
 
-O sistema esta funcional e possui uma base ampla de seguranca, testes e operacao. Este arquivo registra somente entregas comprovadas e pendencias reais.
+O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem criterio. O que falta agora e fechar produto: seguranca real, fluxo simples, operacao diaria sem travar e uma experiencia que qualquer funcionario consiga usar sem medo.
 
-## Resumo atual
+## Prioridade 1: producao blindada
 
-- 74 itens estruturais concluidos no repositorio.
-- 5 ativacoes externas pendentes.
-- 186 testes Python aprovados.
-- Playwright autenticado revalidado em desktop e mobile para dashboard, produto, permissoes e backup.
-- Auditoria automatica de rotas Flask cobriu 189 rotas GET autenticadas sem erro 500.
-- Auditorias mutaveis permanentes cobrem visitante sem autenticacao e sessao sem CSRF em rotas POST/PUT/PATCH/DELETE.
-- Auditoria permanente confirma que rotas GET privadas nao retornam conteudo 2xx para visitante.
-- Auditoria permanente confirma que Bearer invalido nao autoriza rotas mutaveis `/api/v1`.
-- Auditoria permanente confirma headers de seguranca e CSP sem `unsafe-inline` nas respostas principais.
-- Cobertura automatizada atual: 100% global e 100% no nucleo de dominio/servicos.
-- MariaDB preparada para uso local; a revisao Alembic deve ser confirmada no host real antes de producao.
-- `pip-audit`, `bandit`, `ruff`, validacao Jinja, CSRF e Axe serious/critical sem falhas locais.
-- Compose YAML valido; container local nao foi revalidado neste ambiente porque Docker nao esta instalado.
+- [ ] Configurar ambiente real com `FLASK_ENV=production`.
+- [ ] Usar `SECRET_KEY`, `ENCRYPTION_SALT`, `FIELD_ENCRYPTION_KEY`, `BLIND_INDEX_KEY` e `BACKUP_ENCRYPTION_KEY` fortes, fora do repositorio.
+- [ ] Ativar HTTPS no dominio principal e no painel.
+- [ ] Configurar `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL` com URL publica HTTPS.
+- [ ] Ativar `REQUIRE_ADMIN_2FA=true` em producao.
+- [ ] Configurar SMTP real para recuperacao de senha e avisos importantes.
+- [ ] Configurar canal de alerta operacional por e-mail ou webhook.
+- [ ] Rodar `flask --app wsgi:app production-check --strict-integrations` e so publicar quando passar sem erro.
 
-## Situacao da fase interna
+## Prioridade 2: backup e restore de verdade
 
-O roadmap implementavel no repositorio foi concluido. Os itens restantes exigem
-dominio, servidor, credenciais, contrato ou uma execucao humana no ambiente real.
+- [ ] Agendar backup automatico diario do MySQL/MariaDB.
+- [ ] Agendar backup dos uploads e arquivos privados.
+- [ ] Criptografar backups antes de enviar para fora do servidor.
+- [ ] Enviar backup para destino externo confiavel.
+- [ ] Testar restore em banco descartavel antes de colocar cliente real.
+- [ ] Criar rotina mensal de verificacao de restore.
+- [ ] Monitorar falha de backup e backup vencido.
 
-## Prioridade alta
+## Prioridade 3: fluxo de OS impecavel
 
-### 1. Backup automatico validado
+- [ ] Abrir OS em menos de 1 minuto.
+- [ ] Melhorar busca de cliente para nao cortar resultado nem confundir usuario.
+- [ ] Deixar equipamento, defeito, checklist, fotos e assinatura em uma ordem simples.
+- [ ] Garantir que orcamento, aprovacao, pagamento parcial e finalizacao estejam travados corretamente.
+- [ ] Impedir finalizacao de OS sem 100% de pagamento.
+- [ ] Manter OS baixada/arquivada fora da tela principal.
+- [ ] Deixar PDF da OS bonito, direto para imprimir e consistente com a identidade da assistencia.
+- [ ] Validar fluxo completo: criar OS, editar, aprovar, pagar, imprimir, baixar e consultar no portal.
 
-- [x] Scripts de backup diario e criptografia autenticada prontos para agendamento.
-- [x] Automacao de copia externa criptografada, imutavel e verificada via `rclone`; ativar um destino real ainda exige credenciais.
-- [x] Retencao local configuravel implementada.
-- [x] Restauracao e integridade testadas automaticamente.
-- [x] Emitir alerta seguro por webhook em falha ou backup vencido.
+## Prioridade 4: painel de bancada para tecnico
 
-### 2. Producao com HTTPS
+- [ ] Criar visao rapida de OS por etapa.
+- [ ] Destacar prioridade, prazo e status.
+- [ ] Mostrar pecas necessarias e links de compra apenas para tecnico.
+- [ ] Separar observacao interna da observacao do cliente.
+- [ ] Facilitar checklist tecnico.
+- [ ] Facilitar criacao de laudo.
+- [ ] Ter botao claro para avisar cliente.
 
-- [ ] Configurar um dominio proprio.
-- [ ] Instalar e renovar automaticamente o certificado TLS.
-- [ ] Expor somente as portas `80` e `443` no firewall.
-- [x] MariaDB sem porta publica no Compose de producao.
-- [ ] Armazenar segredos em um cofre apropriado, fora do repositorio.
-- [x] Configuracoes separadas para desenvolvimento e producao; homologacao depende do host escolhido.
-- [x] Gate executavel `production-check --strict-integrations` para reprovar configuracao incompleta antes de publicar.
+## Prioridade 5: WhatsApp profissional
 
-### 3. Recuperacao e continuidade
+- [ ] Configurar WhatsApp Cloud API oficial da Meta para producao.
+- [ ] Manter gateway local apenas como alternativa controlada/teste.
+- [ ] Criar templates configuraveis por status.
+- [ ] Ter mensagens para OS aberta, orcamento enviado, aprovado, pronto para retirada, cobranca pendente e garantia.
+- [ ] Registrar tentativas, erros e entregas.
+- [ ] Manter fallback manual por `wa.me` quando a API estiver indisponivel.
 
-- [x] Procedimento documentado em `docs/DISASTER_RECOVERY.md`.
-- [x] RTO inicial de quatro horas definido.
-- [x] RPO inicial de 24 horas definido.
-- [x] Processo seguro de rollback documentado.
-- [ ] Executar simulacoes trimestrais no ambiente real.
+## Prioridade 6: financeiro inteligente
 
-### 4. Observabilidade completa
+- [ ] Mostrar quanto entrou hoje.
+- [ ] Mostrar quanto esta pendente.
+- [ ] Mostrar OS com pagamento incompleto.
+- [ ] Calcular lucro por OS.
+- [ ] Separar custo de peca, mao de obra e desconto.
+- [ ] Mostrar inadimplencia.
+- [ ] Gerar relatorio mensal simples para o dono.
 
-- [x] Integracao opcional com Sentry implementada sem PII por padrao.
-- [x] Monitorar CPU/load, disco, rede, pool/conexoes do banco e filas.
-- [x] Healthchecks, readiness, metricas e latencia implementados.
-- [x] Alertar sobre falhas no scheduler e nas notificacoes, com heartbeat persistente.
-- [x] Dashboards Grafana e regras Prometheus por severidade versionados em `monitoring/`.
+## Prioridade 7: estoque realmente util
 
-### 5. Seguranca operacional
+- [ ] Baixar estoque automaticamente ao usar peca na OS.
+- [ ] Alertar estoque baixo.
+- [ ] Mostrar historico de movimentacao.
+- [ ] Vincular fornecedor a peca.
+- [ ] Sugerir compra quando estoque estiver baixo.
+- [ ] Evitar que produto ou servico inativo apareca em novas OS.
 
-- [x] 2FA obrigatorio para administradores em producao, configuravel por ambiente.
-- [x] Exibir sessoes e dispositivos ativos por usuario, com IP, agente, atividade e revogacao individual.
-- [x] Revogacao imediata de todas as sessoes por usuario.
-- [x] Politica central de senha forte implementada.
-- [x] Processo de conta comprometida com revogacao e auditoria.
-- [x] Varredura de CVEs altas/criticas da imagem Docker no CI.
-- [x] Testes de autorizacao e isolamento entre empresas no CI diario.
+## Prioridade 8: portal do cliente
 
-## Recursos comerciais
+- [ ] Melhorar consulta publica da OS no dominio principal.
+- [ ] Mostrar status em linguagem simples.
+- [ ] Mostrar prazo estimado.
+- [ ] Permitir aprovacao de orcamento pelo cliente.
+- [ ] Permitir assinatura digital quando fizer sentido.
+- [ ] Mostrar comprovante e garantia.
+- [ ] Ter botao de WhatsApp sempre visivel.
+- [ ] Melhorar SEO da pagina de consulta e do site publico.
 
-### 6. Atendimento e ordens de servico
+## Prioridade 9: agenda, coleta e rota
 
-- [x] Checklists tecnicos versionados por categoria, com snapshot imutavel na OS.
-- [x] Capturar assinatura eletronica do cliente com evidencia, hash, IP, usuario, data e imagem privada; eventual ICP-Brasil depende da politica juridica.
-- [x] Fotos privadas de OS e laudos organizadas e validadas.
-- [x] Termo de autorizacao, aceite auditado e inclusao no PDF da OS.
-- [x] Historico auditavel da OS implementado.
-- [x] Aprovacao ou rejeicao por token temporario seguro.
-- [x] Prazo e situacao de garantia registrados; classificacao de reincidencia ainda pode evoluir.
+- [ ] Criar agenda de coletas e entregas.
+- [ ] Usar endereco da assistencia como origem e destino padrao.
+- [ ] Permitir varios pontos de coleta.
+- [ ] Calcular melhor rota com GPS/mapa.
+- [ ] Registrar status da coleta.
+- [ ] Registrar confirmacao do cliente.
+- [ ] Permitir foto ou comprovante na retirada e entrega.
 
-### 7. Comunicacao profissional
+## Prioridade 10: auditoria, permissoes e seguranca interna
 
-- [x] Portal publico minimo e seguro implementado.
-- [x] Acompanhamento e decisao por token com hash, expiracao e revogacao.
-- [x] Templates versionados por evento e canal com variaveis restritas.
-- [x] E-mail transacional integrado a fila persistente e SMTP.
-- [x] Notificacoes de mudanca de status e conclusao; lembretes proativos de atraso ainda podem evoluir.
-- [x] Integracao direta com a API oficial Meta WhatsApp Cloud, com fallback manual e gateway legado opcional; ativacao exige credenciais Meta.
-- [x] Fila persistente registra tentativas, entrega, erros e retry exponencial.
+- [ ] Garantir que toda acao importante gere log de auditoria.
+- [ ] Separar permissoes por cargo.
+- [ ] Tecnico nao deve ver financeiro sensivel sem permissao.
+- [ ] Atendente nao deve alterar configuracao critica.
+- [ ] Admin deve conseguir revisar sessoes, logs e usuarios.
+- [ ] Revisar RBAC e ABAC rota por rota.
+- [ ] Validar isolamento entre empresas/usuarios.
 
-### 8. Estoque avancado
+## Prioridade 11: polimento visual pagina por pagina
 
-- [x] Inventario e ajustes com justificativa e livro imutavel de movimentos.
-- [x] Reservas de pecas por OS, consumo e cancelamento auditados.
-- [x] Lotes fisicos, validade, fornecedor e livro imutavel de movimentacoes implementados.
-- [x] Sugestoes de compra calculadas pelo disponivel e estoque minimo.
-- [x] Campo de codigo pronto para leitores que operam como teclado.
-- [x] Custo medio ponderado atualizado transacionalmente a cada entrada de lote.
-- [x] Estoque minimo e bloqueio de operacoes inconsistentes implementados.
+- [ ] Revisar portugues de todas as telas.
+- [ ] Padronizar botoes, icones, cores e espacamentos.
+- [ ] Garantir dark mode bonito em todas as paginas.
+- [ ] Corrigir cortes no mobile.
+- [ ] Reduzir poluicao visual dos formularios.
+- [ ] Melhorar tabelas grandes para pessoas mais velhas usarem sem dificuldade.
+- [ ] Rodar Playwright autenticado em compact, mobile, tablet, desktop e wide.
 
-### 9. Financeiro completo
+## Prioridade 12: operacao e venda
 
-- [x] Receitas, despesas, vencimento, pagamento e status implementados.
-- [x] Parcelamento em ate 60 vezes e recorrencia mensal com fechamento exato de centavos.
-- [x] Conciliacao e desconciliacao financeira auditadas.
-- [x] Fluxo realizado e pendencias por vencimento disponiveis.
-- [x] Comissoes por usuario com percentual e valor por parcela.
-- [x] DRE simplificada por periodo e categoria.
-- [x] Exportacao contabil CSV protegida contra formula injection.
+- [ ] Documentar instalacao local para suporte.
+- [ ] Documentar instalacao em producao.
+- [ ] Criar checklist antes de colocar cliente real.
+- [ ] Criar rotina de atualizacao sem perder dados.
+- [ ] Criar politica de suporte, backup e recuperacao.
+- [ ] Validar cobranca recorrente antes de vender acesso para terceiros.
 
-### 10. Relatorios gerenciais
+## Ordem certa de execucao
 
-- [x] Margem estimada e dados por OS/cliente/tecnico disponiveis.
-- [x] Tempo medio de atendimento calculado.
-- [x] OS em garantia contabilizadas; reincidencia detalhada permanece evolucao.
-- [x] Conversao de orcamentos calculada.
-- [x] Clientes recorrentes e inativos identificados.
-- [x] Exportacoes CSV, XLSX e PDF protegidas contra formula injection.
-- [x] Filtros salvos e relatorios agendados por e-mail no scheduler dedicado.
+1. Producao segura.
+2. Backup e restore testados.
+3. OS perfeita.
+4. WhatsApp real.
+5. Financeiro e estoque confiaveis.
+6. Portal do cliente.
+7. Agenda e coleta.
+8. Auditoria e permissoes.
+9. Polimento visual final.
+10. Operacao comercial.
 
-## Evolucao SaaS
+## Observacao direta
 
-### 11. Multiempresa maduro
-
-- [x] Planos, recursos e limites tecnicos implementados.
-- [x] Assinaturas e webhook sandbox implementados; provedor real depende de contrato.
-- [x] Convites de usuario com token em hash, uso unico, expiracao e envio por e-mail.
-- [x] Nome e cores da identidade visual configuraveis por empresa.
-- [x] Bloqueio de escrita por situacao da assinatura implementado.
-- [x] Painel global da plataforma implementado.
-- [x] Medir usuarios, clientes, OS, armazenamento e ultima atividade por organizacao.
-
-### 12. Qualidade e entrega
-
-- [x] Cobertura do nucleo de dominio e servicos em 100%, com gate minimo de 80%; cobertura global atual de 100%.
-- [x] Testes de concorrencia e isolamento multiempresa implementados.
-- [x] Teste de carga reproduzivel com concorrencia, taxa de erro e limite de p95 no CI.
-- [x] CI/CD com imagem imutavel, homologacao, aprovacao por Environment, healthcheck e rollback automatico versionado.
-- [x] Releases por tag semantica validadas, auditadas, construidas e publicadas com notas automaticas; incremento da versao continua deliberadamente manual.
-- [x] Dependencias, codigo e segredos auditados diariamente no CI.
-- [x] Migracoes em MariaDB limpo e restauradores verificados no pipeline.
-- [x] CI e release executam o contrato de prontidao de producao em modo estrito.
-
-## Dependencias externas
-
-Permanecem necessariamente dependentes de contratacao, credenciais ou decisao do proprietario:
-
-- Dominio, DNS, certificado TLS e regras do firewall do servidor.
-- Cofre de segredos e credenciais do destino externo imutavel para backups.
-- Ativacao dos dashboards e canais de alerta no host escolhido.
-- Credenciais do WhatsApp Business oficial e do e-mail transacional.
-- Politica juridica para assinatura digital.
-- Provedor real de cobranca recorrente.
-- Hosts e credenciais de homologacao e producao para CI/CD.
-
-Os pontos de integracao foram preparados sem armazenar credenciais no repositorio.
-
-## Proximas acoes do proprietario
-
-1. Contratar/configurar dominio, DNS, host e certificado TLS.
-2. Restringir o firewall do host a SSH administrativo e portas publicas `80/443`.
-3. Configurar cofre de segredos, destino `rclone`, Prometheus/Grafana e canais de alerta.
-4. Cadastrar credenciais Meta/SMTP e proteger o Environment `production` com aprovadores.
-5. Executar e registrar a primeira restauracao real; repetir trimestralmente.
-
-> Nenhum sistema pode garantir ausencia absoluta de vulnerabilidades. A meta profissional deve ser manter zero vulnerabilidades conhecidas, reduzir continuamente a superficie de ataque e responder rapidamente a novos riscos.
+O sistema nao precisa de mais acumulacao aleatoria de funcoes. Ele precisa ficar simples, confiavel e impossivel de quebrar na mao de funcionario comum. Esse e o caminho para virar um sistema realmente profissional para assistencia tecnica.
