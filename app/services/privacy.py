@@ -1,4 +1,4 @@
-"""Exportacao e anonimizacao conservadora de dados do titular."""
+"""Exportação e anonimização conservadora de dados do titular."""
 import io
 import json
 import secrets
@@ -24,7 +24,7 @@ def _now():
 
 def register_consent(cliente: Cliente, user: Usuario, purpose: str, granted: bool, source: str = "admin"):
     if cliente.organization_id != user.organization_id:
-        raise ValueError("Cliente nao encontrado.")
+        raise ValueError("Cliente não encontrado.")
     if purpose not in {"service_updates", "marketing", "data_processing"}:
         raise ValueError("Finalidade de consentimento invalida.")
     record = ConsentRecord(
@@ -41,7 +41,7 @@ def register_consent(cliente: Cliente, user: Usuario, purpose: str, granted: boo
 
 def export_subject_data(cliente: Cliente, user: Usuario) -> io.BytesIO:
     if cliente.organization_id != user.organization_id:
-        raise ValueError("Cliente nao encontrado.")
+        raise ValueError("Cliente não encontrado.")
     orders = OrdemServico.query.filter_by(cliente_id=cliente.id).order_by(OrdemServico.id).all()
     order_ids = [order.id for order in orders]
     reports = LaudoTecnico.query.filter_by(cliente_id=cliente.id).order_by(LaudoTecnico.id).all()
@@ -77,7 +77,7 @@ def export_subject_data(cliente: Cliente, user: Usuario) -> io.BytesIO:
         archive.writestr("dados.json", json.dumps(payload, ensure_ascii=False, indent=2, default=str))
         archive.writestr(
             "LEIA-ME.txt",
-            "Exportacao estruturada de dados do titular. PDFs e fotografias privadas nao estao incluidos neste pacote.\n",
+            "Exportação estruturada de dados do titular. PDFs e fotografias privadas não estão incluídos neste pacote.\n",
         )
     output.seek(0)
     return output
@@ -85,7 +85,7 @@ def export_subject_data(cliente: Cliente, user: Usuario) -> io.BytesIO:
 
 def anonymize_client(cliente: Cliente, user: Usuario):
     if cliente.organization_id != user.organization_id:
-        raise ValueError("Cliente nao encontrado.")
+        raise ValueError("Cliente não encontrado.")
     if OrdemServico.query.filter_by(cliente_id=cliente.id).count() or LaudoTecnico.query.filter_by(cliente_id=cliente.id).count():
         raise ValueError("Anonimizacao bloqueada: existem OS ou laudos sujeitos a retencao.")
     marker = secrets.token_hex(6)

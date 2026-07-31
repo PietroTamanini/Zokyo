@@ -17,6 +17,7 @@ def _production_env() -> dict[str, str]:
         "SECRET_KEY": "s" * 32,  # pragma: allowlist secret
         "DATABASE_URL": "mysql+pymysql://zokyo:" + "senha" + "@db:3306/zokyo",
         "ENCRYPTION_SALT": _valid_base64_32_bytes(),
+        "BLIND_INDEX_KEY": _valid_urlsafe_base64_32_bytes(),
         "REQUIRE_ADMIN_2FA": "true",
         "PUBLIC_BASE_URL": "https://zokyo.example.com",
         "METRICS_TOKEN": "m" * 32,
@@ -38,12 +39,13 @@ def test_production_readiness_reprova_pendencias_criticas():
             "SECRET_KEY": "curta",  # pragma: allowlist secret
             "DATABASE_URL": "sqlite:///:memory:",
             "ENCRYPTION_SALT": "invalido",
+            "BLIND_INDEX_KEY": "invalido",
         },
         strict_integrations=True,
     )
 
     errors = {issue.code for issue in issues if issue.severity == "error"}
-    assert {"FLASK_ENV", "SECRET_KEY", "DATABASE_URL", "ENCRYPTION_SALT"}.issubset(errors)
+    assert {"FLASK_ENV", "SECRET_KEY", "DATABASE_URL", "ENCRYPTION_SALT", "BLIND_INDEX_KEY"}.issubset(errors)
 
 
 def test_production_readiness_aprova_env_completo_em_modo_estrito():
@@ -58,6 +60,7 @@ def test_production_readiness_cobre_configuracoes_inseguras_especificas():
         {
             "DATABASE_URL": "mysql+pymysql://zokyo@db/zokyo",
             "ENCRYPTION_SALT": "nao-ascii-\u2603",
+            "BLIND_INDEX_KEY": "curta",
             "REQUIRE_ADMIN_2FA": "false",
             "PUBLIC_BASE_URL": "http://localhost:8000",
             "REPORTS_UPLOAD_FOLDER": "/srv/app/static/reports",
@@ -77,6 +80,7 @@ def test_production_readiness_cobre_configuracoes_inseguras_especificas():
     assert {
         "DATABASE_URL",
         "ENCRYPTION_SALT",
+        "BLIND_INDEX_KEY",
         "REQUIRE_ADMIN_2FA",
         "PUBLIC_BASE_URL",
         "REPORTS_UPLOAD_FOLDER",

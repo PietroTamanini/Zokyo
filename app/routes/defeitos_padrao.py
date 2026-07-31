@@ -2,6 +2,8 @@
 
 Fix: LIKE injection — escapa % e _ nos campos de busca.
 """
+from datetime import datetime, timezone
+
 from flask import Blueprint, jsonify, request
 
 from app.extensions import db
@@ -22,7 +24,7 @@ def _escape_like(q: str) -> str:
 def listar():
     q    = request.args.get("q", "").strip()
     tipo = request.args.get("tipo_aparelho", "").strip()
-    query = DefeitoPadrao.query
+    query = DefeitoPadrao.query.filter(DefeitoPadrao.ativo.is_(True), DefeitoPadrao.deletado_em.is_(None))
     if q:
         qe = _escape_like(q)
         query = query.filter(DefeitoPadrao.sintoma.ilike(f"%{qe}%"))
@@ -56,7 +58,11 @@ def criar():
 @defeitos_bp.route("/api/v1/servicos/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar(id):
-    d    = db.get_or_404(DefeitoPadrao, id)
+    d = (
+        DefeitoPadrao.query.filter_by(id=id, ativo=True)
+        .filter(DefeitoPadrao.deletado_em.is_(None))
+        .first_or_404()
+    )
     data = request.get_json(silent=True) or {}
     _LIMITES = {"tipo_aparelho": 100, "sintoma": 500, "causa": 2000, "solucao": 2000}
     for campo, max_len in _LIMITES.items():
@@ -71,6 +77,7 @@ def atualizar(id):
 @nivel_required("admin")
 def deletar(id):
     d = db.get_or_404(DefeitoPadrao, id)
-    db.session.delete(d)
+    d.ativo = False
+    d.deletado_em = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     return jsonify({"mensagem": "Defeito padrão removido"})

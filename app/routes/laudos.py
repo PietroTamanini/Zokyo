@@ -58,7 +58,7 @@ laudos_bp = Blueprint("laudos", __name__, url_prefix="/laudos")
 @laudos_bp.cli.command("storage-audit")
 @click.option("--delete", "delete_files", is_flag=True, help="Remove os arquivos orfaos encontrados.")
 def storage_audit(delete_files):
-    """Lista ou remove arquivos de laudos sem referéncia no banco."""
+    """Lista ou remove arquivos de laudos sem referência no banco."""
     encontrados = arquivos_orfaos()
     for path in encontrados:
         click.echo(path)
@@ -203,7 +203,7 @@ def exportar_csv():
     query, _filtros = _laudos_filtrados(usuario)
     output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["Numero", "OS", "Cliente", "Equipamento", "Serie", "Tecnico", "Tipo", "Versao", "Status", "Emissao"])
+    writer.writerow(["Número", "OS", "Cliente", "Equipamento", "Série", "Técnico", "Tipo", "Versão", "Status", "Emissão"])
     for laudo in query.order_by(LaudoTecnico.criado_em.desc()).yield_per(250):
         equipamento = " ".join(filter(None, [laudo.os.tipo_aparelho, laudo.os.marca, laudo.os.modelo])) if laudo.os else ""
         writer.writerow([_csv_safe(value) for value in [
@@ -303,7 +303,7 @@ def templates():
         tipo = request.form.get("tipo_laudo", "diagnostico")
         titulo = sanitize_text(request.form.get("titulo"), max_length=160)
         if not nome or len(nome) < 3 or tipo not in LAUDO_TIPOS_LABELS or not titulo:
-            flash("Informe nome, tipo e titulo validos.", "error")
+            flash("Informe nome, tipo e título válidos.", "error")
             return redirect(url_for("laudos.templates"))
         obrigatorias = [item for item in request.form.getlist("fotos_obrigatorias") if item in LAUDO_FOTO_TIPOS]
         ultima = (

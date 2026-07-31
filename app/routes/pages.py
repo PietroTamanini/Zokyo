@@ -21,6 +21,7 @@ import re as _re
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import (
     Blueprint,
@@ -60,6 +61,7 @@ from app.models import (
     OSFoto,
     OSHistorico,
     Peca,
+    ServiceChecklistTemplate,
     Transacao,
     Usuario,
     proximo_numero_os,
@@ -70,6 +72,7 @@ from app.services.billing import assert_limit, assert_write_allowed
 from app.services.finance import create_installments
 from app.services.inventory import record_movement
 from app.utils.auth import nivel_required, page_nivel_required
+from app.utils.blind_index import blind_index
 from app.utils.permissions import KNOWN_PERMISSIONS, ROLE_PERMISSIONS
 from app.utils.sanitizers import sanitize_cep, sanitize_cpf_cnpj, sanitize_email, sanitize_phone, sanitize_text
 from app.utils.security import gerar_uuid_filename, validar_upload
@@ -128,6 +131,22 @@ def _valid_or_default(value, allowed, default):
     return value if value in allowed else default
 
 
+def _open_orders_query():
+    return (
+        OrdemServico.query
+        .filter(OrdemServico.deletado_em.is_(None))
+        .filter(OrdemServico.baixada_em.is_(None))
+        .options(joinedload(OrdemServico.cliente))
+    )
+
+
+def _order_waiting_days(order):
+    if not order.data_entrada:
+        return 0
+    start = order.data_entrada.replace(tzinfo=None) if getattr(order.data_entrada, "tzinfo", None) else order.data_entrada
+    return max((datetime.now().date() - start.date()).days, 0)
+
+
 @pages_bp.route("/ajuda")
 @page_nivel_required("admin", "operacional", "cadastro", "consulta", "financeiro")
 def ajuda():
@@ -143,8 +162,41 @@ def ajuda():
             ("Empresa", bool(cfg and cfg.nome_empresa and cfg.cnpj), url_for("configuracoes.index")),
             ("Segurança 2FA", bool(user.totp_enabled), url_for("auth.two_factor_setup")),
         ]
+    roteiros = [
+        {
+            "titulo": "Atendimento no balcão",
+            "passos": [
+                "Busque o cliente pelo telefone ou documento.",
+                "Abra a OS e preencha defeito, aparelho, marca, modelo e serial.",
+                "Imprima a via do cliente e deixe a OS em Recepção.",
+            ],
+        },
+        {
+            "titulo": "Acompanhar conserto",
+            "passos": [
+                "Use Bancada ou Kanban para ver o que está em análise e reparo.",
+                "Registre peça, serviço executado e observação técnica na OS.",
+                "Mude para Pronto somente quando o equipamento puder ser retirado.",
+            ],
+        },
+        {
+            "titulo": "Entrega com pagamento",
+            "passos": [
+                "Confira o total da OS e registre pagamentos parciais se houver.",
+                "Só finalize como Entregue quando o saldo estiver totalmente pago.",
+                "Baixe a OS depois da entrega para tirar da tela principal.",
+            ],
+        },
+    ]
+    atalhos_ajuda = [
+        ("Busca global", url_for("pages.zokyo_pesquisar"), "Encontre cliente, OS, serial, peça, serviço, laudo ou lançamento."),
+        ("OS baixadas", url_for("pages.os_baixadas"), "Veja ordens já entregues sem poluir a lista principal."),
+        ("Rota de coleta", url_for("pages.coleta_rota"), "Organize pontos de coleta saindo e voltando da assistência."),
+        ("Backup", url_for("pages.zokyo_backup"), "Confira os dados e a rotina de restore."),
+    ]
     return render_template(
         "pages/ajuda.html", active="ajuda", checklist=checklist,
+        roteiros=roteiros, atalhos_ajuda=atalhos_ajuda,
         onboarding=request.args.get("onboarding") == "1" and not user.onboarding_completed,
     )
 
@@ -231,6 +283,48 @@ def _coleta_form_context(form_data=None, form_errors=None):
     )
 
 
+def _endereco_assistencia(cfg):
+    partes = []
+    if cfg.endereco:
+        partes.append(cfg.endereco)
+    local = ""
+    if cfg.cidade:
+        local = cfg.cidade
+    if cfg.uf:
+        local = f"{local}/{cfg.uf}" if local else cfg.uf
+    if local:
+        partes.append(local)
+    return ", ".join(partes)
+
+
+def _coletas_para_rota():
+    return (
+        ColetaAgendada.query
+        .options(joinedload(ColetaAgendada.cliente))
+        .filter(ColetaAgendada.status.in_(["agendada", "em_coleta"]))
+        .order_by(
+            ColetaAgendada.data_agendada.is_(None),
+            ColetaAgendada.data_agendada.asc(),
+            ColetaAgendada.criado_em.asc(),
+        )
+        .all()
+    )
+
+
+def _coleta_rota_payload(coletas):
+    return _safe_json([
+        {
+            "id": item.id,
+            "cliente": item.cliente.nome if item.cliente else "Cliente",
+            "telefone": item.telefone_contato or (item.cliente.telefone if item.cliente else "") or "",
+            "endereco": item.endereco_completo or "",
+            "horario": item.data_agendada.strftime("%d/%m/%Y %H:%M") if item.data_agendada else "",
+        }
+        for item in coletas
+        if item.endereco_completo
+    ])
+
+
 def _render_coleta_error(form_data, form_errors):
     _field, message = next(iter(form_errors.items()))
     flash(message, "error")
@@ -282,9 +376,9 @@ def _coleta_cliente_payload(data):
 def _cliente_para_coleta(payload):
     cliente = None
     if payload.get("cpf"):
-        cliente = Cliente.query.filter_by(cpf=payload["cpf"]).first()
+        cliente = Cliente.query.filter_by(cpf_bidx=blind_index(payload["cpf"], "cpf")).first()
     if not cliente and payload.get("cnpj"):
-        cliente = Cliente.query.filter_by(cnpj=payload["cnpj"]).first()
+        cliente = Cliente.query.filter_by(cnpj_bidx=blind_index(payload["cnpj"], "cnpj")).first()
     if not cliente and payload.get("telefone"):
         cliente = Cliente.query.filter_by(nome=payload["nome"], telefone=payload["telefone"]).first()
 
@@ -381,7 +475,7 @@ def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os",
     clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome).all()
     tecnicos = (Usuario.query.filter_by(ativo=True)
                 .filter(Usuario.nivel.in_(["admin", "operacional"])).all())
-    pecas = Peca.query.order_by(Peca.nome).all()
+    pecas = _pecas_ativas_query().order_by(Peca.nome).all()
     status_map = _configured_status_map()
     priority_options = _configured_priority_options()
     attendance_options = _configured_attendance_options()
@@ -399,6 +493,7 @@ def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os",
         attendance_map={item["key"]: item["label"] for item in attendance_options},
         hoje_iso=_today(),
         pecas_usadas=os_obj.to_dict().get("pecas", []) if os_obj else [],
+        nivel_usuario=session.get("nivel", "operacional"),
         form_data=form_data or {},
         form_errors=form_errors or {},
         coleta=coleta,
@@ -413,9 +508,36 @@ def _render_os_form_error(message, field, form_data, os_obj=None):
     ), 400
 
 
+def _normalizar_tipo_aparelho(data):
+    tipo = sanitize_text(data.get("tipo_aparelho", ""), max_length=100)
+    if tipo == "Outros":
+        tipo = sanitize_text(data.get("tipo_aparelho_outro", ""), max_length=100)
+    return tipo
+
+
 def _escape_like(q: str) -> str:
     """Escapa % e _ para evitar LIKE injection."""
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _like(q: str) -> str:
+    return f"%{_escape_like(q)}%"
+
+
+def _ilike(col, q: str):
+    return col.ilike(_like(q), escape="\\")
+
+
+def _pecas_ativas_query():
+    return Peca.query.filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None))
+
+
+def _servicos_ativos_query():
+    return DefeitoPadrao.query.filter(
+        DefeitoPadrao.ativo.is_(True),
+        DefeitoPadrao.deletado_em.is_(None),
+    )
+
 
 def _date_trunc_month(col):
     if db.session.get_bind().dialect.name == "sqlite":
@@ -474,6 +596,16 @@ def dashboard():
     os_aprovacao = OrdemServico.query.filter_by(
         status="aguardando_aprovacao").filter(
         OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None)).count()
+    coletas_abertas = ColetaAgendada.query.filter(
+        ColetaAgendada.status.in_(["agendada", "em_coleta"])
+    ).count()
+    pecas_compra_pendentes = db.session.execute(text(
+        "SELECT COUNT(*) FROM os_pecas op "
+        "JOIN ordens_servico os ON os.id = op.os_id "
+        "WHERE os.deletado_em IS NULL AND os.baixada_em IS NULL "
+        "AND os.status NOT IN ('entregue', 'cancelado') "
+        "AND (op.link_compra IS NOT NULL OR op.quantidade > 0)"
+    )).scalar() or 0
 
     def soma(tipo, st, periodo="mes"):
         q = db.session.query(_coalesce_sum(Transacao.valor)).filter(
@@ -497,13 +629,14 @@ def dashboard():
     total_clientes     = Cliente.query.filter_by(ativo=True).count()
     total_fornecedores = Fornecedor.query.filter_by(ativo=True).count()
     total_usuarios     = Usuario.query.filter_by(ativo=True).count()
-    total_pecas        = Peca.query.count()
-    estoque_critico    = Peca.query.filter(
+    total_pecas        = _pecas_ativas_query().count()
+    estoque_critico    = _pecas_ativas_query().filter(
         Peca.quantidade <= Peca.estoque_minimo).count()
     total_transacoes   = Transacao.query.count()
 
     valor_estoque = float(db.session.query(
-        _coalesce_sum(Peca.custo * Peca.quantidade)).scalar() or 0)
+        _coalesce_sum(Peca.custo * Peca.quantidade)
+    ).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).scalar() or 0)
 
     alertas = []
     if cfg.alerta_caixa_minimo and caixa < cfg.alerta_caixa_minimo:
@@ -550,6 +683,8 @@ def dashboard():
         hoje=hoje.strftime("%A, %d de %B de %Y"),
         os_abertas=os_abertas, os_prontas=os_prontas,
         os_atrasadas=os_atrasadas, os_aprovacao=os_aprovacao,
+        coletas_abertas=coletas_abertas,
+        pecas_compra_pendentes=pecas_compra_pendentes,
         receitas_mes=receitas_mes, despesas_mes=despesas_mes,
         saldo_mes=saldo_mes, vendas_dia=vendas_dia,
         a_receber=a_receber, a_pagar=a_pagar, caixa=caixa,
@@ -600,26 +735,35 @@ def zokyo_verificar_login():
 def zokyo_pesquisar():
     termo = request.args.get("termo") or request.args.get("q") or ""
     q = sanitize_text(termo, max_length=120).strip()
+    digitos = "".join(ch for ch in q if ch.isdigit())
     rows = []
     if q:
-        qe = _escape_like(q)
-        clientes = Cliente.query.filter(db.or_(
-            Cliente.nome.ilike(f"%{qe}%"),
-            Cliente.telefone.ilike(f"%{qe}%"),
-            Cliente.email.ilike(f"%{qe}%"),
-        )).order_by(Cliente.nome).limit(10).all()
+        cliente_filters = [
+            _ilike(Cliente.nome, q),
+            _ilike(Cliente.telefone, q),
+            _ilike(Cliente.email, q),
+        ]
+        if digitos:
+            cliente_filters.extend([
+                Cliente.cpf.ilike(f"%{digitos}%"),
+                Cliente.cnpj.ilike(f"%{digitos}%"),
+                Cliente.telefone.ilike(f"%{digitos}%"),
+            ])
+        clientes = Cliente.query.filter(db.or_(*cliente_filters)).order_by(Cliente.nome).limit(10).all()
         rows.extend({
             "tipo": "Cliente",
             "codigo": f"C{item.id:04d}",
             "nome": item.nome,
-            "detalhe": item.telefone or item.email or "-",
+            "detalhe": item.documento or item.telefone or item.email or "-",
             "acao": "Abrir",
             "acao_url": url_for("pages.clientes", q=item.nome),
         } for item in clientes)
 
-        produtos = Peca.query.filter(db.or_(
-            Peca.nome.ilike(f"%{qe}%"),
-            Peca.codigo.ilike(f"%{qe}%"),
+        produtos = _pecas_ativas_query().filter(db.or_(
+            _ilike(Peca.nome, q),
+            _ilike(Peca.codigo, q),
+            _ilike(Peca.categoria, q),
+            _ilike(Peca.localizacao, q),
         )).order_by(Peca.nome).limit(10).all()
         rows.extend({
             "tipo": "Produto",
@@ -630,16 +774,30 @@ def zokyo_pesquisar():
             "acao_url": url_for("pages.estoque", q=item.nome),
         } for item in produtos)
 
+        os_filters = [
+            _ilike(Cliente.nome, q),
+            _ilike(Cliente.telefone, q),
+            _ilike(OrdemServico.tipo_aparelho, q),
+            _ilike(OrdemServico.marca, q),
+            _ilike(OrdemServico.modelo, q),
+            _ilike(OrdemServico.numero_serie, q),
+            _ilike(OrdemServico.defeito_alegado, q),
+            _ilike(OrdemServico.defeito_encontrado, q),
+            _ilike(OrdemServico.solucao, q),
+            _ilike(OrdemServico.observacoes, q),
+        ]
+        if digitos:
+            os_filters.extend([
+                OrdemServico.numero == int(digitos),
+                Cliente.cpf.ilike(f"%{digitos}%"),
+                Cliente.cnpj.ilike(f"%{digitos}%"),
+                Cliente.telefone.ilike(f"%{digitos}%"),
+            ])
         ordens = (
             OrdemServico.query
             .join(Cliente)
             .filter(OrdemServico.deletado_em.is_(None))
-            .filter(db.or_(
-                Cliente.nome.ilike(f"%{qe}%"),
-                OrdemServico.marca.ilike(f"%{qe}%"),
-                OrdemServico.modelo.ilike(f"%{qe}%"),
-                OrdemServico.defeito_alegado.ilike(f"%{qe}%"),
-            ))
+            .filter(db.or_(*os_filters))
             .order_by(OrdemServico.data_entrada.desc())
             .limit(10)
             .all()
@@ -653,9 +811,73 @@ def zokyo_pesquisar():
             "acao_url": url_for("pages.os_detalhe", id=item.id),
         } for item in ordens)
 
-        transacoes = Transacao.query.filter(Transacao.descricao.ilike(f"%{qe}%")).order_by(
+        fornecedores = Fornecedor.query.filter(db.or_(
+            _ilike(Fornecedor.nome, q),
+            _ilike(Fornecedor.email, q),
+            _ilike(Fornecedor.telefone, q),
+            _ilike(Fornecedor.cidade, q),
+            Fornecedor.cnpj.ilike(f"%{digitos}%") if digitos else False,
+        )).order_by(Fornecedor.nome).limit(8).all()
+        rows.extend({
+            "tipo": "Fornecedor",
+            "codigo": f"F{item.id:04d}",
+            "nome": item.nome,
+            "detalhe": item.telefone or item.email or item.cidade or "-",
+            "acao": "Abrir",
+            "acao_url": url_for("pages.fornecedores", q=item.nome),
+        } for item in fornecedores)
+
+        servicos = _servicos_ativos_query().filter(db.or_(
+            _ilike(DefeitoPadrao.tipo_aparelho, q),
+            _ilike(DefeitoPadrao.sintoma, q),
+            _ilike(DefeitoPadrao.causa, q),
+            _ilike(DefeitoPadrao.solucao, q),
+        )).order_by(DefeitoPadrao.tipo_aparelho, DefeitoPadrao.sintoma).limit(8).all()
+        rows.extend({
+            "tipo": "Serviço",
+            "codigo": f"S{item.id:04d}",
+            "nome": item.sintoma,
+            "detalhe": item.tipo_aparelho or item.causa or "-",
+            "acao": "Abrir",
+            "acao_url": url_for("pages.servicos", q=item.sintoma),
+        } for item in servicos)
+
+        laudos = (
+            LaudoTecnico.query
+            .join(Cliente, LaudoTecnico.cliente_id == Cliente.id)
+            .join(OrdemServico, LaudoTecnico.os_id == OrdemServico.id)
+            .filter(db.or_(
+                _ilike(LaudoTecnico.numero, q),
+                _ilike(LaudoTecnico.tecnico_responsavel_nome, q),
+                _ilike(LaudoTecnico.diagnostico_tecnico, q),
+                _ilike(Cliente.nome, q),
+                _ilike(OrdemServico.marca, q),
+                _ilike(OrdemServico.modelo, q),
+                _ilike(OrdemServico.numero_serie, q),
+                Cliente.cpf.ilike(f"%{digitos}%") if digitos else False,
+                Cliente.cnpj.ilike(f"%{digitos}%") if digitos else False,
+            ))
+            .order_by(LaudoTecnico.criado_em.desc())
+            .limit(8)
+            .all()
+        )
+        rows.extend({
+            "tipo": "Laudo",
+            "codigo": item.numero or f"L{item.id:04d}",
+            "nome": item.cliente.nome if item.cliente else "Cliente",
+            "detalhe": LAUDO_STATUS_LABELS.get(item.status, item.status),
+            "acao": "Abrir",
+            "acao_url": url_for("laudos.detalhe", id=item.id),
+        } for item in laudos)
+
+        transacoes = Transacao.query.filter(db.or_(
+            _ilike(Transacao.descricao, q),
+            _ilike(Transacao.categoria, q),
+            _ilike(Transacao.forma_pagamento, q),
+            _ilike(Transacao.conciliacao_ref, q),
+        )).order_by(
             Transacao.criado_em.desc()
-        ).limit(10).all()
+        ).limit(8).all()
         rows.extend({
             "tipo": "Financeiro",
             "codigo": f"L{item.id:04d}",
@@ -674,7 +896,7 @@ def zokyo_pesquisar():
         empty="Informe um termo para pesquisar." if not q else "Nenhum resultado encontrado.",
         search=q,
         search_name="termo",
-        search_placeholder="Buscar cliente, OS, produto ou lançamento",
+        search_placeholder="Buscar cliente, OS, serial, peça, serviço, laudo ou lançamento",
         add_label=None,
         add_url=None,
         columns=[
@@ -736,7 +958,52 @@ def zokyo_mine_os():
 @pages_bp.route("/mine/detalhesOs/<int:id>")
 @login_required
 def zokyo_mine_visualizar_os(id):
-    return redirect(url_for("pages.os_detalhe", id=id))
+    return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
+
+
+@pages_bp.route("/os/<int:id>/retorno-garantia", methods=["POST"])
+@page_nivel_required("admin", "operacional")
+def os_retorno_garantia(id):
+    origem = OrdemServico.query.filter_by(id=id).filter(
+        OrdemServico.deletado_em.is_(None)).first_or_404()
+    if not origem.em_garantia:
+        flash("Esta OS não está dentro do prazo de garantia.", "error")
+        return redirect(url_for("pages.os_detalhe", id=id))
+    usuario = db.session.get(Usuario, session["usuario_id"])
+    os_obj = OrdemServico(
+        numero=proximo_numero_os(g.organization_id),
+        organization_id=g.organization_id,
+        cliente_id=origem.cliente_id,
+        usuario_id=session["usuario_id"],
+        tipo_aparelho=origem.tipo_aparelho,
+        marca=origem.marca,
+        modelo=origem.modelo,
+        numero_serie=origem.numero_serie,
+        defeito_alegado=sanitize_text(request.form.get("defeito_alegado", ""), max_length=5000)
+        or f"Retorno de garantia da OS #{origem.codigo_os}",
+        observacoes=f"Retorno vinculado a OS #{origem.codigo_os}.",
+        valor_servico=0,
+        valor_pecas=0,
+        desconto=0,
+        status="recepcao",
+        prio="alta",
+        tipo_atendimento=origem.tipo_atendimento or "balcao",
+        tecnico_nome=origem.tecnico_nome or usuario.nome,
+        garantia_dias=origem.garantia_dias or 90,
+        warranty_return_of_id=origem.id,
+    )
+    db.session.add(os_obj)
+    db.session.flush()
+    db.session.add(OSHistorico(
+        os_id=os_obj.id,
+        usuario_id=session["usuario_id"],
+        status_anterior=None,
+        status_novo=os_obj.status,
+    ))
+    registrar("criacao", "garantia", f"Retorno de garantia OS #{os_obj.codigo_os} criado a partir da OS #{origem.codigo_os}")
+    db.session.commit()
+    flash("Retorno de garantia criado e vinculado a OS original.", "success")
+    return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
 
 @pages_bp.route("/mine/imprimirOs/<int:id>")
@@ -862,10 +1129,56 @@ def zokyo_backup():
             contagens[tabela] = db.session.execute(consulta).scalar() or 0
         except Exception:
             contagens[tabela] = "-"
+    db_url = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    upload_folder = current_app.config.get("REPORTS_UPLOAD_FOLDER")
+    upload_ok = True
+    upload_detail = "Usando pasta padrão da instância."
+    if upload_folder:
+        upload_path = Path(upload_folder)
+        upload_ok = upload_path.exists() and upload_path.is_dir()
+        upload_detail = str(upload_path)
+    checks_backup = [
+        {
+            "label": "Banco de produção",
+            "ok": db_url.startswith(("mysql://", "mysql+pymysql://", "mariadb://", "mariadb+pymysql://")),
+            "detail": "MySQL/MariaDB configurado" if "mysql" in db_url or "mariadb" in db_url else "Use MySQL/MariaDB em produção",
+        },
+        {
+            "label": "Uploads/laudos",
+            "ok": upload_ok,
+            "detail": upload_detail,
+        },
+        {
+            "label": "Chave da sessão",
+            "ok": bool(current_app.config.get("SECRET_KEY")) and len(str(current_app.config.get("SECRET_KEY"))) >= 32,
+            "detail": "SECRET_KEY forte configurada" if current_app.config.get("SECRET_KEY") else "Defina SECRET_KEY fixa e forte",
+        },
+        {
+            "label": "Migrations",
+            "ok": True,
+            "detail": "Use flask db current antes e depois do restore",
+        },
+    ]
+    comandos = [
+        {
+            "titulo": "Backup do banco",
+            "cmd": "python scripts/backup_database.py --env-file .env --output backups",
+        },
+        {
+            "titulo": "Restore testado",
+            "cmd": "python scripts/restore_database.py --env-file .env --backup backups/ARQUIVO.sql.gz",
+        },
+        {
+            "titulo": "Conferir schema",
+            "cmd": "flask --app wsgi:app db current && flask --app wsgi:app db check",
+        },
+    ]
     return render_template(
         "pages/zokyo_backup.html",
         active="configuracoes",
         contagens=contagens,
+        checks_backup=checks_backup,
+        comandos=comandos,
     )
 
 
@@ -948,7 +1261,7 @@ def zokyo_auditoria():
     )
 
 
-@pages_bp.route("/auditoria/clean", methods=["GET", "POST"])
+@pages_bp.route("/auditoria/clean", methods=["POST"])
 @page_nivel_required("admin")
 def zokyo_auditoria_clean():
     flash("Limpeza de auditoria não foi executada; histórico preservado por segurança.", "warning")
@@ -984,17 +1297,17 @@ def zokyo_relatorios_alias():
     if tipo == "clientes":
         writer.writerow(["ID", "Nome", "Telefone", "Email", "Cidade", "UF", "Ativo"])
         for item in Cliente.query.order_by(Cliente.nome).all():
-            writer.writerow([item.id, cell(item.nome), cell(item.telefone), cell(item.email), cell(item.cidade), cell(item.uf), "Sim" if item.ativo else "Nao"])
+            writer.writerow([item.id, cell(item.nome), cell(item.telefone), cell(item.email), cell(item.cidade), cell(item.uf), "Sim" if item.ativo else "Não"])
     elif tipo in {"produtos", "sku"}:
         writer.writerow(["ID", "Código", "Produto", "Categoria", "Localização", "Quantidade", "Custo", "Preço venda"])
-        for item in Peca.query.order_by(Peca.nome).all():
+        for item in _pecas_ativas_query().order_by(Peca.nome).all():
             writer.writerow([item.id, cell(item.codigo), cell(item.nome), cell(item.categoria), cell(item.localizacao), item.quantidade, f"{float(item.custo or 0):.2f}", f"{item.preco_venda:.2f}"])
     elif tipo == "servicos":
         writer.writerow(["ID", "Tipo aparelho", "Sintoma", "Causa", "Solucao"])
-        for item in DefeitoPadrao.query.order_by(DefeitoPadrao.tipo_aparelho, DefeitoPadrao.sintoma).all():
+        for item in _servicos_ativos_query().order_by(DefeitoPadrao.tipo_aparelho, DefeitoPadrao.sintoma).all():
             writer.writerow([item.id, cell(item.tipo_aparelho), cell(item.sintoma), cell(item.causa), cell(item.solucao)])
     elif tipo == "os":
-        writer.writerow(["OS", "Cliente", "Equipamento", "Status", "Tecnico", "Entrada", "Total"])
+        writer.writerow(["OS", "Cliente", "Equipamento", "Status", "Técnico", "Entrada", "Total"])
         ordens = OrdemServico.query.filter(OrdemServico.deletado_em.is_(None)).options(joinedload(OrdemServico.cliente)).order_by(OrdemServico.data_entrada.desc()).all()
         for item in ordens:
             equipamento = " ".join(part for part in [item.tipo_aparelho, item.marca, item.modelo] if part)
@@ -1133,6 +1446,205 @@ def os_baixadas():
         baixadas=True)
 
 
+@pages_bp.route("/os/kanban")
+@login_required
+def os_kanban():
+    status_map = _configured_status_map()
+    priority_map = _configured_priority_map()
+    orders = _open_orders_query().order_by(OrdemServico.data_prev.asc(), OrdemServico.data_entrada.asc()).all()
+    columns = {key: [] for key in status_map}
+    for order in orders:
+        columns.setdefault(order.status, []).append(order)
+    return render_template(
+        "pages/os_kanban.html",
+        active="os_kanban",
+        status_map=status_map,
+        priority_map=priority_map,
+        columns=columns,
+        waiting_days=_order_waiting_days,
+        hoje_dt=_now_db(),
+    )
+
+
+@pages_bp.route("/agenda")
+@login_required
+def agenda_tecnica():
+    tecnico = sanitize_text(request.args.get("tecnico", ""), max_length=120)
+    status_map = _configured_status_map()
+    tecnicos = (
+        Usuario.query
+        .filter_by(ativo=True)
+        .filter(Usuario.nivel.in_(["admin", "operacional"]))
+        .order_by(Usuario.nome)
+        .all()
+    )
+    query = _open_orders_query().filter(~OrdemServico.status.in_(["entregue", "cancelado"]))
+    if tecnico:
+        query = query.filter(OrdemServico.tecnico_nome == tecnico)
+    orders = query.order_by(
+        OrdemServico.data_prev.is_(None),
+        OrdemServico.data_prev.asc(),
+        OrdemServico.prio.desc(),
+        OrdemServico.data_entrada.asc(),
+    ).all()
+    overdue = [item for item in orders if item.data_prev and item.data_prev.replace(tzinfo=None).date() < datetime.now().date()]
+    today = [item for item in orders if item.data_prev and item.data_prev.replace(tzinfo=None).date() == datetime.now().date()]
+    upcoming = [item for item in orders if item not in overdue and item not in today]
+    return render_template(
+        "pages/agenda_tecnica.html",
+        active="agenda",
+        tecnicos=tecnicos,
+        tecnico=tecnico,
+        status_map=status_map,
+        overdue=overdue,
+        today=today,
+        upcoming=upcoming,
+        waiting_days=_order_waiting_days,
+    )
+
+
+@pages_bp.route("/compras-pecas")
+@page_nivel_required("admin", "operacional")
+def compras_pecas():
+    rows = db.session.execute(text(
+        "SELECT op.os_id, op.peca_id, op.quantidade, op.valor_unitario, op.link_compra, "
+        "p.nome AS peca_nome, p.codigo AS peca_codigo, p.quantidade AS estoque, "
+        "p.estoque_minimo AS estoque_minimo, o.numero AS os_numero, o.status AS os_status, "
+        "o.data_prev AS data_prev, c.nome AS cliente_nome "
+        "FROM os_pecas op "
+        "JOIN pecas p ON p.id = op.peca_id "
+        "JOIN ordens_servico o ON o.id = op.os_id "
+        "JOIN clientes c ON c.id = o.cliente_id "
+        "WHERE o.deletado_em IS NULL AND o.baixada_em IS NULL AND p.organization_id=:org "
+        "AND p.ativo = 1 AND p.deletado_em IS NULL "
+        "ORDER BY o.data_prev IS NULL, o.data_prev ASC, o.data_entrada ASC"
+    ), {"org": g.organization_id}).fetchall()
+    suggestions = (
+        _pecas_ativas_query()
+        .filter(Peca.quantidade <= Peca.estoque_minimo)
+        .order_by(Peca.quantidade.asc(), Peca.nome.asc())
+        .all()
+    )
+    return render_template(
+        "pages/compras_pecas.html",
+        active="compras_pecas",
+        rows=rows,
+        suggestions=suggestions,
+        status_map=_configured_status_map(),
+    )
+
+
+@pages_bp.route("/produtividade")
+@page_nivel_required("admin", "operacional", "financeiro")
+def produtividade():
+    status_map = _configured_status_map()
+    orders = (
+        OrdemServico.query
+        .filter(OrdemServico.deletado_em.is_(None))
+        .options(joinedload(OrdemServico.cliente))
+        .all()
+    )
+    payments = (
+        Transacao.query
+        .filter(Transacao.tipo == "receita", Transacao.status == "pago")
+        .all()
+    )
+    revenue_by_os = {}
+    for payment in payments:
+        if payment.os_id:
+            revenue_by_os[payment.os_id] = revenue_by_os.get(payment.os_id, 0) + float(payment.valor or 0)
+    by_tech = {}
+    for order in orders:
+        tech = order.tecnico_nome or "Sem técnico"
+        bucket = by_tech.setdefault(tech, {"total": 0, "abertas": 0, "entregues": 0, "atrasadas": 0, "receita": 0.0})
+        bucket["total"] += 1
+        if order.status == "entregue":
+            bucket["entregues"] += 1
+        elif not order.baixada:
+            bucket["abertas"] += 1
+        if order.data_prev and order.status not in {"entregue", "cancelado"}:
+            if order.data_prev.replace(tzinfo=None).date() < datetime.now().date():
+                bucket["atrasadas"] += 1
+        bucket["receita"] += revenue_by_os.get(order.id, 0)
+    status_counts = {key: 0 for key in status_map}
+    for order in orders:
+        status_counts[order.status] = status_counts.get(order.status, 0) + 1
+    return render_template(
+        "pages/produtividade.html",
+        active="produtividade",
+        by_tech=by_tech,
+        status_counts=status_counts,
+        status_map=status_map,
+        total_open=sum(1 for item in orders if not item.baixada and item.status not in {"entregue", "cancelado"}),
+        total_overdue=sum(
+            1 for item in orders
+            if item.data_prev and item.status not in {"entregue", "cancelado"}
+            and item.data_prev.replace(tzinfo=None).date() < datetime.now().date()
+        ),
+    )
+
+
+@pages_bp.route("/bancada")
+@page_nivel_required("admin", "operacional")
+def bancada():
+    usuario = db.session.get(Usuario, session.get("usuario_id"))
+    somente_minhas = request.args.get("minhas", "1") != "0"
+    query = _open_orders_query().filter(OrdemServico.status.in_(["em_analise", "aguardando_aprovacao", "em_reparo", "pronto"]))
+    if somente_minhas:
+        query = query.filter(db.or_(OrdemServico.tecnico_nome == usuario.nome, OrdemServico.tecnico_nome.is_(None), OrdemServico.tecnico_nome == ""))
+    orders = query.order_by(OrdemServico.data_prev.is_(None), OrdemServico.data_prev.asc(), OrdemServico.data_entrada.asc()).limit(80).all()
+    return render_template(
+        "pages/bancada.html",
+        active="bancada",
+        orders=orders,
+        somente_minhas=somente_minhas,
+        status_map=_configured_status_map(),
+        waiting_days=_order_waiting_days,
+    )
+
+
+@pages_bp.route("/checklists")
+@page_nivel_required("admin", "operacional")
+def checklists_tecnicos():
+    templates = (
+        ServiceChecklistTemplate.query
+        .order_by(ServiceChecklistTemplate.category.asc(), ServiceChecklistTemplate.version.desc())
+        .all()
+    )
+    return render_template("pages/checklists.html", active="checklists", templates=templates)
+
+
+@pages_bp.route("/checklists/criar", methods=["POST"])
+@page_nivel_required("admin")
+def checklist_criar_page():
+    category = sanitize_text(request.form.get("category", ""), max_length=100).lower()
+    raw_items = [sanitize_text(item, max_length=200) for item in request.form.getlist("items[]")]
+    items = [item for item in raw_items if item]
+    if not category or not items:
+        flash("Informe o tipo de aparelho e ao menos um item.", "error")
+        return redirect(url_for("pages.checklists_tecnicos"))
+    previous = (
+        ServiceChecklistTemplate.query
+        .filter_by(category=category)
+        .order_by(ServiceChecklistTemplate.version.desc())
+        .first()
+    )
+    for old in ServiceChecklistTemplate.query.filter_by(category=category, active=True).all():
+        old.active = False
+    template = ServiceChecklistTemplate(
+        organization_id=g.organization_id,
+        category=category,
+        version=(previous.version + 1 if previous else 1),
+        items=items[:50],
+        active=True,
+    )
+    db.session.add(template)
+    registrar("criacao", "checklists", f"Checklist {category} v{template.version} criado")
+    db.session.commit()
+    flash("Checklist técnico atualizado.", "success")
+    return redirect(url_for("pages.checklists_tecnicos"))
+
+
 @pages_bp.route("/os/nova", methods=["GET"])
 @pages_bp.route("/os/adicionar", methods=["GET"])
 @login_required
@@ -1144,6 +1656,22 @@ def os_nova():
 @login_required
 def coleta():
     return render_template("pages/coleta.html", **_coleta_form_context())
+
+
+@pages_bp.route("/coletas/rota", methods=["GET"])
+@login_required
+def coleta_rota():
+    cfg = Configuracao.get()
+    coletas = _coletas_para_rota()
+    return render_template(
+        "pages/coleta_rota.html",
+        active="coleta",
+        cfg=cfg,
+        endereco_assistencia=_endereco_assistencia(cfg),
+        coletas=coletas,
+        coletas_json=_coleta_rota_payload(coletas),
+        status_coleta_labels=STATUS_COLETA_LABELS,
+    )
 
 
 @pages_bp.route("/coleta/agendar", methods=["POST"])
@@ -1239,7 +1767,7 @@ def coleta_concluir_post(id):
         .first_or_404()
     )
     if coleta_obj.status == "concluida" and coleta_obj.os_id:
-        flash("Esta coleta ja virou OS.", "warning")
+        flash("Esta coleta já virou OS.", "warning")
         return redirect(url_for("pages.os_detalhe", id=coleta_obj.os_id))
     if coleta_obj.status == "cancelada":
         flash("Coleta cancelada não pode ser concluída.", "error")
@@ -1247,7 +1775,7 @@ def coleta_concluir_post(id):
 
     data = request.form.to_dict()
     erros = {}
-    tipo_aparelho = sanitize_text(data.get("tipo_aparelho", ""), max_length=100)
+    tipo_aparelho = _normalizar_tipo_aparelho(data)
     marca = sanitize_text(data.get("marca", ""), max_length=100)
     modelo = sanitize_text(data.get("modelo", ""), max_length=100)
     defeito_alegado = sanitize_text(data.get("defeito_alegado", ""), max_length=5000)
@@ -1379,12 +1907,15 @@ def os_criar():
     if valor_servico > 999_999.99 or desconto > valor_servico:
         flash("Valores financeiros fora do intervalo permitido.", "error")
         return _render_os_form_error("Erro de validacao na OS.", "geral", data)
+    tipo_aparelho = _normalizar_tipo_aparelho(data)
+    if not tipo_aparelho:
+        return _render_os_form_error("Informe o tipo do equipamento.", "tipo_aparelho", data)
     os_obj = OrdemServico(
         numero=proximo_numero_os(g.organization_id),
         organization_id=g.organization_id,
         cliente_id=cliente_id,
         usuario_id=session["usuario_id"],
-        tipo_aparelho=sanitize_text(data.get("tipo_aparelho", ""), max_length=100) or None,
+        tipo_aparelho=tipo_aparelho,
         marca=sanitize_text(data.get("marca", ""), max_length=100) or None,
         modelo=sanitize_text(data.get("modelo", ""), max_length=100) or None,
         numero_serie=sanitize_text(data.get("numero_serie", ""), max_length=100) or None,
@@ -1436,7 +1967,11 @@ def os_atualizar(id):
     data = request.form
     ant  = os_obj.status
 
-    _CAMPOS_CURTOS = ("tipo_aparelho", "marca", "modelo", "numero_serie", "tecnico_nome")
+    tipo_aparelho = _normalizar_tipo_aparelho(data)
+    if not tipo_aparelho:
+        return _render_os_form_error("Informe o tipo do equipamento.", "tipo_aparelho", data, os_obj)
+    os_obj.tipo_aparelho = tipo_aparelho
+    _CAMPOS_CURTOS = ("marca", "modelo", "numero_serie", "tecnico_nome")
     _CAMPOS_LONGOS = ("defeito_alegado", "defeito_encontrado", "solucao", "observacoes")
     for campo in _CAMPOS_CURTOS:
         setattr(os_obj, campo, sanitize_text(data.get(campo, ""), max_length=120) or None)
@@ -1515,7 +2050,7 @@ def os_detalhe(id):
     historico = (OSHistorico.query.filter_by(os_id=id)
                  .order_by(OSHistorico.criado_em.asc()).all())
     pecas_dict = os_obj.to_dict().get("pecas", [])
-    pecas_estoque = Peca.query.order_by(Peca.nome).all()
+    pecas_estoque = _pecas_ativas_query().order_by(Peca.nome).all()
     pecas_estoque_json = _safe_json([
         {"id": p.id, "nome": p.nome, "codigo": p.codigo or "",
          "quantidade": p.quantidade,
@@ -1563,6 +2098,18 @@ def _form_float(*names, default=0):
             except (TypeError, ValueError):
                 return default
     return default
+
+
+def _form_purchase_link(*names):
+    for name in names:
+        value = request.form.get(name)
+        if value not in (None, ""):
+            link = sanitize_text(value, max_length=1000)
+            parsed = urlparse(link)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("Link de compra deve comecar com http:// ou https://")
+            return link
+    return ""
 
 
 def _format_moeda(value):
@@ -1650,6 +2197,10 @@ def os_adicionar_produto_alias():
     peca_id = _form_int("idProduto", "produto", "peca_id")
     quantidade = _form_int("quantidade", default=1)
     valor_unitario = _form_float("preco", "valor_unitario", default=0)
+    try:
+        link_compra = _form_purchase_link("link_compra", "link_compra_peca")
+    except ValueError as exc:
+        return _json_or_error(str(exc), os_id)
     if not os_id or not peca_id:
         return _json_or_error("Informe OS e produto.", os_id)
     if quantidade is None or quantidade <= 0:
@@ -1658,7 +2209,7 @@ def os_adicionar_produto_alias():
         return _json_or_error("Valor unitário não pode ser negativo.", os_id)
 
     os_obj = OrdemServico.query.filter_by(id=os_id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
-    peca = db.get_or_404(Peca, peca_id)
+    peca = _pecas_ativas_query().filter(Peca.id == peca_id).first_or_404()
     existente = db.session.execute(
         text(
             "SELECT op.quantidade FROM os_pecas op "
@@ -1685,13 +2236,13 @@ def os_adicionar_produto_alias():
         )
     if existente:
         db.session.execute(
-            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v WHERE os_id=:o AND peca_id=:p"),
-            {"q": quantidade, "v": valor_unitario, "o": os_obj.id, "p": peca.id},
+            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l WHERE os_id=:o AND peca_id=:p"),
+            {"q": quantidade, "v": valor_unitario, "l": link_compra or None, "o": os_obj.id, "p": peca.id},
         )
     else:
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id, peca_id, quantidade, valor_unitario) VALUES (:o, :p, :q, :v)"),
-            {"o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario},
+            text("INSERT INTO os_pecas (os_id, peca_id, quantidade, valor_unitario, link_compra) VALUES (:o, :p, :q, :v, :l)"),
+            {"o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario, "l": link_compra or None},
         )
     os_obj.desconto = 0
     _recalcular_valor_pecas(os_obj)
@@ -1743,7 +2294,7 @@ def os_adicionar_servico_alias():
     if quantidade is None or quantidade <= 0 or preco < 0:
         return _json_or_error("Serviço, quantidade ou valor inválido.", os_id)
     if servico_id and not descricao:
-        servico = db.get_or_404(DefeitoPadrao, servico_id)
+        servico = _servicos_ativos_query().filter(DefeitoPadrao.id == servico_id).first_or_404()
         descricao = servico.sintoma or servico.solucao or f"Serviço #{servico.id}"
     os_obj = OrdemServico.query.filter_by(id=os_id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
     subtotal = round(quantidade * preco, 2)
@@ -1884,7 +2435,7 @@ def os_status(id):
     # Bug #6: rejeitar status inválido
     if novo_st and novo_st not in _configured_status_keys():
         flash(f"Status inválido: '{novo_st}'.", "error")
-        return redirect(url_for("pages.os_detalhe", id=id))
+        return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
 
     if novo_st == "entregue" and antigo != "entregue":
         pagamentos_info = _os_pagamentos_info(os_obj)
@@ -1894,7 +2445,7 @@ def os_status(id):
                 "Registre o pagamento total antes de finalizar.",
                 "error",
             )
-            return redirect(url_for("pages.os_detalhe", id=id))
+            return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
 
     if novo_st and novo_st != antigo:
         os_obj.status = novo_st
@@ -1948,15 +2499,28 @@ def os_status(id):
             )
             process_notification(email_notification.id)
 
-        # Notificação WhatsApp ao marcar pronto
+        # Notificacao WhatsApp nos pontos que costumam travar a oficina.
+        whatsapp_message = None
+        whatsapp_event = None
         if novo_st == "pronto" and antigo != "pronto":
+            whatsapp_message = mensagem_os_pronta(os_obj)
+            whatsapp_event = "os_ready"
+        elif novo_st == "aguardando_aprovacao" and antigo != "aguardando_aprovacao":
+            whatsapp_message = (
+                f"Ola, {os_obj.cliente.nome if os_obj.cliente else 'cliente'}! "
+                f"Sua OS #{os_obj.codigo_os} está aguardando aprovação de orçamento. "
+                f"Valor total: {_format_moeda(os_obj.valor_total)}."
+            )
+            whatsapp_event = "os_budget_waiting"
+
+        if whatsapp_message and whatsapp_event:
             if os_obj.cliente and os_obj.cliente.telefone:
                 notification, _created = enqueue_whatsapp(
                     os_obj.organization_id,
                     os_obj.cliente.telefone,
-                    mensagem_os_pronta(os_obj),
-                    "os_ready",
-                    f"os-ready-{os_obj.id}",
+                    whatsapp_message,
+                    whatsapp_event,
+                    f"{whatsapp_event}-{os_obj.id}",
                 )
                 notification = process_notification(notification.id)
                 resultado = notification.payload.get("last_result", {})
@@ -1979,7 +2543,7 @@ def os_status(id):
         else:
             flash(f"Status: {STATUS_MAP.get(novo_st, novo_st)}", "success")
 
-    return redirect(url_for("pages.os_detalhe", id=id))
+    return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
 
 
 @pages_bp.route("/os/<int:id>/pdf")
@@ -1998,10 +2562,23 @@ def os_pdf(id):
         pdf = gerar_pdf_os(os_obj)
     except RuntimeError as e:
         flash(str(e), "error")
-        return redirect(url_for("pages.os_detalhe", id=id))
+        return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
     return send_file(
         io.BytesIO(pdf), mimetype="application/pdf",
-        as_attachment=True, download_name=f"OS_{id:04d}.pdf",
+        as_attachment=False, download_name=f"OS_{os_obj.codigo_os}.pdf",
+    )
+
+
+@pages_bp.route("/os/<int:id>/imprimir")
+@login_required
+def os_print(id):
+    os_obj = OrdemServico.query.filter_by(id=id).filter(
+        OrdemServico.deletado_em.is_(None)).first_or_404()
+    return render_template(
+        "pages/os_print.html",
+        active="os",
+        os=os_obj,
+        pdf_url=url_for("pages.os_pdf", id=id),
     )
 
 
@@ -2236,7 +2813,7 @@ def estoque():
     cat_filtro     = request.args.get("cat", "")
     critico_filtro = request.args.get("critico", "")
     page           = request.args.get("page", 1, type=int)
-    query = Peca.query
+    query = _pecas_ativas_query()
     if q:
         qe = _escape_like(q)
         query = query.filter(db.or_(
@@ -2250,10 +2827,10 @@ def estoque():
     pag = query.order_by(Peca.nome).paginate(
         page=page, per_page=30, error_out=False)
     categorias  = [r[0] for r in db.session.query(
-        Peca.categoria).distinct().all() if r[0]]
+        Peca.categoria).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).distinct().all() if r[0]]
     valor_total = sum(
-        float(p.custo or 0) * p.quantidade for p in Peca.query.all())
-    criticos    = Peca.query.filter(
+        float(p.custo or 0) * p.quantidade for p in _pecas_ativas_query().all())
+    criticos    = _pecas_ativas_query().filter(
         Peca.quantidade <= Peca.estoque_minimo).all()
     pecas_json  = _safe_json([
         {"id": p.id, "nome": p.nome, "quantidade": p.quantidade,
@@ -2284,7 +2861,7 @@ def produtos_adicionar_alias():
 @pages_bp.route("/produtos/editar/<int:id>")
 @login_required
 def produtos_editar_alias(id):
-    produto = db.get_or_404(Peca, id)
+    produto = _pecas_ativas_query().filter(Peca.id == id).first_or_404()
     return render_template(
         "pages/zokyo_produto_form.html",
         active="estoque",
@@ -2296,7 +2873,7 @@ def produtos_editar_alias(id):
 @pages_bp.route("/produtos/visualizar/<int:id>")
 @login_required
 def produtos_visualizar_alias(id):
-    produto = db.get_or_404(Peca, id)
+    produto = _pecas_ativas_query().filter(Peca.id == id).first_or_404()
     return render_template(
         "pages/zokyo_produto_detalhe.html",
         active="estoque",
@@ -2417,7 +2994,7 @@ def arquivos():
         subtitle="Fotos, PDFs, comprovantes e assinaturas vinculados ao atendimento.",
         empty="Nenhum arquivo encontrado.",
         search=request.args.get("q", "").strip(),
-        search_placeholder="Buscar arquivo, cliente ou referéncia...",
+        search_placeholder="Buscar arquivo, cliente ou referência...",
         add_label="Novo Arquivo",
         add_url=url_for("pages.arquivos_adicionar_alias"),
         columns=[
@@ -2517,7 +3094,7 @@ def estoque_movimentacoes():
     )
     suggestions = [
         {"part": part, "quantity": max(part.estoque_minimo * 2 - part.quantidade_disponivel, 0)}
-        for part in Peca.query.order_by(Peca.nome).all()
+        for part in _pecas_ativas_query().order_by(Peca.nome).all()
         if part.quantidade_disponivel <= part.estoque_minimo
     ]
     return render_template(
@@ -2570,7 +3147,7 @@ def peca_criar():
 @pages_bp.route("/estoque/<int:id>/editar", methods=["POST"])
 @page_nivel_required("admin", "operacional")
 def peca_editar(id):
-    p = db.get_or_404(Peca, id)
+    p = _pecas_ativas_query().filter(Peca.id == id).first_or_404()
     data = request.form
     nome_peca = sanitize_text(data.get("nome", ""), max_length=200)
     if not nome_peca or len(nome_peca) < 2:
@@ -2602,7 +3179,7 @@ def peca_editar(id):
 @pages_bp.route("/estoque/<int:id>/movimentacao", methods=["POST"])
 @page_nivel_required("admin", "operacional")
 def peca_movimentar(id):
-    p    = db.get_or_404(Peca, id)
+    p = _pecas_ativas_query().filter(Peca.id == id).first_or_404()
     tipo = request.form.get("tipo", "")
     if tipo not in ("entrada", "saida", "ajuste"):
         flash("Tipo de movimentação inválido.", "error")
@@ -2644,6 +3221,13 @@ def peca_movimentar(id):
 @page_nivel_required("admin")
 def peca_deletar(id):
     p = db.get_or_404(Peca, id)
+    if p.ordens or InventoryMovement.query.filter_by(part_id=p.id).first():
+        p.ativo = False
+        p.deletado_em = datetime.now(timezone.utc).replace(tzinfo=None)
+        registrar("arquivamento", "estoque", f"Peca arquivada: {p.nome}")
+        db.session.commit()
+        flash("Produto removido da lista; historico preservado.", "success")
+        return redirect(url_for("pages.estoque"))
     if p.ordens or InventoryMovement.query.filter_by(part_id=p.id).first():
         flash("Esta peça já possui histórico e deve ser preservada.", "error")
         return redirect(url_for("pages.estoque"))
@@ -2916,7 +3500,7 @@ def servicos():
     q = request.args.get("q", "").strip()
     page = request.args.get("page", 1, type=int)
 
-    query = DefeitoPadrao.query
+    query = _servicos_ativos_query()
     if q:
         qe = _escape_like(q)
         query = query.filter(db.or_(
@@ -3038,14 +3622,14 @@ def servicos_criar_alias():
 @pages_bp.route("/servicos/visualizar/<int:id>")
 @login_required
 def servicos_item_alias(id):
-    item = db.get_or_404(DefeitoPadrao, id)
+    item = _servicos_ativos_query().filter(DefeitoPadrao.id == id).first_or_404()
     return redirect(url_for("pages.servicos", q=item.sintoma))
 
 
 @pages_bp.route("/servicos/editar/<int:id>")
 @login_required
 def servicos_editar_form(id):
-    item = db.get_or_404(DefeitoPadrao, id)
+    item = _servicos_ativos_query().filter(DefeitoPadrao.id == id).first_or_404()
     return render_template(
         "pages/zokyo_servico_form.html",
         active="servicos",
@@ -3057,7 +3641,7 @@ def servicos_editar_form(id):
 @pages_bp.route("/servicos/editar/<int:id>", methods=["POST"])
 @page_nivel_required("admin", "operacional", "cadastro")
 def servicos_editar_alias(id):
-    item = db.get_or_404(DefeitoPadrao, id)
+    item = _servicos_ativos_query().filter(DefeitoPadrao.id == id).first_or_404()
     nome = sanitize_text(
         request.form.get("nome") or request.form.get("sintoma") or request.form.get("servico") or "",
         max_length=300,
@@ -3083,7 +3667,8 @@ def servicos_editar_alias(id):
 def servicos_excluir_alias(id):
     item = db.get_or_404(DefeitoPadrao, id)
     registrar("exclusao", "servicos", f"Serviço removido: {item.sintoma}")
-    db.session.delete(item)
+    item.ativo = False
+    item.deletado_em = datetime.now(timezone.utc).replace(tzinfo=None)
     db.session.commit()
     flash("Serviço removido.", "success")
     return redirect(url_for("pages.servicos"))
@@ -3692,7 +4277,7 @@ def transacao_conciliar(id):
     t = db.get_or_404(Transacao, id)
     reference = sanitize_text(request.form.get("referencia", ""), max_length=120)
     if len(reference) < 3:
-        flash("Informe uma referéncia para conciliação.", "error")
+        flash("Informe uma referência para conciliação.", "error")
         return redirect(url_for("pages.financeiro"))
     t.conciliado_em = _now()
     t.conciliado_por_id = session["usuario_id"]
@@ -3722,7 +4307,7 @@ def transacao_pagar(id):
 def cobrancas_confirmar_pagamento_alias():
     transacao_id = _form_int("id", "idCobranca", "cobranca_id", "transacao_id")
     if not transacao_id:
-        return _json_or_error("Informe a cobranca.")
+        return _json_or_error("Informe a cobrança.")
     t = db.get_or_404(Transacao, transacao_id)
     t.status = "pago"
     t.data_pagamento = _safe_date(request.form.get("data_pagamento") or request.form.get("recebimento")) or _now()
@@ -3739,7 +4324,7 @@ def cobrancas_confirmar_pagamento_alias():
 def cobrancas_cancelar_alias():
     transacao_id = _form_int("id", "idCobranca", "cobranca_id", "transacao_id")
     if not transacao_id:
-        return _json_or_error("Informe a cobranca.")
+        return _json_or_error("Informe a cobrança.")
     t = db.get_or_404(Transacao, transacao_id)
     t.status = "cancelado"
     registrar("cancelamento", "cobrancas", f"Cobrança #{t.id} cancelada")
@@ -3755,13 +4340,13 @@ def cobrancas_cancelar_alias():
 def cobrancas_atualizar_alias():
     transacao_id = _form_int("id", "idCobranca", "cobranca_id", "transacao_id")
     if not transacao_id:
-        return _json_or_error("Informe a cobranca.")
+        return _json_or_error("Informe a cobrança.")
     t = db.get_or_404(Transacao, transacao_id)
     descricao = sanitize_text(request.form.get("descricao", t.descricao or ""), max_length=300)
     valor = _form_float("valor", default=float(t.valor or 0))
     status = request.form.get("status") or t.status
     if valor < 0 or status not in {"pendente", "pago", "cancelado"}:
-        return _json_or_error("Dados invalidos para atualizar cobranca.")
+        return _json_or_error("Dados inválidos para atualizar cobrança.")
     t.descricao = descricao or t.descricao
     t.valor = valor
     t.status = status
@@ -3782,7 +4367,7 @@ def cobrancas_atualizar_alias():
 def cobrancas_enviar_email_alias():
     transacao_id = _form_int("id", "idCobranca", "cobranca_id", "transacao_id")
     if not transacao_id:
-        return _json_or_error("Informe a cobranca.")
+        return _json_or_error("Informe a cobrança.")
     t = db.get_or_404(Transacao, transacao_id)
     cliente = None
     if t.os_id:

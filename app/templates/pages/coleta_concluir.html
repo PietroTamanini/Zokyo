@@ -6,6 +6,9 @@
 {% block content %}
 {% set fd = form_data or {} %}
 {% set fe = form_errors or {} %}
+{% set tipos_equipamento = ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
+{% set tipo_atual = fd.get('tipo_aparelho', 'Notebook') %}
+{% set tipo_outro = fd.get('tipo_aparelho_outro', tipo_atual if tipo_atual and tipo_atual not in tipos_equipamento else '') %}
 
 <div class="page-header">
   <div>
@@ -41,12 +44,15 @@
         <div class="form-row fr2">
           <div class="form-group">
             <label>Tipo <span class="req">*</span></label>
-            <select name="tipo_aparelho" class="{{ 'input-error' if fe.get('tipo_aparelho') }}" required>
-              {% set tipo_v = fd.get('tipo_aparelho', 'Notebook') %}
-              {% for t in ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
-              <option {{ 'selected' if tipo_v == t }}>{{ t }}</option>
+            <select name="tipo_aparelho" class="{{ 'input-error' if fe.get('tipo_aparelho') }}" data-other-select="#tipo-aparelho-outro" required>
+              {% for t in tipos_equipamento %}
+              <option {{ 'selected' if (tipo_atual == t or (t == 'Outros' and tipo_outro)) }}>{{ t }}</option>
               {% endfor %}
             </select>
+          </div>
+          <div class="form-group other-field {{ '' if tipo_outro else 'is-hidden' }}" id="tipo-aparelho-outro">
+            <label>Qual equipamento?<span class="req">*</span></label>
+            <input type="text" name="tipo_aparelho_outro" value="{{ tipo_outro }}" placeholder="Ex: Projetor, nobreak, roteador">
           </div>
           <div class="form-group">
             <label>Número de série</label>
@@ -140,4 +146,21 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll('[data-other-select]').forEach((select) => {
+  const target = document.querySelector(select.dataset.otherSelect);
+  const input = target?.querySelector('input');
+  const sync = () => {
+    const show = select.value === 'Outros';
+    target?.classList.toggle('is-hidden', !show);
+    if (input) input.required = show;
+    if (!show && input) input.value = '';
+  };
+  select.addEventListener('change', sync);
+  sync();
+});
+</script>
 {% endblock %}

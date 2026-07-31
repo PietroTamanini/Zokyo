@@ -1,4 +1,4 @@
-"""Servicos de negocio para laudos tecnicos."""
+"""Serviços de negócio para laudos técnicos."""
 from __future__ import annotations
 
 import hashlib
@@ -105,7 +105,7 @@ def safe_file_path(storage_key: str) -> Path:
     root = _reports_root().resolve()
     target = (root / storage_key).resolve()
     if not target.is_relative_to(root):
-        raise ValueError("Caminho de arquivo invalido.")
+        raise ValueError("Caminho de arquivo inválido.")
     return target
 
 
@@ -141,12 +141,17 @@ def snapshot_empresa() -> dict:
     cfg = Configuracao.get()
     return {
         "nome_empresa": cfg.nome_empresa,
+        "subtitulo_empresa": getattr(cfg, "subtitulo_empresa", None),
         "cnpj": cfg.cnpj,
         "telefone": cfg.telefone,
         "email": cfg.email,
         "endereco": cfg.endereco,
         "cidade": cfg.cidade,
         "uf": cfg.uf,
+        "logo_url": getattr(cfg, "logo_url", None),
+        "site_url": getattr(cfg, "site_url", None),
+        "instagram_url": getattr(cfg, "instagram_url", None),
+        "whatsapp_publico": getattr(cfg, "whatsapp_publico", None),
         "responsavel_tecnico": getattr(cfg, "responsavel_tecnico", None),
         "registro_profissional": getattr(cfg, "registro_profissional", None),
         "rodape": getattr(cfg, "rodape_pdf", None),
@@ -205,18 +210,18 @@ def popular_de_os(laudo: LaudoTecnico, os_obj: OrdemServico):
 
 def criar_rascunho(os_id: int, usuario: Usuario, tipo: str = "diagnostico", template_id: int | None = None) -> LaudoTecnico:
     if tipo not in LAUDO_TIPOS:
-        raise ValueError("Tipo de laudo invalido.")
+        raise ValueError("Tipo de laudo inválido.")
     os_obj = OrdemServico.query.filter_by(id=os_id).filter(OrdemServico.deletado_em.is_(None)).first()
     if not os_obj:
-        raise ValueError("Ordem de servico nao encontrada.")
+        raise ValueError("Ordem de serviço não encontrada.")
     if os_obj.organization_id != usuario.organization_id:
-        raise ValueError("Ordem de servico nao encontrada.")
+        raise ValueError("Ordem de serviço não encontrada.")
     if template_id:
         template = LaudoTemplate.query.filter_by(
             id=template_id, organization_id=usuario.organization_id, ativo=True,
         ).first()
         if not template:
-            raise ValueError("Template de laudo nao encontrado.")
+            raise ValueError("Template de laudo não encontrado.")
     else:
         template = (
             LaudoTemplate.query
@@ -245,7 +250,7 @@ def criar_rascunho(os_id: int, usuario: Usuario, tipo: str = "diagnostico", temp
 
 def atualizar_laudo(laudo: LaudoTecnico, data: dict, usuario: Usuario):
     if laudo.status != "draft":
-        raise ValueError("Laudos finalizados ou cancelados nao podem ser editados.")
+        raise ValueError("Laudos finalizados ou cancelados não podem ser editados.")
     if data.get("tipo") in LAUDO_TIPOS:
         laudo.tipo = data["tipo"]
     for field in TEXT_FIELDS:
@@ -258,7 +263,7 @@ def atualizar_laudo(laudo: LaudoTecnico, data: dict, usuario: Usuario):
         try:
             laudo.analisado_em = datetime.fromisoformat(str(data["analisado_em"])[:10])
         except ValueError:
-            raise ValueError("Data da analise invalida.")
+            raise ValueError("Data da análise inválida.")
     laudo.atualizado_por_id = usuario.id
     registrar_evento(laudo, "edicao", "Laudo atualizado.", usuario_id=usuario.id)
 
@@ -268,7 +273,7 @@ def campos_obrigatorios_pendentes(laudo: LaudoTecnico) -> list[str]:
         "Defeito relatado": laudo.defeito_relatado,
         "Inspecao visual": laudo.inspecao_visual,
         "Testes realizados": laudo.testes_realizados,
-        "Diagnostico tecnico": laudo.diagnostico_tecnico,
+        "Diagnóstico técnico": laudo.diagnostico_tecnico,
         "Conclusao tecnica": laudo.conclusao_tecnica,
         "Estado final": laudo.estado_final,
     }
@@ -295,16 +300,16 @@ def validar_imagem_upload(file_storage) -> tuple[bytes, str, str, int, int, str]
     try:
         from PIL import Image, UnidentifiedImageError
     except ImportError as exc:
-        raise ValueError("Pillow nao esta instalado. Instale Pillow para validar fotos de laudos.") from exc
+        raise ValueError("Pillow não está instalado. Instale Pillow para validar fotos de laudos.") from exc
     try:
         image = Image.open(io.BytesIO(raw))
         image.verify()
         image = Image.open(io.BytesIO(raw))
     except UnidentifiedImageError as exc:
-        raise ValueError("Arquivo nao e uma imagem valida.") from exc
+        raise ValueError("Arquivo não é uma imagem válida.") from exc
     fmt = (image.format or "").upper()
     if fmt not in MIMES_IMAGEM:
-        raise ValueError("Formato de imagem nao permitido. Use JPEG, PNG ou WebP.")
+        raise ValueError("Formato de imagem não permitido. Use JPEG, PNG ou WebP.")
     mime, ext = MIMES_IMAGEM[fmt]
     largura, altura = image.size
     if largura < 50 or altura < 50 or largura > 8000 or altura > 8000:
@@ -321,9 +326,9 @@ def validar_imagem_upload(file_storage) -> tuple[bytes, str, str, int, int, str]
 
 def adicionar_foto(laudo: LaudoTecnico, file_storage, tipo: str, legenda: str, ordem: int, usuario: Usuario) -> LaudoFoto:
     if laudo.status != "draft":
-        raise ValueError("Nao e possivel alterar fotos de laudo finalizado.")
+        raise ValueError("Não é possível alterar fotos de laudo finalizado.")
     if tipo not in LAUDO_FOTO_TIPOS:
-        raise ValueError("Tipo de foto invalido.")
+        raise ValueError("Tipo de foto inválido.")
     if LaudoFoto.query.filter_by(laudo_id=laudo.id).count() >= MAX_FOTOS:
         raise ValueError("Limite de fotos do laudo atingido.")
     data, mime, ext, largura, altura, sha = validar_imagem_upload(file_storage)
@@ -366,7 +371,7 @@ def adicionar_foto(laudo: LaudoTecnico, file_storage, tipo: str, legenda: str, o
 def remover_foto(foto: LaudoFoto, usuario: Usuario):
     laudo = foto.laudo
     if laudo.status != "draft":
-        raise ValueError("Nao e possivel remover fotos de laudo finalizado.")
+        raise ValueError("Não é possível remover fotos de laudo finalizado.")
     try:
         for storage_key in (foto.storage_key, foto.thumbnail_key):
             if storage_key:
@@ -381,14 +386,14 @@ def remover_foto(foto: LaudoFoto, usuario: Usuario):
 
 def reordenar_fotos(laudo: LaudoTecnico, foto_ids: list[int], usuario: Usuario):
     if laudo.status != "draft":
-        raise ValueError("Nao e possivel reordenar fotos de laudo finalizado.")
+        raise ValueError("Não é possível reordenar fotos de laudo finalizado.")
     db.session.flush()
     atuais = {
         foto.id: foto
         for foto in LaudoFoto.query.filter_by(laudo_id=laudo.id).all()
     }
     if len(foto_ids) != len(atuais) or set(foto_ids) != set(atuais):
-        raise ValueError("A lista de fotos e invalida ou incompleta.")
+        raise ValueError("A lista de fotos é inválida ou incompleta.")
     for ordem, foto_id in enumerate(foto_ids):
         atuais[foto_id].ordem = ordem
     registrar_evento(laudo, "foto", "Fotografias reordenadas.", {"foto_ids": foto_ids}, usuario.id)
@@ -430,29 +435,112 @@ def _pdf_via_reportlab(laudo: LaudoTecnico) -> bytes:
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
-    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table
+    from reportlab.platypus import Image, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=14 * mm)
     styles = getSampleStyleSheet()
-    normal = ParagraphStyle("normal_laudo", parent=styles["Normal"], fontSize=9, leading=12)
-    title = ParagraphStyle("title_laudo", parent=styles["Heading1"], fontSize=15, leading=18, textColor=colors.HexColor("#10243f"))
-    section = ParagraphStyle("section_laudo", parent=styles["Heading2"], fontSize=10, leading=13, textColor=colors.HexColor("#0f5f6f"), spaceBefore=8)
-    small = ParagraphStyle("small_laudo", parent=styles["Normal"], fontSize=7, leading=9, textColor=colors.grey)
+    ink = colors.HexColor("#020617")
+    muted = colors.HexColor("#475569")
+    line = colors.HexColor("#aeb8c6")
+    panel = colors.HexColor("#f8fafc")
+    normal = ParagraphStyle("normal_laudo", parent=styles["Normal"], fontSize=8.2, leading=11, textColor=ink)
+    title = ParagraphStyle("title_laudo", parent=styles["Heading1"], fontSize=12, leading=14, textColor=ink)
+    doc_number = ParagraphStyle("doc_number_laudo", parent=styles["Heading1"], fontSize=17, leading=19, alignment=2, textColor=ink)
+    section = ParagraphStyle("section_laudo", parent=styles["Heading2"], fontSize=8.5, leading=11, textColor=ink)
+    small = ParagraphStyle("small_laudo", parent=styles["Normal"], fontSize=6.5, leading=8, textColor=muted)
 
     def p(text, style=normal):
         text = html.escape(str(text or "-")).replace("\n", "<br/>")
         return Paragraph(text, style)
+
+    def section_header(label):
+        label_table = Table(
+            [[p("", small), p(label.upper(), section)]],
+            colWidths=[4 * mm, 166 * mm],
+        )
+        label_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, 0), ink),
+            ("BACKGROUND", (1, 0), (1, 0), panel),
+            ("BOX", (0, 0), (-1, -1), 0.45, line),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        return [Spacer(1, 3 * mm), label_table]
+
+    def section_box(label, value):
+        label_table = section_header(label)
+        content = Table([[p(value, normal)]], colWidths=[170 * mm])
+        content.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.45, line),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 7),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ]))
+        return [*label_table, content]
 
     empresa = laudo.empresa_snapshot or snapshot_empresa()
     cliente = laudo.cliente_snapshot or snapshot_cliente(laudo.cliente)
     equipamento = laudo.equipamento_snapshot or snapshot_equipamento(laudo.os)
     template = laudo.template_snapshot or {}
     verification_path = f"/laudos/verificar/{laudo.verification_token}" if laudo.verification_token else "-"
+    empresa_linhas = [
+        empresa.get("subtitulo_empresa"),
+        " | ".join(x for x in [empresa.get("telefone"), empresa.get("email")] if x),
+        " - ".join(x for x in [empresa.get("endereco"), empresa.get("cidade"), empresa.get("uf")] if x),
+        " | ".join(x for x in [empresa.get("site_url"), empresa.get("instagram_url")] if x),
+    ]
+    logo_cell = p("LOGO", small)
+    logo_url = str(empresa.get("logo_url") or "").strip()
+    if logo_url.startswith("/static/"):
+        logo_path = Path(current_app.root_path) / logo_url.removeprefix("/static/")
+        if logo_path.exists():
+            logo_cell = Image(str(logo_path), width=24 * mm, height=20 * mm, kind="proportional")
+    header = Table(
+        [[
+            logo_cell,
+            [
+                p(empresa.get("nome_empresa") or "Zokyo Platform", title),
+                *[p(line, small) for line in empresa_linhas if line],
+            ],
+            [
+                p("NUMERO DO LAUDO TECNICO", small),
+                p(laudo.numero or "RASCUNHO", doc_number),
+                p(f"OS #{laudo.os_id:04d} | VERSAO {laudo.versao}", small),
+            ],
+        ]],
+        colWidths=[28 * mm, 94 * mm, 60 * mm],
+    )
+    header.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOX", (0, 0), (-1, -1), 0.65, line),
+        ("BACKGROUND", (0, 0), (-1, -1), panel),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("ALIGN", (2, 0), (2, 0), "RIGHT"),
+    ]))
+    title_bar = Table([[p(template.get("titulo") or "LAUDO TECNICO", section)]], colWidths=[170 * mm])
+    title_bar.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.45, line),
+        ("BACKGROUND", (0, 0), (-1, -1), panel),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
     story = [
-        p(empresa.get("nome_empresa") or "Zokyo Platform", title),
-        p(f"{template.get('titulo') or 'Laudo tecnico'} {laudo.numero or ''} | OS #{laudo.os_id:04d} | Versao {laudo.versao}", small),
-        p(f"Codigo de verificacao: {laudo.verification_token or '-'} | Consulta: {verification_path}", small),
+        header,
+        Spacer(1, 2 * mm),
+        title_bar,
+        Spacer(1, 3 * mm),
+        p(f"Código de verificação: {laudo.verification_token or '-'} | Consulta: {verification_path}", small),
         p(f"SHA-256: {(laudo.pdf_sha256 or '')[:16] or 'gerado apos finalizacao'}", small),
         Spacer(1, 5 * mm),
     ]
@@ -466,21 +554,22 @@ def _pdf_via_reportlab(laudo: LaudoTecnico) -> bytes:
     story.append(_kv_table([
         ("Empresa", empresa.get("nome_empresa")),
         ("CNPJ", empresa.get("cnpj")),
-        ("Contato", " | ".join(x for x in [empresa.get("telefone"), empresa.get("email")] if x)),
+        ("Contato", " | ".join(x for x in [empresa.get("telefone"), empresa.get("whatsapp_publico"), empresa.get("email")] if x)),
         ("Endereco", " - ".join(x for x in [empresa.get("endereco"), empresa.get("cidade"), empresa.get("uf")] if x)),
+        ("Canais", " | ".join(x for x in [empresa.get("site_url"), empresa.get("instagram_url")] if x)),
     ], normal))
-    story.append(p("Cliente", section))
+    story.extend(section_header("Identificacao do cliente"))
     story.append(_kv_table([
         ("Nome", cliente.get("nome")),
         ("Documento", cliente.get("cpf") or cliente.get("cnpj")),
         ("Telefone", cliente.get("telefone")),
         ("E-mail", cliente.get("email")),
     ], normal))
-    story.append(p("Equipamento", section))
+    story.extend(section_header("Identificacao do dispositivo"))
     story.append(_kv_table([
         ("Tipo", equipamento.get("tipo")),
         ("Marca/modelo", f"{equipamento.get('marca') or ''} {equipamento.get('modelo') or ''}".strip()),
-        ("Numero de serie", equipamento.get("numero_serie")),
+        ("Número de série", equipamento.get("numero_serie")),
         ("Defeito relatado", laudo.defeito_relatado or equipamento.get("defeito_relatado")),
     ], normal))
     for label, value in [
@@ -488,9 +577,9 @@ def _pdf_via_reportlab(laudo: LaudoTecnico) -> bytes:
         ("Testes realizados", laudo.testes_realizados),
         ("Instrumentos e metodos", laudo.instrumentos_metodos),
         ("Medicoes", laudo.medicoes),
-        ("Diagnostico tecnico", laudo.diagnostico_tecnico),
+        ("Diagnóstico técnico", laudo.diagnostico_tecnico),
         ("Causa provavel", laudo.causa_provavel),
-        ("Servicos realizados", laudo.servicos_realizados),
+        ("Serviços realizados", laudo.servicos_realizados),
         ("Pecas utilizadas", laudo.pecas_utilizadas),
         ("Conclusao tecnica", laudo.conclusao_tecnica),
         ("Estado final", laudo.estado_final),
@@ -500,8 +589,7 @@ def _pdf_via_reportlab(laudo: LaudoTecnico) -> bytes:
         ("Observacoes", laudo.observacoes),
     ]:
         if value:
-            story.append(p(label, section))
-            story.append(p(value, normal))
+            story.extend(section_box(label, value))
     fotos = sorted(laudo.fotos, key=lambda f: (f.ordem, f.id))
     if fotos:
         story.append(PageBreak())
@@ -524,13 +612,13 @@ def _pdf_via_reportlab(laudo: LaudoTecnico) -> bytes:
     story += [
         Spacer(1, 12 * mm),
         p("Assinaturas", section),
-        Table([["", ""], ["Responsavel tecnico", "Cliente / ciencia"]], colWidths=[85 * mm, 85 * mm], style=[
+        Table([["", ""], ["Responsável técnico", "Cliente / ciência"]], colWidths=[85 * mm, 85 * mm], style=[
             ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.grey),
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
             ("TOPPADDING", (0, 0), (-1, -1), 10),
         ]),
         Spacer(1, 5 * mm),
-        p("Assinatura eletronica simples, quando usada, nao equivale a assinatura digital certificada ICP-Brasil.", small),
+        p("Assinatura eletrônica simples, quando usada, não equivale a assinatura digital certificada ICP-Brasil.", small),
     ]
     if template.get("declaracao_final"):
         story.extend([Spacer(1, 4 * mm), p(template["declaracao_final"], small)])
@@ -594,9 +682,9 @@ def finalizar_laudo(laudo: LaudoTecnico, usuario: Usuario) -> LaudoTecnico:
         laudo.equipamento_snapshot = snapshot_equipamento(laudo.os)
         laudo.tecnico_snapshot = snapshot_tecnico(laudo)
         laudo.template_snapshot = laudo.template.snapshot() if laudo.template else {
-            "nome": "Padrao do sistema",
+            "nome": "Padrão do sistema",
             "versao": 1,
-            "titulo": "Laudo tecnico",
+            "titulo": "Laudo técnico",
             "declaracao_final": None,
             "rodape": None,
             "fotos_obrigatorias": list(LAUDO_FOTOS_OBRIGATORIAS),
@@ -624,7 +712,7 @@ def finalizar_laudo(laudo: LaudoTecnico, usuario: Usuario) -> LaudoTecnico:
         return laudo
     except IntegrityError:
         db.session.rollback()
-        raise ValueError("Falha ao reservar numero unico do laudo. Tente novamente.")
+        raise ValueError("Falha ao reservar número único do laudo. Tente novamente.")
     except Exception:
         db.session.rollback()
         try:
@@ -655,7 +743,7 @@ def gerar_comprovante_cancelamento(laudo: LaudoTecnico) -> io.BytesIO:
     if laudo.status != "cancelled":
         raise ValueError("O comprovante esta disponivel somente para laudos cancelados.")
     if not laudo.motivo_cancelamento or not laudo.cancelado_em:
-        raise ValueError("O laudo nao possui dados completos de cancelamento.")
+        raise ValueError("O laudo não possui dados completos de cancelamento.")
 
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER
@@ -682,11 +770,11 @@ def gerar_comprovante_cancelamento(laudo: LaudoTecnico) -> io.BytesIO:
     rows = [
         ("Documento", laudo.numero or f"Laudo #{laudo.id}"),
         ("Versao", str(laudo.versao or 1)),
-        ("Ordem de servico", f"#{laudo.os_id:04d}"),
+        ("Ordem de serviço", f"#{laudo.os_id:04d}"),
         ("Empresa emissora", empresa.get("nome_empresa") or "-"),
         ("Cliente", cliente.get("nome") or "-"),
         ("Cancelado em", cancelado_em),
-        ("Hash do PDF original", laudo.pdf_sha256 or "Nao disponivel"),
+        ("Hash do PDF original", laudo.pdf_sha256 or "Não disponível"),
     ]
     data = [
         [Paragraph(f"<b>{html.escape(label)}</b>", normal), Paragraph(html.escape(value), normal)]
@@ -704,7 +792,7 @@ def gerar_comprovante_cancelamento(laudo: LaudoTecnico) -> io.BytesIO:
         Spacer(1, 8 * mm),
         Paragraph(
             "Este documento comprova o cancelamento formal do laudo identificado abaixo. "
-            "O PDF originalmente emitido permanece preservado para auditoria e nao deve ser considerado valido.",
+            "O PDF originalmente emitido permanece preservado para auditoria e não deve ser considerado válido.",
             normal,
         ),
         Spacer(1, 7 * mm),

@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}Coletas — Zokyo{% endblock %}
 {% block breadcrumb %}Coletas{% endblock %}
-{% block topbar_action %}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.coleta_rota') }}" class="btn btn-primary btn-sm">Montar rota</a>{% endblock %}
 
 {% block content %}
 {% set fd = form_data or {} %}
@@ -12,6 +12,7 @@
     <div class="page-title">Coletas agendadas</div>
     <div class="page-sub">Agende apenas os dados do cliente. A OS nasce depois, no celular, com equipamento e fotos.</div>
   </div>
+  <a href="{{ url_for('pages.coleta_rota') }}" class="btn btn-ghost btn-sm">Rota de coleta</a>
 </div>
 
 {% if fe %}

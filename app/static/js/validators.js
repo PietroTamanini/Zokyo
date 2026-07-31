@@ -81,7 +81,7 @@ const DJValidators = (() => {
     const calc = (digits, weights) => {
       const s = digits.reduce((acc, n, i) => acc + parseInt(n) * weights[i], 0);
       const r = s % 11;
-      return r < 2 ? 0 : 11 - r;
+      return r < 2 ?0 : 11 - r;
     };
     const arr = d.split('');
     const r1 = calc(arr.slice(0,12), p1);
@@ -137,8 +137,8 @@ const DJValidators = (() => {
     const erros = validarSenha(senha);
     const force = Math.max(0, 5 - erros.length);
     const labels = ['', 'Muito fraca', 'Fraca', 'Razoável', 'Boa', 'Forte'];
-    indicator.textContent = senha ? labels[force] : '';
-    indicator.className = `password-strength${senha ? ` strength-${force}` : ''}`;
+    indicator.textContent = senha ?labels[force] : '';
+    indicator.className = `password-strength${senha ?` strength-${force}` : ''}`;
   }
 
   /* ── Validar um campo individual ─────────────────────────────── */

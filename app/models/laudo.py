@@ -20,7 +20,7 @@ LAUDO_TIPOS = (
     "retificador",
 )
 LAUDO_TIPOS_LABELS = {
-    "diagnostico": "Diagnostico",
+    "diagnostico": "Diagnóstico",
     "entrada": "Laudo de entrada",
     "entrega": "Laudo de entrega",
     "complementar": "Complementar",

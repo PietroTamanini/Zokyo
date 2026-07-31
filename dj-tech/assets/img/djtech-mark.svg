@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">DJ Tech</title>
+  <rect width="96" height="96" rx="20" fill="#101820"/>
+  <path d="M22 30h24c14 0 24 8 24 18s-10 18-24 18H22V30Zm17 13v10h8c4 0 7-2 7-5s-3-5-7-5h-8Z" fill="#f7f7f2"/>
+  <path d="M21 71h54" stroke="#1db954" stroke-width="6" stroke-linecap="round"/>
+  <path d="M22 22h52" stroke="#f7f7f2" stroke-width="4" stroke-linecap="round" opacity=".35"/>
+</svg>

@@ -198,6 +198,7 @@ def _make_rate_limit_app():
         user.set_senha("Senha!123")
         db.session.add(user)
         db.session.commit()
+        user_id = user.id
 
     @app.route("/limited")
     @rate_limit_route(max_hits=2, window_seconds=60)
@@ -209,11 +210,11 @@ def _make_rate_limit_app():
     def limited_abort():
         return {"ok": True}
 
-    return app
+    return app, user_id
 
 
 def test_rate_limit_login_api_e_limpeza():
-    app = _make_rate_limit_app()
+    app, user_id = _make_rate_limit_app()
     with app.app_context():
         assert check_lock("1.2.3.4") == (False, 0)
         assert register_fail("1.2.3.4", max_fails=2, lock_seconds=30) == 0
@@ -234,6 +235,11 @@ def test_rate_limit_login_api_e_limpeza():
         assert db.session.get(LoginAttempt, "1.2.3.4").falhas == 0
 
     client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = user_id
+        session["nivel"] = "admin"
+        session["perfil"] = "admin"
+        session["_last_active"] = 9999999999
     assert client.get("/limited").status_code == 200
     assert client.get("/limited").status_code == 200
     too_many = client.get("/limited")

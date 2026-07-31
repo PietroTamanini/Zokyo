@@ -118,6 +118,7 @@ def test_rotas_crud_json_cobrem_validacoes_e_bordas(monkeypatch):
     defect_id = defect.get_json()["id"]
     assert _json(browser, "PUT", f"/api/defeitos/{defect_id}", {"solucao": "Trocar fonte"}).status_code == 200
     assert _json(browser, "DELETE", f"/api/defeitos/{defect_id}").status_code == 200
+    assert all(item["id"] != defect_id for item in browser.get("/api/defeitos").get_json())
 
     for payload in (
         {"nome": "A"},
@@ -234,7 +235,8 @@ def test_rotas_crud_json_cobrem_validacoes_e_bordas(monkeypatch):
         order = db.session.get(OrdemServico, ids["order"])
         order.pecas.append(used_part)
         db.session.commit()
-    assert _json(browser, "DELETE", f"/api/pecas/{ids['part']}").status_code == 409
+    assert _json(browser, "DELETE", f"/api/pecas/{ids['part']}").status_code == 200
+    assert all(item["id"] != ids["part"] for item in browser.get("/api/pecas").get_json())
 
 
 def test_rotas_usuarios_importacao_platform_privacidade_e_portal(monkeypatch):

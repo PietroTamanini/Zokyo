@@ -6,17 +6,19 @@
 {% block content %}
 {% set form_action = url_for('laudos.criar') if modo == 'novo' else url_for('laudos.salvar', id=laudo.id) %}
 {% set obj = laudo %}
+{% set foto_presentes = obj.fotos|map(attribute='tipo')|list if obj else [] %}
+
 <div class="page-header">
   <div>
     <div class="page-title">{{ 'Novo laudo técnico' if modo == 'novo' else 'Rascunho de laudo' }}</div>
     <div class="page-sub">
-      {% if obj %}OS #{{ obj.os.codigo_os if obj.os else '%04d' % obj.os_id }} · {{ obj.cliente.nome if obj.cliente else '' }}{% else %}Selecione uma OS para preencher os dados existentes{% endif %}
+      {% if obj %}OS #{{ obj.os.codigo_os if obj.os else '%04d' % obj.os_id }} · {{ obj.cliente.nome if obj.cliente else '' }}{% else %}Selecione uma OS para iniciar o rascunho{% endif %}
     </div>
   </div>
   {% if obj %}
   <div class="flex-gap">
     <a class="btn btn-ghost btn-sm" href="{{ url_for('laudos.detalhe', id=obj.id) }}">Visualizar</a>
-    <form method="POST" action="{{ url_for('laudos.finalizar', id=obj.id) }}" data-confirm="Finalizar e gerar PDF? Depois disso o conteúdo fica imutável.">
+    <form method="POST" action="{{ url_for('laudos.finalizar', id=obj.id) }}" data-confirm="Finalizar e gerar PDF?Depois disso o conteúdo fica imutável.">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-primary btn-sm" type="submit">Finalizar e gerar PDF</button>
     </form>
@@ -26,9 +28,10 @@
 
 <div class="laudo-editor">
   <div>
-    <form id="laudo-form" method="POST" action="{{ form_action }}" class="card">
+    <form id="laudo-form" method="POST" action="{{ form_action }}" class="card laudo-form-panel">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="card-header"><div class="card-title">Identificacao</div></div>
+
+      <div class="card-header"><div class="card-title">Identificação</div></div>
       <div class="card-body">
         <div class="form-row fr2">
           <div class="form-group">
@@ -37,11 +40,11 @@
             <select name="os_id" required>
               <option value="">Selecione</option>
               {% for os in os_options %}
-              <option value="{{ os.id }}" {{ 'selected' if selected_os_id == os.id }}>#{{ '%04d' % os.id }} - {{ os.cliente.nome if os.cliente else 'Cliente' }} - {{ os.tipo_aparelho or '' }} {{ os.marca or '' }} {{ os.modelo or '' }}</option>
+              <option value="{{ os.id }}" {{ 'selected' if selected_os_id == os.id }}>#{{ os.codigo_os }} - {{ os.cliente.nome if os.cliente else 'Cliente' }} - {{ os.tipo_aparelho or '' }} {{ os.marca or '' }} {{ os.modelo or '' }}</option>
               {% endfor %}
             </select>
             {% else %}
-            <input value="#{{ '%04d' % obj.os_id }} - {{ obj.cliente.nome if obj.cliente else '' }}" disabled>
+            <input value="#{{ obj.os.codigo_os if obj.os else '%04d' % obj.os_id }} - {{ obj.cliente.nome if obj.cliente else '' }}" disabled>
             {% endif %}
           </div>
           <div class="form-group">
@@ -68,8 +71,8 @@
         </div>
         <div class="form-row fr3">
           <div class="form-group"><label>Técnico responsável</label><input type="text" name="tecnico_responsavel_nome" value="{{ obj.tecnico_responsavel_nome if obj else '' }}"></div>
-          <div class="form-group"><label>Data da analise</label><input type="date" name="analisado_em" value="{{ obj.analisado_em.strftime('%Y-%m-%d') if obj and obj.analisado_em else '' }}"></div>
-          <div class="form-group"><label>Estado final *</label><input type="text" name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120"></div>
+          <div class="form-group"><label>Data da análise</label><input type="date" name="analisado_em" value="{{ obj.analisado_em.strftime('%Y-%m-%d') if obj and obj.analisado_em else '' }}"></div>
+          <div class="form-group"><label>Estado final *</label><input type="text" name="estado_final" value="{{ obj.estado_final if obj else '' }}" maxlength="120" data-live-field></div>
         </div>
       </div>
 
@@ -77,26 +80,26 @@
       <div class="card-body laudo-fields">
         {% for field, label, required in [
           ('defeito_relatado','Defeito relatado pelo cliente', True),
-          ('inspecao_visual','Inspecao visual', True),
+          ('inspecao_visual','Inspeção visual', True),
           ('testes_realizados','Testes realizados', True),
-          ('instrumentos_metodos','Instrumentos e metodos', False),
-          ('medicoes','Medicoes', False),
+          ('instrumentos_metodos','Instrumentos e métodos', False),
+          ('medicoes','Medições', False),
           ('diagnostico_tecnico','Diagnóstico técnico', True),
-          ('causa_provavel','Causa provavel', False),
+          ('causa_provavel','Causa provável', False),
           ('servicos_realizados','Serviços realizados', False),
           ('pecas_utilizadas','Peças utilizadas', False),
           ('conclusao_tecnica','Conclusão técnica', True),
-          ('recomendacoes','Recomendacoes', False),
-          ('riscos_limitacoes','Riscos e limitacoes', False),
+          ('recomendacoes','Recomendações', False),
+          ('riscos_limitacoes','Riscos e limitações', False),
           ('garantia','Garantia', False),
           ('observacoes','Observações', False)
         ] %}
-        <div class="form-group">
+        <div class="form-group laudo-text-field">
           <label>{{ label }}{% if required %} *{% endif %}</label>
           {% if field == 'garantia' %}
-          <input type="text" name="{{ field }}" value="{{ obj|attr(field) if obj else '' }}" maxlength="200">
+          <input type="text" name="{{ field }}" value="{{ obj|attr(field) if obj else '' }}" maxlength="200" data-live-field>
           {% else %}
-          <textarea name="{{ field }}" rows="4" maxlength="12000" {% if required %}required{% endif %}>{{ obj|attr(field) if obj else '' }}</textarea>
+          <textarea name="{{ field }}" rows="{{ 5 if field in ['diagnostico_tecnico','conclusao_tecnica'] else 4 }}" maxlength="12000" data-live-field {% if required %}required{% endif %}>{{ obj|attr(field) if obj else '' }}</textarea>
           <div class="field-hint"><span data-count-for="{{ field }}">0</span>/12000</div>
           {% endif %}
         </div>
@@ -104,16 +107,21 @@
       </div>
 
       <div class="card-body form-actions sticky-actions">
-        <button class="btn btn-primary" type="submit">Salvar rascunho</button>
+        <button class="btn btn-primary" type="submit">{{ 'Criar rascunho' if modo == 'novo' else 'Salvar rascunho' }}</button>
         {% if obj %}<a href="{{ url_for('laudos.detalhe', id=obj.id) }}" class="btn btn-ghost">Visualizar</a>{% endif %}
       </div>
     </form>
 
     {% if obj %}
-    <div class="card mt20">
+    <div class="card mt20 laudo-photo-panel">
       <div class="card-header"><div class="card-title">Fotografias</div></div>
       <div class="card-body">
-        <form method="POST" action="{{ url_for('laudos.upload_foto', id=obj.id) }}" enctype="multipart/form-data" class="form-row fr4">
+        <div class="laudo-photo-requirements">
+          {% for key, label in foto_labels.items() if key != 'adicional' %}
+          <span class="badge {{ 'b-green' if key in foto_presentes else 'b-amber' }}"><span class="dot"></span>{{ label }}</span>
+          {% endfor %}
+        </div>
+        <form method="POST" action="{{ url_for('laudos.upload_foto', id=obj.id) }}" enctype="multipart/form-data" class="form-row fr4 laudo-photo-upload">
           <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
           <div class="form-group">
             <label>Categoria *</label>
@@ -131,7 +139,7 @@
         <div class="photo-grid mt20">
           {% for foto in obj.fotos|sort(attribute='ordem') %}
           <div class="photo-card" data-photo-id="{{ foto.id }}">
-            <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank"><img src="{{ url_for('laudos.foto', foto_id=foto.id, thumbnail=1) }}" alt="{{ foto.legenda or foto.tipo }}"></a>
+            <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank" rel="noopener noreferrer"><img src="{{ url_for('laudos.foto', foto_id=foto.id, thumbnail=1) }}" alt="{{ foto.legenda or foto.tipo }}"></a>
             <div class="muted-sm">{{ foto_labels.get(foto.tipo, foto.tipo) }}</div>
             <div class="td-strong">{{ foto.legenda or '-' }}</div>
             <div class="form-actions">
@@ -157,17 +165,43 @@
 
   <aside class="laudo-preview">
     <div class="a4-preview">
-      <div class="preview-company">{{ cfg.nome_empresa if cfg else APP_NAME }}</div>
-      <h2>Laudo técnico</h2>
-      <div class="muted-sm">{{ obj.numero if obj and obj.numero else 'Número gerado na finalização' }}</div>
-      <hr>
-      <p><strong>Cliente:</strong> {{ obj.cliente.nome if obj and obj.cliente else 'Cliente da OS selecionada' }}</p>
-      <p><strong>Equipamento:</strong> {% if obj and obj.os %}{{ obj.os.tipo_aparelho }} {{ obj.os.marca }} {{ obj.os.modelo }}{% else %}-{% endif %}</p>
-      <p><strong>Defeito:</strong> <span data-preview="defeito_relatado">{{ obj.defeito_relatado if obj else '-' }}</span></p>
-      <p><strong>Diagnóstico:</strong> <span data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</span></p>
-      <p><strong>Conclusão:</strong> <span data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</span></p>
-      <div class="signature-row">Responsável técnico</div>
-      <div class="signature-row">Cliente / ciencia</div>
+      <div class="laudo-doc-header">
+        <div class="laudo-doc-logo">
+          {% if cfg and cfg.logo_url %}<img src="{{ cfg.logo_url }}" alt="Logo">{% else %}{{ (cfg.nome_empresa if cfg else APP_NAME)[:2] }}{% endif %}
+        </div>
+        <div>
+          <div class="preview-company">{{ cfg.nome_empresa if cfg else APP_NAME }}</div>
+          <div class="laudo-doc-meta">{{ cfg.telefone if cfg else '' }}{% if cfg and cfg.email %} · {{ cfg.email }}{% endif %}</div>
+        </div>
+        <div class="laudo-doc-number">
+          <small>Número do laudo técnico</small>
+          <strong>{{ obj.numero if obj and obj.numero else 'RASCUNHO' }}</strong>
+          <span>Cliente</span>
+        </div>
+      </div>
+      <div class="laudo-doc-title">Laudo técnico</div>
+      <div class="laudo-preview-grid">
+        <div><strong>OS</strong><span>{% if obj %}#{{ obj.os.codigo_os if obj.os else '%04d' % obj.os_id }}{% else %}-{% endif %}</span></div>
+        <div><strong>Cliente</strong><span>{{ obj.cliente.nome if obj and obj.cliente else 'Cliente da OS' }}</span></div>
+        <div><strong>Equipamento</strong><span>{% if obj and obj.os %}{{ obj.os.tipo_aparelho }} {{ obj.os.marca }} {{ obj.os.modelo }}{% else %}-{% endif %}</span></div>
+        <div><strong>Série</strong><span>{{ obj.os.numero_serie if obj and obj.os and obj.os.numero_serie else '-' }}</span></div>
+      </div>
+      <section>
+        <h3><span></span>Diagnóstico técnico</h3>
+        <p data-preview="diagnostico_tecnico">{{ obj.diagnostico_tecnico if obj else '-' }}</p>
+      </section>
+      <section>
+        <h3><span></span>Conclusão técnica</h3>
+        <p data-preview="conclusao_tecnica">{{ obj.conclusao_tecnica if obj else '-' }}</p>
+      </section>
+      <section>
+        <h3><span></span>Estado final</h3>
+        <p data-preview="estado_final">{{ obj.estado_final if obj else '-' }}</p>
+      </section>
+      <div class="signature-area-preview">
+        <div class="signature-row">Responsável técnico</div>
+        <div class="signature-row">Cliente / ciência</div>
+      </div>
     </div>
   </aside>
 </div>
@@ -179,19 +213,21 @@
   const form = document.getElementById('laudo-form');
   if (!form) return;
   let dirty = false;
-  form.addEventListener('input', (event) => {
-    dirty = true;
-    const field = event.target.getAttribute('name');
-    if (field) {
-      const counter = document.querySelector(`[data-count-for="${field}"]`);
-      if (counter) counter.textContent = event.target.value.length;
-      const preview = document.querySelector(`[data-preview="${field}"]`);
-      if (preview) preview.textContent = event.target.value || '-';
-    }
-  });
-  form.querySelectorAll('textarea').forEach((el) => {
-    const counter = document.querySelector(`[data-count-for="${el.name}"]`);
-    if (counter) counter.textContent = el.value.length;
+  const syncField = (field) => {
+    const name = field.getAttribute('name');
+    if (!name) return;
+    const counter = document.querySelector(`[data-count-for="${name}"]`);
+    if (counter) counter.textContent = field.value.length;
+    document.querySelectorAll(`[data-preview="${name}"]`).forEach((preview) => {
+      preview.textContent = field.value || '-';
+    });
+  };
+  form.querySelectorAll('[data-live-field]').forEach((field) => {
+    syncField(field);
+    field.addEventListener('input', () => {
+      dirty = true;
+      syncField(field);
+    });
   });
   form.addEventListener('submit', () => { dirty = false; });
   window.addEventListener('beforeunload', (event) => {
@@ -202,7 +238,7 @@
   document.querySelectorAll('.photo-move').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('.photo-card');
-      const sibling = button.dataset.direction === 'up' ? card.previousElementSibling : card.nextElementSibling;
+      const sibling = button.dataset.direction === 'up' ?card.previousElementSibling : card.nextElementSibling;
       if (!sibling || !sibling.classList.contains('photo-card')) return;
       if (button.dataset.direction === 'up') card.parentNode.insertBefore(card, sibling);
       else card.parentNode.insertBefore(sibling, card);

@@ -9,12 +9,19 @@ const pages = [
   ['dashboard', '/'],
   ['clientes', '/clientes'],
   ['os', '/os'],
+  ['os-kanban', '/os/kanban'],
   ['os-nova', '/os/nova'],
+  ['agenda', '/agenda'],
   ['coleta', '/coleta'],
+  ['coleta-rota', '/coletas/rota'],
   ['estoque', '/estoque'],
   ['estoque-movimentacoes', '/estoque/movimentacoes'],
+  ['compras-pecas', '/compras-pecas'],
+  ['bancada', '/bancada'],
+  ['checklists', '/checklists'],
   ['fornecedores', '/fornecedores'],
   ['financeiro', '/financeiro'],
+  ['produtividade', '/produtividade'],
   ['laudos', '/laudos/'],
   ['laudo-novo', '/laudos/novo'],
   ['laudo-templates', '/laudos/templates'],
@@ -156,15 +163,15 @@ test('modulos da navegacao expandem e recolhem links', async ({ page }) => {
   const mobileMenu = page.getByRole('button', { name: 'Abrir menu' });
   if ((page.viewportSize()?.width || 0) <= 900 && await mobileMenu.isVisible()) await mobileMenu.click();
   const principal = page.getByRole('button', { name: 'Atendimento' });
-  const atendimentoLinks = page.locator('#nav-zokyo');
-  const produtos = atendimentoLinks.getByRole('link', { name: 'Produtos', exact: true });
+  const atendimentoLinks = page.locator('#nav-atendimento');
+  const clientes = atendimentoLinks.getByRole('link', { name: 'Clientes', exact: true });
   const initiallyExpanded = await principal.getAttribute('aria-expanded') === 'true';
   if (initiallyExpanded) await principal.click();
   await expect(principal).toHaveAttribute('aria-expanded', 'false');
-  await expect(produtos).toBeHidden();
+  await expect(clientes).toBeHidden();
   await principal.click();
   await expect(principal).toHaveAttribute('aria-expanded', 'true');
-  await expect(produtos).toBeVisible();
+  await expect(clientes).toBeVisible();
 });
 
 test('navegacao rola dentro da gaveta com todos os modulos abertos', async ({ page }) => {

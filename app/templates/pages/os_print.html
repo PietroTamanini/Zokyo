@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Imprimir OS #{{ os.codigo_os }} - Zokyo{% endblock %}
+{% block breadcrumb %}Imprimir OS #{{ os.codigo_os }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_detalhe', id=os.id) }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Imprimir OS #{{ os.codigo_os }}</div>
+    <div class="page-sub">A janela de impressão será aberta automaticamente.</div>
+  </div>
+  <div class="flex-gap">
+    <button type="button" class="btn btn-primary btn-sm" data-action="print-os">Imprimir</button>
+    <a href="{{ pdf_url }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Abrir PDF</a>
+  </div>
+</div>
+
+<iframe id="os-pdf-frame" title="OS #{{ os.codigo_os }}" src="{{ pdf_url }}" class="os-print-frame"></iframe>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+const frame = document.getElementById('os-pdf-frame');
+function printOs() {
+  try {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  } catch {
+    window.open({{ pdf_url|tojson }}, '_blank', 'noopener');
+  }
+}
+frame.addEventListener('load', () => setTimeout(printOs, 700));
+document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-action="print-os"]')) printOs();
+});
+</script>
+{% endblock %}

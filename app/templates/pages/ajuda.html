@@ -2,14 +2,28 @@
 {% block title %}Central de Ajuda{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">{{ 'Primeiros passos' if onboarding else 'Central de ajuda' }}</div><div class="page-sub">Use esta tela quando alguém novo precisar aprender a rotina do sistema.</div></div>
+  <div>
+    <div class="page-title">{{ 'Primeiros passos' if onboarding else 'Central de ajuda' }}</div>
+    <div class="page-sub">Use esta tela quando alguém novo precisar aprender a rotina do sistema.</div>
+  </div>
 </div>
 
 <section class="page-section">
   <h2 class="section-title">Antes de começar</h2>
-  <div class="table-wrap"><table><thead><tr><th>Etapa</th><th>Status</th><th></th></tr></thead><tbody>
-  {% for label, done, href in checklist %}<tr><td class="td-strong">{{ label }}</td><td><span class="badge b-{{ 'green' if done else 'yellow' }}">{{ 'Concluído' if done else 'Pendente' }}</span></td><td><a class="btn btn-ghost btn-sm" href="{{ href }}">Abrir</a></td></tr>{% endfor %}
-  </tbody></table></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Etapa</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for label, done, href in checklist %}
+      <tr>
+        <td class="td-strong">{{ label }}</td>
+        <td><span class="badge b-{{ 'green' if done else 'yellow' }}">{{ 'Concluído' if done else 'Pendente' }}</span></td>
+        <td><a class="btn btn-ghost btn-sm" href="{{ href }}">Abrir</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="page-section">
@@ -28,5 +42,38 @@
   </div>
 </section>
 
-{% if onboarding %}<form method="POST" action="{{ url_for('pages.ajuda_concluir') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-primary">Concluir configuração inicial</button></form>{% endif %}
+<section class="page-section">
+  <h2 class="section-title">Guias rápidos</h2>
+  <div class="zokyo-dashboard-grid">
+    {% for roteiro in roteiros %}
+    <div class="note-block">
+      <strong>{{ roteiro.titulo }}</strong>
+      <ol class="mt12">
+        {% for passo in roteiro.passos %}
+        <li>{{ passo }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="page-section">
+  <h2 class="section-title">Onde encontrar</h2>
+  <div class="zokyo-mini-table">
+    {% for label, href, detalhe in atalhos_ajuda %}
+    <a href="{{ href }}">
+      <span>{{ label }}</span>
+      <strong>{{ detalhe }}</strong>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if onboarding %}
+<form method="POST" action="{{ url_for('pages.ajuda_concluir') }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-primary">Concluir configuração inicial</button>
+</form>
+{% endif %}
 {% endblock %}

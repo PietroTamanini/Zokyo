@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Rota de coleta - Zokyo{% endblock %}
+{% block breadcrumb %}Coletas / Rota{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.coleta') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Rota de coleta</div>
+    <div class="page-sub">{{ endereco_assistencia or 'Configure o endereço da assistência em Dados da empresa.' }}</div>
+  </div>
+  <div class="flex-gap">
+    <button type="button" class="btn btn-ghost btn-sm" data-action="route-copy">Copiar link</button>
+    <button type="button" class="btn btn-primary btn-sm" data-action="route-open">Abrir GPS</button>
+  </div>
+</div>
+
+<div class="g64 coleta-route-layout">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Pontos da rota</div>
+      <button type="button" class="btn btn-ghost btn-sm" data-action="route-select-all">Selecionar todos</button>
+    </div>
+    <div class="card-body">
+      <div class="route-origin-card">
+        <div class="route-pin route-pin-home">A</div>
+        <div>
+          <div class="td-strong">{{ cfg.nome_empresa if cfg else 'Assistência' }}</div>
+          <div class="muted-sm">{{ endereco_assistencia or 'Endereço não configurado' }}</div>
+        </div>
+      </div>
+
+      <div class="route-point-list" id="route-point-list">
+        {% for c in coletas if c.endereco_completo %}
+        <label class="route-point" data-point-id="{{ c.id }}">
+          <input type="checkbox" value="{{ c.id }}" checked>
+          <span class="route-pin">{{ loop.index }}</span>
+          <span class="route-point-body">
+            <strong>{{ c.cliente.nome if c.cliente else 'Cliente removido' }}</strong>
+            <span>{{ c.endereco_completo }}</span>
+            <small>{{ c.data_agendada.strftime('%d/%m/%Y %H:%M') if c.data_agendada else 'Sem horário definido' }}{% if c.telefone_contato %} · {{ c.telefone_contato }}{% endif %}</small>
+          </span>
+        </label>
+        {% else %}
+        <div class="empty-state">Nenhuma coleta aberta com endereço.</div>
+        {% endfor %}
+      </div>
+
+      <div class="route-manual">
+        <div class="form-row fr2 items-end">
+          <div class="form-group">
+            <label>Ponto extra</label>
+            <input type="text" id="route-extra-address" placeholder="Rua, número, cidade/UF">
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="route-add-extra">Adicionar ponto</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="os-column">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Resumo</div></div>
+      <div class="card-body">
+        <div class="route-summary">
+          <div><span>Origem</span><strong>{{ cfg.nome_empresa if cfg else 'Assistência' }}</strong></div>
+          <div><span>Coletas</span><strong id="route-count">0</strong></div>
+          <div><span>Retorno</span><strong>{{ cfg.nome_empresa if cfg else 'Assistência' }}</strong></div>
+        </div>
+        <div class="form-actions mt16">
+          <button type="button" class="btn btn-primary btn-full-start" data-action="route-open">Abrir GPS</button>
+          <a id="route-preview-link" class="btn btn-ghost btn-full-start" href="https://www.google.com/maps/dir/?api=1" target="_blank" rel="noopener noreferrer">Abrir em nova aba</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Ordem</div></div>
+      <div class="card-body">
+        <ol id="route-order" class="route-order"></ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+const ROUTE_HOME_ADDRESS = {{ (endereco_assistencia or '')|tojson }};
+const ROUTE_POINTS = {{ coletas_json | safe }};
+</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+(function(){
+  const list = document.getElementById('route-point-list');
+  const orderEl = document.getElementById('route-order');
+  const countEl = document.getElementById('route-count');
+  const linkEl = document.getElementById('route-preview-link');
+  const extraInput = document.getElementById('route-extra-address');
+  const extraPoints = [];
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function selectedPoints() {
+    const checkedIds = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map((input) => String(input.value));
+    const selected = ROUTE_POINTS.filter((point) => checkedIds.includes(String(point.id)));
+    return selected.concat(extraPoints);
+  }
+
+  function mapsUrl() {
+    const points = selectedPoints().filter((point) => point.endereco);
+    const params = new URLSearchParams();
+    params.set('api', '1');
+    params.set('origin', ROUTE_HOME_ADDRESS);
+    params.set('destination', ROUTE_HOME_ADDRESS);
+    params.set('travelmode', 'driving');
+    if (points.length) params.set('waypoints', points.map((point) => point.endereco).join('|'));
+    return 'https://www.google.com/maps/dir/?' + params.toString();
+  }
+
+  function canOpenRoute() {
+    if (ROUTE_HOME_ADDRESS) return true;
+    if (typeof showToast === 'function') showToast('Configure o endereço da assistência primeiro.', 'amber');
+    return false;
+  }
+
+  function render() {
+    const points = selectedPoints();
+    countEl.textContent = String(points.length);
+    orderEl.innerHTML = points.map((point) => `
+      <li>
+        <strong>${escapeHtml(point.cliente || 'Ponto extra')}</strong>
+        <span>${escapeHtml(point.endereco || '')}</span>
+      </li>
+    `).join('') || '<li class="muted-sm">Nenhum ponto selecionado.</li>';
+    linkEl.href = mapsUrl();
+  }
+
+  document.addEventListener('change', (event) => {
+    if (event.target.closest('#route-point-list')) render();
+  });
+
+  document.addEventListener('click', async (event) => {
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (!action) return;
+    if (action === 'route-select-all') {
+      const boxes = Array.from(list.querySelectorAll('input[type="checkbox"]'));
+      const mark = boxes.some((box) => !box.checked);
+      boxes.forEach((box) => { box.checked = mark; });
+      render();
+    }
+    if (action === 'route-add-extra') {
+      const endereco = extraInput.value.trim();
+      if (!endereco) return;
+      extraPoints.push({ id: 'extra-' + Date.now(), cliente: 'Ponto extra', endereco });
+      extraInput.value = '';
+      render();
+    }
+    if (action === 'route-open') {
+      if (!canOpenRoute()) return;
+      window.open(mapsUrl(), '_blank', 'noopener');
+    }
+    if (action === 'route-copy') {
+      if (!canOpenRoute()) return;
+      try {
+        await navigator.clipboard.writeText(mapsUrl());
+        if (typeof showToast === 'function') showToast('Link da rota copiado.', 'green');
+      } catch (_error) {
+        window.prompt('Link da rota', mapsUrl());
+      }
+    }
+  });
+
+  render();
+})();
+</script>
+{% endblock %}

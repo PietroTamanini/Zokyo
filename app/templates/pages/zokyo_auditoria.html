@@ -23,7 +23,7 @@
     <input type="date" name="data_ini" value="{{ filtros.data_ini }}">
     <input type="date" name="data_fim" value="{{ filtros.data_fim }}">
     <select name="usuario_id">
-      <option value="">Todos usuarios</option>
+      <option value="">Todos os usuários</option>
       {% for usuario in usuarios %}
       <option value="{{ usuario.id }}" {{ 'selected' if filtros.usuario_id|string == usuario.id|string }}>{{ usuario.nome }}</option>
       {% endfor %}
@@ -35,7 +35,7 @@
       {% endfor %}
     </select>
     <select name="modulo">
-      <option value="">Todos modulos</option>
+      <option value="">Todos os módulos</option>
       {% for item in modulos %}
       <option value="{{ item }}" {{ 'selected' if filtros.modulo == item }}>{{ item }}</option>
       {% endfor %}
@@ -51,7 +51,7 @@
             <th>Usuário</th>
             <th>Tipo</th>
             <th>Módulo</th>
-            <th>Operacao</th>
+            <th>Operação</th>
             <th>Descrição</th>
           </tr>
         </thead>

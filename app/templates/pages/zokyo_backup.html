@@ -6,19 +6,47 @@
 <div class="page-header zokyo-page-header">
   <div>
     <div class="page-title">Backup</div>
-    <div class="page-sub">Resumo das tabelas principais para conferencia antes do backup externo.</div>
+    <div class="page-sub">Conferência dos dados e rotina correta para backup e restauração.</div>
   </div>
+</div>
+
+<div class="zokyo-dashboard-grid mb20">
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Checklist de segurança</div>
+    <div class="zokyo-widget-body">
+      <div class="zokyo-mini-table">
+        {% for item in checks_backup %}
+        <div class="pipeline-item">
+          <span><span class="badge b-{{ 'green' if item.ok else 'amber' }}"><span class="dot"></span>{{ 'OK' if item.ok else 'Atenção' }}</span> {{ item.label }}</span>
+          <strong>{{ item.detail }}</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="zokyo-widget-panel">
+    <div class="zokyo-widget-header">Comandos recomendados</div>
+    <div class="zokyo-widget-body">
+      {% for item in comandos %}
+      <div class="note-block mb12">
+        <strong>{{ item.titulo }}</strong>
+        <div class="td-mono mt8">{{ item.cmd }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
 </div>
 
 <div class="zokyo-widget">
   <div class="widget-title">
     <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-database"></use></svg></span>
-    <h5>Backup</h5>
+    <h5>Dados principais</h5>
   </div>
   <div class="card">
     <div class="card-body">
       <div class="alert a-amber mb20">
-        <div>O backup fisico do banco deve ser feito pelo MySQL/hosting. Esta tela mostra a saude dos dados e evita prometer um arquivo falso.</div>
+        <div>O backup físico precisa copiar banco e uploads. Uma rotina só é confiável depois que o restore foi testado em outro banco.</div>
       </div>
       <div class="zokyo-detail-grid">
         {% for tabela, total in contagens.items() %}

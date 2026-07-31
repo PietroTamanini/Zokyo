@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Agenda técnica - Zokyo{% endblock %}
+{% block breadcrumb %}Agenda técnica{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_kanban') }}" class="btn btn-ghost btn-sm">Kanban</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Agenda técnica</div>
+    <div class="page-sub">OS por prazo, atraso e técnico responsável.</div>
+  </div>
+  <form method="GET" class="flex-gap">
+    <select name="tecnico">
+      <option value="">Todos os técnicos</option>
+      {% for item in tecnicos %}<option value="{{ item.nome }}" {{ 'selected' if tecnico == item.nome }}>{{ item.nome }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm" type="submit">Filtrar</button>
+  </form>
+</div>
+
+{% for title, rows, tone in [('Atrasadas', overdue, 'red'), ('Hoje', today, 'blue'), ('Próximas', upcoming, 'gray')] %}
+<div class="card mb20">
+  <div class="card-header"><div class="card-title">{{ title }} · {{ rows|length }}</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>OS</th><th>Cliente</th><th>Equipamento</th><th>Técnico</th><th>Status</th><th>Previsão</th><th>Tempo</th></tr></thead>
+      <tbody>
+        {% for os in rows %}
+        <tr>
+          <td class="td-strong"><a href="{{ url_for('pages.os_detalhe', id=os.id) }}">#{{ os.codigo_os }}</a></td>
+          <td>{{ os.cliente.nome if os.cliente else '-' }}</td>
+          <td>{{ os.tipo_aparelho or '-' }} {{ os.marca or '' }} {{ os.modelo or '' }}</td>
+          <td>{{ os.tecnico_nome or 'Sem técnico' }}</td>
+          <td><span class="badge b-{{ tone }}"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span></td>
+          <td>{{ os.data_prev|fmtdata if os.data_prev else '-' }}</td>
+          <td>{{ waiting_days(os) }} dia(s)</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="td-empty">Nenhuma OS nesta faixa.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

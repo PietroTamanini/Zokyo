@@ -193,6 +193,40 @@ def test_normalizacao_inatividade_csrf_primeiro_acesso_e_headers():
     assert "upgrade-insecure-requests" in response.headers["Content-Security-Policy"]
 
 
+def test_rate_limit_global_cobre_rotas_dinamicas_e_poupa_healthcheck():
+    app = _factory_app()
+    app_module._tem_usuarios = True
+    user_id, _security_version = _seed_user(app)
+    app.config.update(
+        RATE_LIMIT_GLOBAL_GET=50,
+        RATE_LIMIT_GLOBAL_API=50,
+        RATE_LIMIT_ENDPOINT_GET=2,
+        RATE_LIMIT_ENDPOINT_API=1,
+        RATE_LIMIT_WINDOW_SECONDS=60,
+    )
+    app.add_url_rule("/global-limited", endpoint="global_limited", view_func=lambda: "ok")
+    app.add_url_rule("/api/global-limited", endpoint="api_global_limited", view_func=lambda: {"ok": True})
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = user_id
+        session["nivel"] = "admin"
+        session["_last_active"] = time.time()
+
+    assert client.get("/global-limited").status_code == 200
+    assert client.get("/global-limited").status_code == 200
+    blocked = client.get("/global-limited")
+    assert blocked.status_code == 429
+
+    assert client.get("/api/global-limited").status_code == 200
+    api_blocked = client.get("/api/global-limited", headers={"Accept": "application/json"})
+    assert api_blocked.status_code == 429
+    assert api_blocked.get_json()["retry_after"] >= 1
+    assert "Retry-After" in api_blocked.headers
+
+    assert client.get("/healthz").status_code == 200
+    assert client.get("/healthz").status_code == 200
+
+
 def test_primeiro_acesso_e_rollback_toleram_excecoes(monkeypatch):
     app = _factory_app()
     primeiro_acesso = _before(app, "primeiro_acesso_redirect")
@@ -214,6 +248,7 @@ def test_primeiro_acesso_e_rollback_toleram_excecoes(monkeypatch):
 def test_handlers_globais_e_scheduler_command(monkeypatch):
     app = _factory_app()
     app_module._tem_usuarios = True
+    user_id, _security_version = _seed_user(app)
     app.config["PROPAGATE_EXCEPTIONS"] = False
     app.add_url_rule("/e401", endpoint="e401", view_func=lambda: abort(401))
     app.add_url_rule("/e403", endpoint="e403", view_func=lambda: abort(403))
@@ -227,6 +262,10 @@ def test_handlers_globais_e_scheduler_command(monkeypatch):
     app.add_url_rule("/boom", endpoint="boom", view_func=lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     app.add_url_rule("/post-only", methods=["POST"], view_func=lambda: "ok")
     client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = user_id
+        session["nivel"] = "admin"
+        session["_last_active"] = time.time()
 
     assert client.get("/e401").status_code == 401
     assert client.get("/e403").status_code == 403

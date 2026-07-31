@@ -16,6 +16,7 @@ os_pecas = db.Table(
     db.Column("peca_id",      db.Integer, db.ForeignKey("pecas.id"),          primary_key=True),
     db.Column("quantidade",    db.Integer,       default=1, nullable=False),
     db.Column("valor_unitario",db.Numeric(10,2), default=0),
+    db.Column("link_compra",   db.String(1000)),
 )
 
 # Fix #04: "cancelado" adicionado à tupla
@@ -54,6 +55,10 @@ def proximo_numero_os(organization_id: int = 1) -> int:
 
 class OrdemServico(db.Model):
     __tablename__ = "ordens_servico"
+    __table_args__ = (
+        db.Index("uq_ordens_servico_org_numero", "organization_id", "numero", unique=True),
+        db.Index("ix_ordens_servico_numero_serie", "numero_serie"),
+    )
 
     id         = db.Column(db.Integer, primary_key=True)
     numero     = db.Column(db.Integer, index=True)
@@ -148,7 +153,7 @@ class OrdemServico(db.Model):
     def to_dict(self):
         # Fix #02: lê quantidade e valor_unitario reais da tabela os_pecas
         assoc = db.session.execute(
-            text("SELECT peca_id, quantidade, valor_unitario FROM os_pecas WHERE os_id = :id"),
+            text("SELECT peca_id, quantidade, valor_unitario, link_compra FROM os_pecas WHERE os_id = :id"),
             {"id": self.id}
         ).fetchall()
         assoc_map = {row.peca_id: row for row in assoc}
@@ -205,6 +210,7 @@ class OrdemServico(db.Model):
                     "quantidade":    assoc_map[p.id].quantidade if p.id in assoc_map else 1,
                     "valor_unitario": float(assoc_map[p.id].valor_unitario or p.custo or 0)
                                       if p.id in assoc_map else float(p.custo or 0),
+                    "link_compra":    assoc_map[p.id].link_compra if p.id in assoc_map else "",
                     "subtotal":      round(
                         (assoc_map[p.id].quantidade if p.id in assoc_map else 1) *
                         float(assoc_map[p.id].valor_unitario or p.custo or 0)

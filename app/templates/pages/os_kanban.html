@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Kanban de OS - Zokyo{% endblock %}
+{% block breadcrumb %}Ordens / Kanban{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_nova') }}" class="btn btn-primary btn-sm">Nova OS</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Kanban de OS</div>
+    <div class="page-sub">Acompanhe a oficina por etapa e mude status sem sair da tela.</div>
+  </div>
+  <div class="flex-gap">
+    <a class="btn btn-ghost btn-sm" href="{{ url_for('pages.agenda_tecnica') }}">Agenda</a>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('pages.os_lista') }}">Lista</a>
+  </div>
+</div>
+
+<div class="kanban-board">
+  {% for key, label in status_map.items() %}
+  <section class="kanban-column">
+    <div class="kanban-column-head">
+      <strong>{{ label }}</strong>
+      <span>{{ columns.get(key, [])|length }}</span>
+    </div>
+    <div class="kanban-list">
+      {% for os in columns.get(key, []) %}
+      <article class="kanban-card">
+        <a class="kanban-title" href="{{ url_for('pages.os_detalhe', id=os.id) }}">OS #{{ os.codigo_os }}</a>
+        <div class="kanban-client">{{ os.cliente.nome if os.cliente else 'Cliente não informado' }}</div>
+        <div class="kanban-meta">{{ os.tipo_aparelho or '-' }} {{ os.marca or '' }} {{ os.modelo or '' }}</div>
+        <div class="kanban-row">
+          <span>{{ priority_map.get(os.prio, os.prio or 'normal') }}</span>
+          <span>{{ waiting_days(os) }} dia(s)</span>
+        </div>
+        {% if os.data_prev %}
+        <div class="kanban-date {{ 'txt-red' if os.data_prev.replace(tzinfo=None) < hoje_dt else '' }}">Previsão {{ os.data_prev|fmtdata }}</div>
+        {% endif %}
+        {% if nivel_usuario in ('admin', 'operacional') %}
+        <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}" class="kanban-status-form">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="next" value="{{ url_for('pages.os_kanban') }}">
+          <select name="status" aria-label="Alterar status da OS #{{ os.codigo_os }}">
+            {% for st, st_label in status_map.items() %}
+            <option value="{{ st }}" {{ 'selected' if st == os.status }}>{{ st_label }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary btn-xs" type="submit">Mover</button>
+        </form>
+        {% endif %}
+      </article>
+      {% else %}
+      <div class="empty-inline">Sem OS nesta etapa.</div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

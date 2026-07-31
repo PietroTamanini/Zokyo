@@ -65,8 +65,22 @@ class Config:
         "auth.api_v1_login",
         "client_api.auth",
         "client_api.os_collection",
+        "client_api.consulta_os_publica",
     }
+    DJTECH_SITE_ORIGINS = os.environ.get(
+        "DJTECH_SITE_ORIGINS",
+        "https://djtechinfo.com.br,https://www.djtechinfo.com.br,https://painel.djtechinfo.com.br,"
+        "http://127.0.0.1:5500,http://localhost:5500",
+    )
     SCHEDULER_ENABLED = os.environ.get("SCHEDULER_ENABLED", "false").lower() in ("1", "true", "yes", "on")
+    RATE_LIMIT_ENABLED = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+    RATE_LIMIT_GLOBAL_GET = int(os.environ.get("RATE_LIMIT_GLOBAL_GET", "1000"))
+    RATE_LIMIT_GLOBAL_WRITE = int(os.environ.get("RATE_LIMIT_GLOBAL_WRITE", "300"))
+    RATE_LIMIT_GLOBAL_API = int(os.environ.get("RATE_LIMIT_GLOBAL_API", "600"))
+    RATE_LIMIT_ENDPOINT_GET = int(os.environ.get("RATE_LIMIT_ENDPOINT_GET", "300"))
+    RATE_LIMIT_ENDPOINT_WRITE = int(os.environ.get("RATE_LIMIT_ENDPOINT_WRITE", "120"))
+    RATE_LIMIT_ENDPOINT_API = int(os.environ.get("RATE_LIMIT_ENDPOINT_API", "240"))
+    RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
 
     # ── WhatsApp ───────────────────────────────────────────────────────────
     WPP_SERVER_URL = os.environ.get("WPP_SERVER_URL", "").strip() or None
@@ -117,10 +131,10 @@ class ProductionConfig(Config):
     @classmethod
     def init_app(cls, app):
         secret = os.environ.get("SECRET_KEY", "").strip()
-        if not secret or secret.startswith("SUBSTITUA") or secret.startswith("GERE"):
+        if not secret or len(secret) < 32 or secret.startswith("SUBSTITUA") or secret.startswith("GERE"):
             raise RuntimeError(
-                "[FATAL] SECRET_KEY não configurada ou é placeholder. "
-                "Defina SECRET_KEY no ambiente de produção."
+                "[FATAL] SECRET_KEY não configurada, curta ou é placeholder. "
+                "Defina SECRET_KEY forte com pelo menos 32 caracteres no ambiente de produção."
             )
         db_url = os.environ.get("DATABASE_URL", "")
         if not db_url or "CONFIGURE_NO_ENV" in db_url:

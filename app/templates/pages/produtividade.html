@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Produtividade - Zokyo{% endblock %}
+{% block breadcrumb %}Produtividade{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Produtividade</div>
+    <div class="page-sub">Indicadores operacionais para enxergar gargalos da oficina.</div>
+  </div>
+</div>
+
+<div class="stats-grid mb20">
+  <div class="stat-card"><div class="stat-label">OS abertas</div><div class="stat-value">{{ total_open }}</div></div>
+  <div class="stat-card"><div class="stat-label">OS atrasadas</div><div class="stat-value txt-red">{{ total_overdue }}</div></div>
+  <div class="stat-card"><div class="stat-label">Técnicos no painel</div><div class="stat-value">{{ by_tech|length }}</div></div>
+</div>
+
+<div class="card mb20">
+  <div class="card-header"><div class="card-title">Por técnico</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Técnico</th><th>Total</th><th>Abertas</th><th>Entregues</th><th>Atrasadas</th><th>Receita paga</th></tr></thead>
+      <tbody>
+        {% for nome, row in by_tech.items()|sort %}
+        <tr>
+          <td class="td-strong">{{ nome }}</td>
+          <td class="td-mono">{{ row.total }}</td>
+          <td class="td-mono">{{ row.abertas }}</td>
+          <td class="td-mono">{{ row.entregues }}</td>
+          <td class="td-mono {{ 'txt-red' if row.atrasadas else '' }}">{{ row.atrasadas }}</td>
+          <td class="td-mono">{{ row.receita|moeda }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="td-empty">Sem dados ainda.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Por status</div></div>
+  <div class="pipeline">
+    {% for key, label in status_map.items() %}
+    <div class="pipeline-item"><span>{{ label }}</span><strong>{{ status_counts.get(key, 0) }}</strong></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

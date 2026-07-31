@@ -33,7 +33,7 @@ const OFFLINE_HTML = `<!doctype html>
     p{color:#94a3b8;line-height:1.5;margin:0}
   </style>
 </head>
-<body><main><h1>Sem conexao</h1><p>Reconecte e abra o Zokyo novamente. Dados de clientes, OS, fotos e financeiro nao sao cacheados por seguranca.</p></main></body>
+<body><main><h1>Sem conexão</h1><p>Reconecte e abra o Zokyo novamente. Dados de clientes, OS, fotos e financeiro não são cacheados por segurança.</p></main></body>
 </html>`;
 
 self.addEventListener('install', (event) => {

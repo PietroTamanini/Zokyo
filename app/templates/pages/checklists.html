@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Checklists técnicos - Zokyo{% endblock %}
+{% block breadcrumb %}Checklists{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Checklists técnicos</div>
+    <div class="page-sub">Modelos por tipo de aparelho; cada OS guarda uma cópia do checklist usado.</div>
+  </div>
+</div>
+
+{% if nivel_usuario == 'admin' %}
+<form class="card mb20" method="POST" action="{{ url_for('pages.checklist_criar_page') }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <div class="card-header"><div class="card-title">Novo modelo</div></div>
+  <div class="card-body">
+    <div class="form-row fr2">
+      <div class="form-group"><label>Tipo de aparelho</label><input name="category" placeholder="notebook, smartphone, tv" required></div>
+      <div class="form-group"><label>Itens separados por linha</label><textarea name="items[]" rows="1" hidden></textarea><textarea id="checklist-lines" rows="5" placeholder="Liga&#10;Tela&#10;Carregamento&#10;Áudio"></textarea></div>
+    </div>
+    <div id="checklist-hidden"></div>
+    <button class="btn btn-primary btn-sm" type="submit" data-action="checklist-submit">Salvar modelo</button>
+  </div>
+</form>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Modelos cadastrados</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Tipo</th><th>Versão</th><th>Status</th><th>Itens</th></tr></thead>
+      <tbody>
+        {% for template in templates %}
+        <tr>
+          <td class="td-strong">{{ template.category }}</td>
+          <td class="td-mono">v{{ template.version }}</td>
+          <td><span class="badge {{ 'b-green' if template.active else 'b-gray' }}"><span class="dot"></span>{{ 'Ativo' if template.active else 'Inativo' }}</span></td>
+          <td>{{ template.items|join(', ') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="td-empty">Nenhum checklist técnico criado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-action="checklist-submit"]');
+  if (!button) return;
+  const box = document.getElementById('checklist-hidden');
+  const lines = (document.getElementById('checklist-lines')?.value || '').split('\n').map(v => v.trim()).filter(Boolean);
+  box.replaceChildren();
+  lines.forEach((item) => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'items[]';
+    input.value = item;
+    box.appendChild(input);
+  });
+});
+</script>
+{% endblock %}

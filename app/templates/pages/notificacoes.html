@@ -32,5 +32,5 @@
     </tbody>
   </table>
 </div></div>
-{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginacao">{% for number in pagination.iter_pages() %}{% if number %}<a class="btn btn-ghost btn-sm {{ 'active' if number == pagination.page }}" href="{{ url_for('configuracoes.notificacoes', page=number, status=selected_status) }}">{{ number }}</a>{% else %}<span>...</span>{% endif %}{% endfor %}</nav>{% endif %}
+{% if pagination.pages > 1 %}<nav class="pagination" aria-label="Paginação">{% for number in pagination.iter_pages() %}{% if number %}<a class="btn btn-ghost btn-sm {{ 'active' if number == pagination.page }}" href="{{ url_for('configuracoes.notificacoes', page=number, status=selected_status) }}">{{ number }}</a>{% else %}<span>...</span>{% endif %}{% endfor %}</nav>{% endif %}
 {% endblock %}

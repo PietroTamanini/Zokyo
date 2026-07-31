@@ -23,6 +23,7 @@ services:
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:-}
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: "true"
+      DJTECH_SITE_ORIGINS: http://127.0.0.1:5500,http://localhost:5500
       GUNICORN_BIND: 0.0.0.0:8000
       GUNICORN_ACCESSLOG: "-"
       GUNICORN_ERRORLOG: "-"
@@ -36,6 +37,24 @@ services:
       - "8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  djtech:
+    build:
+      context: ./dj-tech
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5500
+      PANEL_API: http://app:8000
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "5500:5500"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5500/', timeout=3).read()"]
       interval: 30s
       timeout: 5s
       retries: 5

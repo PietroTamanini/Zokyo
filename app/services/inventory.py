@@ -29,9 +29,9 @@ def receive_lot(part, user_id, code, quantity, unit_cost, reason, supplier_id=No
     if quantity <= 0:
         raise ValueError("Quantidade do lote deve ser maior que zero.")
     if unit_cost < 0:
-        raise ValueError("Custo unitario nao pode ser negativo.")
+        raise ValueError("Custo unitário não pode ser negativo.")
     if InventoryLot.query.filter_by(part_id=part.id, code=code).first():
-        raise ValueError("Codigo de lote ja cadastrado para esta peca.")
+        raise ValueError("Código de lote já cadastrado para esta peça.")
     before = part.quantidade
     total_cost = float(part.custo or 0) * before + float(unit_cost) * quantity
     after = before + quantity

@@ -15,6 +15,21 @@ def make_app():
     return app
 
 
+def _seed_admin_and_login(app, client):
+    with app.app_context():
+        org = Organization(id=1, nome="Erros", slug="erros")
+        usuario = Usuario(organization_id=1, nome="Admin", email="admin-errors@example.com", nivel="admin", ativo=True)
+        usuario.set_senha("Senha!123")
+        db.session.add_all([org, usuario])
+        db.session.commit()
+        user_id = usuario.id
+    with client.session_transaction() as session:
+        session["usuario_id"] = user_id
+        session["nivel"] = "admin"
+        session["perfil"] = "admin"
+        session["_last_active"] = 9999999999
+
+
 def test_healthz_funciona_sem_usuario():
     app = make_app()
     with app.app_context():
@@ -148,8 +163,10 @@ def test_erros_estruturados_incluem_codigo_e_request_id():
     app.add_url_rule("/api/test-validation", view_func=invalid_payload)
     with app.app_context():
         db.create_all()
+    client = app.test_client()
+    _seed_admin_and_login(app, client)
 
-    response = app.test_client().get(
+    response = client.get(
         "/api/test-validation",
         headers={"Accept": "application/json", "X-Request-ID": "validation-test"},
     )
@@ -171,8 +188,10 @@ def test_erro_429_html_usa_tela_generica_acessivel():
     app.add_url_rule("/test-rate-limit", view_func=lambda: abort(429))
     with app.app_context():
         db.create_all()
+    client = app.test_client()
+    _seed_admin_and_login(app, client)
 
-    response = app.test_client().get("/test-rate-limit", headers={"Accept": "text/html"})
+    response = client.get("/test-rate-limit", headers={"Accept": "text/html"})
 
     assert response.status_code == 429
     assert b"N\xc3\xa3o foi poss\xc3\xadvel concluir" in response.data

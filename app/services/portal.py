@@ -21,7 +21,7 @@ def criar_link_portal(os_obj: OrdemServico, usuario: Usuario, purpose: str, dias
     if purpose not in PORTAL_PURPOSES:
         raise ValueError("Finalidade de link invalida.")
     if os_obj.organization_id != usuario.organization_id:
-        raise ValueError("Ordem de servico nao encontrada.")
+        raise ValueError("Ordem de serviço não encontrada.")
     dias = min(max(int(dias), 1), 90)
     now = _now()
     PortalToken.query.filter_by(os_id=os_obj.id, purpose=purpose, revogado_em=None).update({"revogado_em": now})
@@ -55,9 +55,9 @@ def buscar_token_portal(raw_token: str) -> PortalToken | None:
 
 def decidir_orcamento(token: PortalToken, decisao: str):
     if token.purpose != "budget":
-        raise ValueError("Este link nao permite decidir o orcamento.")
+        raise ValueError("Este link não permite decidir o orçamento.")
     if token.usado_em:
-        raise ValueError("Este orcamento ja recebeu uma decisao.")
+        raise ValueError("Este orçamento já recebeu uma decisão.")
     if decisao not in {"approved", "rejected"}:
         raise ValueError("Decisao invalida.")
     os_obj = token.os
@@ -75,6 +75,6 @@ def decidir_orcamento(token: PortalToken, decisao: str):
             status_novo=os_obj.status,
         ))
     registrar(
-        "status", "portal", f"Orcamento da OS #{os_obj.id:04d}: {decisao}",
+        "status", "portal", f"Orçamento da OS #{os_obj.id:04d}: {decisao}",
         organization_id=os_obj.organization_id,
     )

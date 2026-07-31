@@ -97,7 +97,7 @@ def notificacao_retry(notification_id):
     else:
         registrar("retry", "notifications", f"Reenvio solicitado para notificacao #{notification_id}.")
         db.session.commit()
-        flash("Notificacao colocada novamente na fila.", "success")
+        flash("Notificação colocada novamente na fila.", "success")
     return redirect(url_for("configuracoes.notificacoes"))
 
 

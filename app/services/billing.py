@@ -1,4 +1,4 @@
-"""Abstracao de billing; somente provider sandbox, sem cobranca real."""
+"""Abstração de billing; somente provider sandbox, sem cobrança real."""
 import hashlib
 import hmac
 import json
@@ -33,24 +33,24 @@ def process_sandbox_event(raw_body: bytes, signature: str) -> tuple[BillingEvent
     try:
         payload = json.loads(raw_body)
     except (TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("Payload JSON invalido.") from exc
+        raise ValueError("Payload JSON inválido.") from exc
     event_id = str(payload.get("event_id", ""))[:160]
     event_type = str(payload.get("type", ""))[:80]
     organization_id = payload.get("organization_id")
     if not event_id or event_type not in set(EVENT_STATUS) | {"subscription.plan_changed"}:
-        raise ValueError("Evento sandbox invalido.")
+        raise ValueError("Evento sandbox inválido.")
     if not isinstance(organization_id, int):
-        raise ValueError("organization_id invalido.")
+        raise ValueError("organization_id inválido.")
     existing = BillingEvent.query.filter_by(provider="sandbox", external_event_id=event_id).first()
     if existing:
         return existing, False
     subscription = OrganizationSubscription.query.filter_by(organization_id=organization_id).first()
     if not subscription:
-        raise ValueError("Assinatura da organizacao nao encontrada.")
+        raise ValueError("Assinatura da organização não encontrada.")
     if event_type == "subscription.plan_changed":
         plan = Plan.query.filter_by(code=str(payload.get("plan_code", "")), ativo=True).first()
         if not plan:
-            raise ValueError("Plano informado nao encontrado.")
+            raise ValueError("Plano informado não encontrado.")
         subscription.plan_id = plan.id
     else:
         subscription.status = EVENT_STATUS[event_type]

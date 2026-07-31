@@ -21,9 +21,8 @@ def _pdf_via_reportlab(os_obj) -> bytes:
     from reportlab.pdfbase.pdfmetrics import stringWidth
     from reportlab.pdfgen import canvas
 
-    models = __import__("app.models", fromlist=["Configuracao", "Transacao"])
+    models = __import__("app.models", fromlist=["Configuracao"])
     cfg = models.Configuracao.get()
-    Transacao = models.Transacao
     cliente = getattr(os_obj, "cliente", None)
     codigo_os = getattr(os_obj, "codigo_os", f"{getattr(os_obj, 'id', 0):04d}")
     page_w, page_h = landscape(A4)
@@ -50,24 +49,6 @@ def _pdf_via_reportlab(os_obj) -> bytes:
 
     def date_fmt(value):
         return value.strftime("%d/%m/%Y") if value else "-"
-
-    def money_fmt(value):
-        return f"R$ {float(value or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-    def payment_totals():
-        try:
-            paid = sum(
-                float(item.valor or 0)
-                for item in Transacao.query.filter_by(
-                    os_id=getattr(os_obj, "id", None),
-                    tipo="receita",
-                    status="pago",
-                ).all()
-            )
-        except Exception:
-            paid = float(getattr(os_obj, "valor_pago", 0) or 0)
-        total = float(getattr(os_obj, "valor_total", 0) or 0)
-        return round(paid, 2), round(max(total - paid, 0), 2)
 
     def phone_fmt(value):
         raw = digits(value)
@@ -215,7 +196,7 @@ def _pdf_via_reportlab(os_obj) -> bytes:
 
     resolved_logo = logo_path()
     external_logo = None if resolved_logo else safe_external_logo()
-    valor_pago, valor_restante = payment_totals()
+    law_notice = "Legislação de Santa Catarina - Lei Estadual 18.119/2021: equipamento não retirado em até 90 dias poderá permanecer na loja conforme aviso e política de retirada."
 
     def draw_logo(x, y, w, h):
         if resolved_logo or external_logo:
@@ -260,31 +241,57 @@ def _pdf_via_reportlab(os_obj) -> bytes:
         c.setFillColor(ink)
         draw_fit_text(x + 5, y + 3, value, width - 10, font="Helvetica-Bold", size=6.6, min_size=4.8)
 
+    def law_box(x, y, width):
+        c.setFillColor(colors.HexColor("#ffffff"))
+        c.setStrokeColor(hairline)
+        c.setLineWidth(0.35)
+        c.roundRect(x, y, width, 16, 4, stroke=1, fill=1)
+        c.setFillColor(muted)
+        c.setFont("Helvetica-Bold", 4.5)
+        c.drawString(x + 5, y + 9.5, "RETIRADA EM ATÉ 90 DIAS")
+        c.setFillColor(ink)
+        draw_fit_text(x + 5, y + 3, law_notice, width - 10, size=5.4, min_size=4.2)
+
     checklist_labels = [item["label"] for item in cfg.get_entry_checklist_options()]
     checklist_answers = getattr(os_obj, "checklist_answers", None) or {}
-    checklist_snapshot = getattr(os_obj, "checklist_snapshot", None) or []
 
-    def checked(label):
+    def checklist_answer(label):
         norm = label.lower()
         for key, value in checklist_answers.items():
-            if norm in str(key).lower() and value is True:
-                return True
-        return any(norm in str(item).lower() for item in checklist_snapshot)
+            if norm in str(key).lower() and value in (True, False):
+                return value
+        return None
 
-    def draw_checkbox(x, y, label):
-        c.setFillColor(paper)
-        c.setStrokeColor(hairline)
-        c.setLineWidth(0.45)
-        c.rect(x, y - 6, 5, 5, stroke=1, fill=0)
-        if checked(label):
-            c.setStrokeColor(accent)
-            c.setLineWidth(0.8)
-            c.line(x + 1, y - 3, x + 2.2, y - 5)
-            c.line(x + 2.2, y - 5, x + 4.5, y - 1)
-            c.setLineWidth(0.5)
+    def draw_yes_no_item(x, y, label):
         c.setFillColor(ink)
-        c.setFont("Helvetica", 6.2)
-        c.drawString(x + 8, y - 5, label)
+        draw_fit_text(x, y - 5, label, 86, size=6.1, min_size=4.8)
+        answer = checklist_answer(label)
+        for idx, option in enumerate((("Sim", True), ("Não", False))):
+            box_x = x + 93 + idx * 31
+            c.setFillColor(paper)
+            c.setStrokeColor(hairline)
+            c.setLineWidth(0.45)
+            c.rect(box_x, y - 6, 5, 5, stroke=1, fill=0)
+            if answer is option[1]:
+                c.setStrokeColor(accent)
+                c.setLineWidth(0.8)
+                c.line(box_x + 1, y - 3, box_x + 2.2, y - 5)
+                c.line(box_x + 2.2, y - 5, box_x + 4.5, y - 1)
+                c.setLineWidth(0.45)
+            c.setFillColor(ink)
+            c.setFont("Helvetica", 5.8)
+            c.drawString(box_x + 8, y - 5, option[0])
+
+    def draw_signature_lines(x, y, width):
+        line_w = (width - 30) / 2
+        c.setStrokeColor(hairline)
+        c.setLineWidth(0.5)
+        c.line(x + 10, y, x + 10 + line_w, y)
+        c.line(x + 20 + line_w, y, x + 20 + line_w * 2, y)
+        c.setFillColor(muted)
+        c.setFont("Helvetica-Bold", 5.3)
+        c.drawCentredString(x + 10 + line_w / 2, y - 8, "ASSINATURA DO CLIENTE")
+        c.drawCentredString(x + 20 + line_w + line_w / 2, y - 8, "ASSINATURA DO TÉCNICO")
 
     def draw_common_copy(x, y, width, height, via_label):
         c.setFillColor(paper)
@@ -296,9 +303,6 @@ def _pdf_via_reportlab(os_obj) -> bytes:
         c.setFillColor(panel)
         c.setStrokeColor(hairline)
         c.roundRect(x + 4, top - 50, width - 8, 42, 4, stroke=1, fill=1)
-        c.setFillColor(accent)
-        c.roundRect(x + 4, top - 50, 4, 42, 2, stroke=0, fill=1)
-
         draw_logo(x + 10, top - 43, 45, 29)
         nome, subtitulo, location, contact = company_lines()
         c.setFillColor(ink)
@@ -318,12 +322,9 @@ def _pdf_via_reportlab(os_obj) -> bytes:
         c.setFillColor(paper)
         c.setFont("Helvetica-Bold", 5.6)
         c.drawCentredString(x + width - 44.5, top - 47.2, via_label.upper())
-        chip_w = (width - 92) / 4
         chip_y = top - 74
-        summary_chip(x + 8, chip_y, chip_w, "Entrada", date_fmt(getattr(os_obj, "data_entrada", None)))
-        summary_chip(x + 12 + chip_w, chip_y, chip_w, "Total", money_fmt(getattr(os_obj, "valor_total", 0)))
-        summary_chip(x + 16 + chip_w * 2, chip_y, chip_w, "Pago", money_fmt(valor_pago))
-        summary_chip(x + 20 + chip_w * 3, chip_y, chip_w, "Restante", money_fmt(valor_restante))
+        summary_chip(x + 8, chip_y, 58, "Entrada", date_fmt(getattr(os_obj, "data_entrada", None)))
+        law_box(x + 70, chip_y, width - 78)
         c.setStrokeColor(border)
         c.setLineWidth(0.55)
         c.line(x, top - 83, x + width, top - 83)
@@ -391,10 +392,11 @@ def _pdf_via_reportlab(os_obj) -> bytes:
     c.setStrokeColor(hairline)
     for yy in (left_top - 335, left_top - 362, left_top - 389, left_top - 416):
         c.line(left_x + 10, yy - 5, left_x + copy_w - 10, yy - 5)
+    draw_signature_lines(left_x + 6, bottom + 57, copy_w - 12)
     c.line(left_x + 4, bottom + 42, left_x + copy_w - 4, bottom + 42)
     draw_footer(left_x, bottom, copy_w)
 
-    right_top = draw_common_copy(right_x, bottom, copy_w, copy_h, "Tecnico")
+    right_top = draw_common_copy(right_x, bottom, copy_w, copy_h, "Técnico")
     split = right_x + copy_w * 0.48
     c.setStrokeColor(hairline)
     c.line(split, bottom + 42, split, right_top - 303)
@@ -404,25 +406,15 @@ def _pdf_via_reportlab(os_obj) -> bytes:
     c.roundRect(split + 6, bottom + 47, right_x + copy_w - split - 12, right_top - bottom - 355, 4, stroke=1, fill=1)
     section_title(right_x + 10, right_top - 317, split - right_x - 20, "Checklist de entrada")
     col1_x = right_x + 12
-    col2_x = right_x + 78
     start_y = right_top - 336
-    checklist_rows = max(1, (len(checklist_labels) + 1) // 2)
-    checklist_spacing = min(16, max(11, 96 / max(checklist_rows - 1, 1)))
-    for idx, label in enumerate(checklist_labels[:checklist_rows]):
-        draw_checkbox(col1_x, start_y - idx * checklist_spacing, label)
-    for idx, label in enumerate(checklist_labels[checklist_rows:checklist_rows * 2]):
-        draw_checkbox(col2_x, start_y - idx * checklist_spacing, label)
+    checklist_spacing = min(13, max(9, 135 / max(len(checklist_labels) - 1, 1)))
+    for idx, label in enumerate(checklist_labels[:16]):
+        draw_yes_no_item(col1_x, start_y - idx * checklist_spacing, label)
 
     obs_x = split + 8
     obs_w = right_x + copy_w - obs_x - 8
-    section_title(obs_x, right_top - 317, obs_w, "Observações")
-    obs_text = " ".join(part for part in [
-        getattr(os_obj, "observacoes", ""),
-        getattr(os_obj, "defeito_encontrado", ""),
-        getattr(os_obj, "solucao", ""),
-    ] if part)
+    section_title(obs_x, right_top - 317, obs_w, "Observações do técnico")
     c.setFillColor(ink)
-    draw_wrapped(obs_x + 1, right_top - 336, obs_text, obs_w - 2, size=7, leading=11, max_lines=7)
     c.setStrokeColor(hairline)
     for idx in range(7):
         yy = right_top - 341 - idx * 22

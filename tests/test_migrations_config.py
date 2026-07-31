@@ -25,7 +25,7 @@ def test_flask_migrate_registrado():
 
 
 def test_producao_desabilita_create_all(monkeypatch):
-    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key-with-32-plus-chars")
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("ENCRYPTION_SALT", valid_encryption_salt())
     app = create_app("production")
@@ -33,7 +33,7 @@ def test_producao_desabilita_create_all(monkeypatch):
 
 
 def test_producao_exige_encryption_salt(monkeypatch):
-    monkeypatch.setenv("SECRET_KEY", "prod-secret-key")
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key-with-32-plus-chars")
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.delenv("ENCRYPTION_SALT", raising=False)
 
@@ -53,7 +53,7 @@ def test_config_cobre_fallback_dev_mysql_e_erros_de_producao(monkeypatch):
     with pytest.raises(RuntimeError, match="SECRET_KEY"):
         reloaded.ProductionConfig.init_app(None)
 
-    monkeypatch.setenv("SECRET_KEY", "prod-secret")
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key-with-32-plus-chars")
     monkeypatch.delenv("DATABASE_URL", raising=False)
     with pytest.raises(RuntimeError, match="DATABASE_URL"):
         reloaded.ProductionConfig.init_app(None)
@@ -63,7 +63,7 @@ def test_config_cobre_fallback_dev_mysql_e_erros_de_producao(monkeypatch):
     with pytest.raises(RuntimeError, match="ENCRYPTION_SALT"):
         reloaded.ProductionConfig.init_app(None)
 
-    monkeypatch.setenv("SECRET_KEY", "test-secret-key")
+    monkeypatch.setenv("SECRET_KEY", "test-secret-key-with-32-plus-chars")
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
     monkeypatch.setenv("ENCRYPTION_SALT", valid_encryption_salt())
     importlib.reload(config_module)
@@ -75,7 +75,7 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     env = os.environ.copy()
     env.update({
         "DATABASE_URL": f"sqlite:///{database.as_posix()}",
-        "SECRET_KEY": "migration-test-secret",
+        "SECRET_KEY": "migration-test-secret-with-32-plus-chars",
         "DISABLE_CREATE_ALL": "true",
         "SCHEDULER_ENABLED": "false",
     })
@@ -92,10 +92,16 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         photo_columns = {row[1] for row in connection.execute("PRAGMA table_info(laudo_fotos)")}
         config_columns = {row[1] for row in connection.execute("PRAGMA table_info(configuracoes)")}
         order_columns = {row[1] for row in connection.execute("PRAGMA table_info(ordens_servico)")}
+        order_part_columns = {row[1] for row in connection.execute("PRAGMA table_info(os_pecas)")}
+        part_columns = {row[1] for row in connection.execute("PRAGMA table_info(pecas)")}
+        service_columns = {row[1] for row in connection.execute("PRAGMA table_info(defeitos_padrao)")}
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert {"organizations", "usuarios", "clientes", "ordens_servico", "laudos_tecnicos", "laudo_fotos", "laudo_templates", "notifications", "retention_policies"} <= tables
     assert "thumbnail_key" in photo_columns
     assert {"subtitulo_empresa", "logo_url", "site_url", "instagram_url", "whatsapp_publico"} <= config_columns
     assert {"os_status_options", "os_priority_options", "attendance_type_options", "entry_checklist_options"} <= config_columns
     assert "tipo_atendimento" in order_columns
-    assert revision == "20260730_0006"
+    assert "link_compra" in order_part_columns
+    assert {"ativo", "deletado_em"} <= part_columns
+    assert {"ativo", "deletado_em"} <= service_columns
+    assert revision == "20260731_0012"

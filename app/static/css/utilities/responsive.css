@@ -9,12 +9,19 @@
    RESPONSIVO — 900px (TABLET/MOBILE)
 ═══════════════════════════════════════ */
 @media (max-width: 900px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
   body { display: block; }
 
   /* Sidebar vira drawer deslizante */
   #sidebar {
     transform: translateX(-100%);
-    width: 280px;
+    width: min(280px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
     position: fixed;
     height: 100%;
     overflow-y: auto;

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
+from app.utils.field_crypto import EncryptedText
 
 STATUS_COLETA = ("agendada", "em_coleta", "concluida", "cancelada")
 
@@ -24,13 +25,13 @@ class ColetaAgendada(db.Model):
     status = db.Column(db.String(20), nullable=False, default="agendada", index=True)
     data_agendada = db.Column(db.DateTime, nullable=True, index=True)
 
-    telefone_contato = db.Column(db.String(20), nullable=True)
+    telefone_contato = db.Column(EncryptedText, nullable=True)
     cep = db.Column(db.String(8), nullable=True)
-    endereco = db.Column(db.String(300), nullable=True)
-    numero_casa = db.Column(db.String(20), nullable=True)
+    endereco = db.Column(EncryptedText, nullable=True)
+    numero_casa = db.Column(EncryptedText, nullable=True)
     cidade = db.Column(db.String(100), nullable=True)
     uf = db.Column(db.String(2), nullable=True)
-    observacoes = db.Column(db.Text, nullable=True)
+    observacoes = db.Column(EncryptedText, nullable=True)
 
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     atualizado_em = db.Column(

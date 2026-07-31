@@ -8,7 +8,7 @@
     <div class="page-title">{{ estoque_heading|default('Estoque de peças') }}</div>
     <div class="page-sub">{{ paginacao.total if paginacao is defined else (pecas|length) }} itens · valor total {{ valor_total | moeda }}</div>
   </div>
-  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('pages.estoque_movimentacoes') }}">Histórico do estoque</a>{% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary" data-action="peca-nova">Cadastrar peça</button>{% endif %}</div>
+  <div class="flex-gap"><a class="btn btn-outline" href="{{ url_for('pages.estoque_movimentacoes') }}">Histórico do estoque</a>{% if nivel_usuario in ('admin', 'operacional') %}<button type="button" class="btn btn-primary" data-action="peca-nova">Cadastrar peça</button>{% endif %}</div>
 </div>
 
 <div class="flow-guide mb20" aria-label="Como usar esta tela">
@@ -96,7 +96,7 @@
     </div>
   </article>
   {% else %}
-  <div class="empty"><div class="empty-title">Nenhuma peça encontrada</div><div class="empty-sub">Limpe os filtros ou cadastre a primeira peça do estoque.</div>{% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary btn-sm" data-action="peca-nova">Cadastrar peça</button>{% endif %}</div>
+  <div class="empty"><div class="empty-title">Nenhuma peça encontrada</div><div class="empty-sub">Limpe os filtros ou cadastre a primeira peça do estoque.</div>{% if nivel_usuario in ('admin', 'operacional') %}<button type="button" class="btn btn-primary btn-sm" data-action="peca-nova">Cadastrar peça</button>{% endif %}</div>
   {% endfor %}
 </div>
 
@@ -161,7 +161,7 @@
           <div class="empty">
             <div class="empty-title">Nenhuma peça encontrada</div>
             <div class="empty-sub">Limpe os filtros ou cadastre a primeira peça do estoque.</div>
-            {% if nivel_usuario in ('admin', 'operacional') %}<button class="btn btn-primary btn-sm" data-action="peca-nova">Cadastrar peça</button>{% endif %}
+            {% if nivel_usuario in ('admin', 'operacional') %}<button type="button" class="btn btn-primary btn-sm" data-action="peca-nova">Cadastrar peça</button>{% endif %}
           </div>
         </td></tr>
         {% endfor %}

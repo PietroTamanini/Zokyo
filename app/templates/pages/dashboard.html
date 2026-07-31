@@ -81,6 +81,16 @@
       <strong>Estoque baixo</strong>
       <small>Comprar peças</small>
     </a>
+    <a href="{{ url_for('pages.coleta') }}" class="zokyo-priority-item {{ 'is-warn' if coletas_abertas else '' }}">
+      <span>{{ coletas_abertas }}</span>
+      <strong>Coletas abertas</strong>
+      <small>Organizar rota</small>
+    </a>
+    <a href="{{ url_for('pages.compras_pecas') }}" class="zokyo-priority-item {{ 'is-warn' if pecas_compra_pendentes else '' }}">
+      <span>{{ pecas_compra_pendentes }}</span>
+      <strong>Peças em OS</strong>
+      <small>Conferir compras</small>
+    </a>
   </div>
 </section>
 

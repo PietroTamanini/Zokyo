@@ -84,7 +84,7 @@ def process_notification(notification_id):
     db.session.commit()
     if item.status == "failed":
         from app.services.operational_alerts import emit_alert
-        emit_alert("critical", "notifications", f"Notificacao #{item.id} falhou apos {item.attempts} tentativas")
+        emit_alert("critical", "notifications", f"Notificação #{item.id} falhou após {item.attempts} tentativas")
     return item
 
 
@@ -101,9 +101,9 @@ def process_pending_notifications(limit=50):
 def retry_notification(notification_id, organization_id):
     item = Notification.query.filter_by(id=notification_id, organization_id=organization_id).first()
     if not item:
-        raise LookupError("Notificacao nao encontrada.")
+        raise LookupError("Notificação não encontrada.")
     if item.status == "sent":
-        raise ValueError("Notificacao ja entregue.")
+        raise ValueError("Notificação já entregue.")
     item.status = "pending"
     item.attempts = 0
     item.next_attempt_at = _now()

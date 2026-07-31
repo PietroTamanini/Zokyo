@@ -189,7 +189,7 @@ const ViaCEP = (() => {
 
     if (logradouroEl) {
       // Se há campo separado de bairro, coloca só logradouro; senão, endereço completo
-      fillField(logradouroEl, bairroEl ? data.logradouro : enderecoCompleto);
+      fillField(logradouroEl, bairroEl ?data.logradouro : enderecoCompleto);
     }
     if (bairroEl)  fillField(bairroEl, data.bairro);
     if (cidadeEl)  fillField(cidadeEl, data.localidade);

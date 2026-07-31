@@ -13,13 +13,13 @@ function setExternalStatus(message, tone = 'blue') {
   const el = document.getElementById('external-status');
   if (!el) return;
   el.textContent = message;
-  el.className = `note-block note-${tone === 'red' ? 'amber' : tone}`;
+  el.className = `note-block note-${tone === 'red' ?'amber' : tone}`;
 }
 
 function printExternalImport(data) {
   const out = document.getElementById('external-output');
   if (!out) return;
-  const compact = data?.schema ? {
+  const compact = data?.schema ?{
     success: data.success,
     dry_run: data.dry_run,
     connection: data.connection,

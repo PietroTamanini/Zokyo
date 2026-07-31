@@ -6,6 +6,7 @@ from app.models import Cliente, Usuario, registrar
 from app.services.billing import assert_limit, assert_write_allowed
 from app.utils.auth import api_login_required as login_required
 from app.utils.auth import nivel_required
+from app.utils.blind_index import blind_index
 from app.utils.request_data import get_request_data
 from app.utils.sanitizers import (
     sanitize_cep,
@@ -46,17 +47,17 @@ def _documento_from_data(data: dict) -> tuple[str | None, str | None, str | None
 
 def _duplicidade_documento(cpf: str | None, cnpj: str | None, cliente_id: int | None = None):
     if cpf:
-        q = Cliente.query.filter_by(cpf=cpf)
+        q = Cliente.query.filter_by(cpf_bidx=blind_index(cpf, "cpf"))
         if cliente_id:
             q = q.filter(Cliente.id != cliente_id)
         if q.first():
-            return "cpf_cnpj", "CPF ja cadastrado para outro cliente."
+            return "cpf_cnpj", "CPF já cadastrado para outro cliente."
     if cnpj:
-        q = Cliente.query.filter_by(cnpj=cnpj)
+        q = Cliente.query.filter_by(cnpj_bidx=blind_index(cnpj, "cnpj"))
         if cliente_id:
             q = q.filter(Cliente.id != cliente_id)
         if q.first():
-            return "cpf_cnpj", "CNPJ ja cadastrado para outro cliente."
+            return "cpf_cnpj", "CNPJ já cadastrado para outro cliente."
     return None, None
 
 

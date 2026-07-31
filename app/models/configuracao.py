@@ -31,6 +31,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.extensions import db
+from app.utils.field_crypto import EncryptedText
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +214,7 @@ class Configuracao(db.Model):
     cnpj            = db.Column(db.String(18))
     telefone        = db.Column(db.String(20))
     email           = db.Column(db.String(120))
-    endereco        = db.Column(db.String(300))
+    endereco        = db.Column(EncryptedText)
     cidade          = db.Column(db.String(100), default="Joinville")
     uf              = db.Column(db.String(2), default="SC")
     subtitulo_empresa = db.Column(db.String(160), default="Assistência técnica e manutenção")
@@ -225,8 +226,8 @@ class Configuracao(db.Model):
     accent_color    = db.Column(db.String(7), default="#6366f1")
 
     dias_vencimento       = db.Column(db.Integer, default=30)
-    dados_pagamento       = db.Column(db.Text)
-    pix_chave             = db.Column(db.String(200))
+    dados_pagamento       = db.Column(EncryptedText)
+    pix_chave             = db.Column(EncryptedText)
 
     meta_receita_mensal   = db.Column(db.Float, default=0)
     alerta_caixa_minimo   = db.Column(db.Float, default=500)

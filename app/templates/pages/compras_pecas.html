@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Compras de peças - Zokyo{% endblock %}
+{% block breadcrumb %}Compras de peças{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.estoque') }}" class="btn btn-ghost btn-sm">Estoque</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Compras de peças</div>
+    <div class="page-sub">Peças vinculadas em OS, links de compra e sugestões por estoque baixo.</div>
+  </div>
+</div>
+
+<div class="card mb20">
+  <div class="card-header"><div class="card-title">Peças pendentes em OS</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>OS</th><th>Cliente</th><th>Peça</th><th>Qtd OS</th><th>Estoque</th><th>Status</th><th>Compra</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="td-strong"><a href="{{ url_for('pages.os_detalhe', id=row.os_id) }}">#{{ '%04d'|format(row.os_numero or row.os_id) }}</a></td>
+          <td>{{ row.cliente_nome }}</td>
+          <td>{{ row.peca_nome }}{% if row.peca_codigo %} <span class="muted-xs">{{ row.peca_codigo }}</span>{% endif %}</td>
+          <td class="td-mono">{{ row.quantidade }}</td>
+          <td class="td-mono {{ 'txt-red' if row.estoque <= row.estoque_minimo else '' }}">{{ row.estoque }}</td>
+          <td>{{ status_map.get(row.os_status, row.os_status) }}</td>
+          <td>{% if row.link_compra %}<a class="btn btn-ghost btn-xs" href="{{ row.link_compra }}" target="_blank" rel="noopener noreferrer">Abrir</a>{% else %}<span class="txt-faint">Sem link</span>{% endif %}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="td-empty">Nenhuma peça vinculada em OS aberta.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><div class="card-title">Sugestões por estoque baixo</div></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Peça</th><th>Código</th><th>Atual</th><th>Mínimo</th><th>Sugerido</th></tr></thead>
+      <tbody>
+        {% for p in suggestions %}
+        <tr>
+          <td class="td-strong">{{ p.nome }}</td>
+          <td>{{ p.codigo or '-' }}</td>
+          <td class="td-mono txt-red">{{ p.quantidade }}</td>
+          <td class="td-mono">{{ p.estoque_minimo }}</td>
+          <td class="td-mono">{{ [p.estoque_minimo - p.quantidade, 1]|max }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="td-empty">Estoque sem alertas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

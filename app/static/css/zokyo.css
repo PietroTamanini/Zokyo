@@ -71,6 +71,10 @@ textarea {
   align-items: center;
   gap: 4px;
   min-width: 0;
+  max-width: min(42vw, 360px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .breadcrumb a,
 .topbar-shortcuts a,
@@ -235,6 +239,10 @@ textarea {
 .topbar-user strong {
   color: var(--text);
   font-size: 13px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .topbar-greeting {
   white-space: nowrap;
@@ -700,8 +708,8 @@ td {
 }
 
 .card-header.card-header-gradient {
-  background: linear-gradient(180deg, var(--blue), var(--blue-dk));
-  border-bottom-color: color-mix(in srgb, var(--blue-dk) 70%, #000);
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+  border-bottom-color: #1e40af;
 }
 
 .card-header.card-header-gradient .card-title,
@@ -715,4 +723,23 @@ td {
 
 .zokyo-stat-buttons a:focus:not(:focus-visible) {
   outline: 0;
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    gap: 8px;
+  }
+
+  .topbar-shortcuts {
+    display: none;
+  }
+
+  .breadcrumb {
+    max-width: 34vw;
+    font-size: 11px;
+  }
+
+  .topbar-user strong {
+    max-width: 116px;
+  }
 }

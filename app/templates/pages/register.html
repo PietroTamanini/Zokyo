@@ -113,7 +113,7 @@
   function checar() {
     const ok = s1.value === s2.value || s2.value === '';
     erro.classList.toggle('show', !ok);
-    s2.setCustomValidity(ok ? '' : 'As senhas não coincidem.');
+    s2.setCustomValidity(ok ?'' : 'As senhas não coincidem.');
   }
 
   s1.addEventListener('input', checar);

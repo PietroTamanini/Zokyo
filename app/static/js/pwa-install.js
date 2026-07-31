@@ -62,7 +62,7 @@
     if (primary) primary.textContent = 'Entendi';
     if (text) {
       text.textContent = isMobile
-        ? 'Instale no celular para abrir direto pela tela inicial.'
+        ?'Instale no celular para abrir direto pela tela inicial.'
         : 'Instale no PC para abrir em uma janela própria, sem depender da aba do navegador.';
     }
     if (help) {
@@ -80,7 +80,7 @@
     if (primary) primary.textContent = 'Instalar agora';
     if (text) {
       text.textContent = isMobile
-        ? 'Instale no celular para abrir direto pela tela inicial.'
+        ?'Instale no celular para abrir direto pela tela inicial.'
         : 'Instale no PC para abrir em uma janela própria, sem depender da aba do navegador.';
     }
     if (help) {

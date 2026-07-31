@@ -6,12 +6,12 @@ Segurança:
   - LIKE injection: escapa %, _
   - quantidade e custo não podem ser negativos
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, session
 
 from app.extensions import db
-from app.models import Fornecedor, InventoryLot, Peca, registrar
+from app.models import Fornecedor, InventoryLot, InventoryMovement, Peca, registrar
 from app.services.inventory import receive_lot, record_movement
 from app.utils.auth import api_login_required as login_required
 from app.utils.auth import nivel_required
@@ -34,7 +34,7 @@ def _escape_like(q: str) -> str:
 def listar():
     q             = sanitize_search_query(request.args.get("q", ""), max_length=100)
     baixo_estoque = request.args.get("baixo_estoque", type=int)
-    query         = Peca.query
+    query         = Peca.query.filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None))
     if q:
         qe = _escape_like(q)
         query = query.filter(Peca.nome.ilike(f"%{qe}%"))
@@ -48,7 +48,12 @@ def listar():
 @pecas_bp.route("/api/v1/pecas/<int:id>", methods=["GET"])
 @login_required
 def obter(id):
-    return jsonify(Peca.query.filter_by(id=id).first_or_404().to_dict())
+    return jsonify(
+        Peca.query.filter_by(id=id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .first_or_404()
+        .to_dict()
+    )
 
 
 @pecas_bp.route("/api/pecas", methods=["POST"])
@@ -107,7 +112,11 @@ def criar():
 @pecas_bp.route("/api/v1/pecas/<int:id>", methods=["PUT"])
 @nivel_required("admin", "operacional")
 def atualizar(id):
-    peca = Peca.query.filter_by(id=id).first_or_404()
+    peca = (
+        Peca.query.filter_by(id=id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .first_or_404()
+    )
     data = request.get_json(silent=True) or {}
 
     if "nome" in data:
@@ -153,6 +162,12 @@ def atualizar(id):
 @nivel_required("admin")
 def deletar(id):
     peca = Peca.query.filter_by(id=id).first_or_404()
+    if peca.ordens or InventoryMovement.query.filter_by(part_id=peca.id).first():
+        peca.ativo = False
+        peca.deletado_em = datetime.now(timezone.utc).replace(tzinfo=None)
+        registrar("arquivamento", "estoque", f"Peca arquivada: {peca.nome}")
+        db.session.commit()
+        return jsonify({"success": True, "mensagem": "Peca removida da lista; historico preservado"})
     if peca.ordens:
         return jsonify({"success": False, "erro": "Peça usada em OS deve ser preservada"}), 409
     db.session.delete(peca)
@@ -163,7 +178,11 @@ def deletar(id):
 @pecas_bp.route("/api/pecas/<int:id>/ajuste-estoque", methods=["POST"])
 @nivel_required("admin", "operacional")
 def ajuste_estoque(id):
-    peca = Peca.query.filter_by(id=id).first_or_404()
+    peca = (
+        Peca.query.filter_by(id=id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .first_or_404()
+    )
     data = request.get_json(silent=True) or {}
     try:
         delta = int(data.get("delta", 0))
@@ -190,7 +209,7 @@ def ajuste_estoque(id):
 @pecas_bp.route("/api/pecas/<int:id>/lotes", methods=["GET"])
 @login_required
 def listar_lotes(id):
-    Peca.query.filter_by(id=id).first_or_404()
+    Peca.query.filter_by(id=id, ativo=True).filter(Peca.deletado_em.is_(None)).first_or_404()
     lots = InventoryLot.query.filter_by(part_id=id).order_by(
         InventoryLot.expires_at.is_(None), InventoryLot.expires_at, InventoryLot.received_at,
     ).all()
@@ -200,7 +219,12 @@ def listar_lotes(id):
 @pecas_bp.route("/api/pecas/<int:id>/lotes", methods=["POST"])
 @nivel_required("admin", "operacional")
 def receber_lote(id):
-    part = Peca.query.filter_by(id=id).with_for_update().first_or_404()
+    part = (
+        Peca.query.filter_by(id=id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .with_for_update()
+        .first_or_404()
+    )
     data = request.get_json(silent=True) or {}
     code = sanitize_text(data.get("codigo", ""), max_length=100)
     reason = sanitize_text(data.get("justificativa", ""), max_length=300)

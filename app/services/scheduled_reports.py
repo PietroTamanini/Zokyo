@@ -42,12 +42,12 @@ def process_scheduled_reports(limit=50):
             ).execution_options(**options)
         ).scalar_one()
         body = (
-            f"Relatorio: {report.name}\n\nOrdens: {orders}\n"
+            f"Relatório: {report.name}\n\nOrdens: {orders}\n"
             f"Receitas pagas: R$ {float(revenues):.2f}\nDespesas pagas: R$ {float(expenses):.2f}\n"
             f"Saldo: R$ {float(revenues - expenses):.2f}\n"
         )
         enqueue_email(
-            report.organization_id, report.recipient, f"Relatorio agendado - {report.name}", body,
+            report.organization_id, report.recipient, f"Relatório agendado - {report.name}", body,
             "scheduled_report", f"scheduled-report-{report.id}-{now.date().isoformat()}",
         )
         report.last_run_at = now

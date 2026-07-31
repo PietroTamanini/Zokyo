@@ -152,7 +152,7 @@ def test_billing_cobre_eventos_invalidos_plano_cancelamento_e_limites(monkeypatc
         with pytest.raises(ValueError, match="organization_id"):
             billing.process_sandbox_event(bad_org, _sign(bad_org, secret))
         missing = json.dumps({"event_id": "evt-missing", "type": "subscription.activated", "organization_id": 999}).encode()
-        with pytest.raises(ValueError, match="organizacao"):
+        with pytest.raises(ValueError, match="organização"):
             billing.process_sandbox_event(missing, _sign(missing, secret))
 
         changed = json.dumps({"event_id": "evt-plan", "type": "subscription.plan_changed", "organization_id": 1, "plan_code": "pro"}).encode()
@@ -283,7 +283,7 @@ def test_inventory_lotes_reservas_consumo_e_cancelamento():
         assert part.quantidade == 15
         assert float(part.custo) == 23.33
         assert InventoryLot.query.count() == 1
-        with pytest.raises(ValueError, match="ja cadastrado"):
+        with pytest.raises(ValueError, match="já cadastrado"):
             inventory.receive_lot(part, ctx["user_id"], "L1", 1, 1, "entrada repetida")
 
         with pytest.raises(ValueError, match="maior que zero"):
@@ -404,13 +404,20 @@ def test_portal_privacy_finance_retention_e_modelos_de_borda():
         order.pecas.append(db.session.get(Peca, ctx["part_id"]))
         db.session.flush()
         db.session.execute(
-            os_pecas.update().values(quantidade=2, valor_unitario=Decimal("25.00")).where(os_pecas.c.os_id == order.id)
+            os_pecas.update()
+            .values(
+                quantidade=2,
+                valor_unitario=Decimal("25.00"),
+                link_compra="https://fornecedor.example/peca",
+            )
+            .where(os_pecas.c.os_id == order.id)
         )
         db.session.flush()
         order_dict = order.to_dict()
         assert order.valor_total == 140.0
         assert order.em_garantia is True
         assert order_dict["pecas"][0]["subtotal"] == 50.0
+        assert order_dict["pecas"][0]["link_compra"] == "https://fornecedor.example/peca"
         order.data_saida = None
         assert order.em_garantia is False
 
@@ -447,7 +454,7 @@ def test_portal_privacy_finance_retention_e_modelos_de_borda():
         db.session.commit()
         token = portal.buscar_token_portal(raw)
         assert token is not None
-        with pytest.raises(ValueError, match="nao permite"):
+        with pytest.raises(ValueError, match="não permite"):
             portal.decidir_orcamento(token, "approved")
         assert 80 <= (token.expira_em - datetime.now(timezone.utc).replace(tzinfo=None)).days <= 90
         assert portal.buscar_token_portal("") is None

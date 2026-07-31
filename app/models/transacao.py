@@ -7,6 +7,10 @@ STATUS_TRANSACAO     = ("pendente","pago","cancelado")
 CATEGORIAS_TRANSACAO = ("servico","peca","aluguel","salario","fornecedor","imposto","outros")
 class Transacao(db.Model):
     __tablename__ = "transacoes"
+    __table_args__ = (
+        db.Index("ix_transacoes_status_tipo_criado", "status", "tipo", "criado_em"),
+        db.Index("ix_transacoes_descricao", "descricao"),
+    )
     id              = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     os_id           = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"))

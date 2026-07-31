@@ -179,7 +179,20 @@ def test_os_api_cobre_criacao_atualizacao_checklist_pdf_whatsapp_e_assinatura(mo
     reservation = _json(browser, "POST", f"/api/os/{ids['order']}/reservas", {"peca_id": ids["part"], "quantidade": 2})
     assert reservation.status_code == 201
     reservation_id = reservation.get_json()["id"]
-    assert _json(browser, "POST", f"/api/os/{ids['order']}/pecas", {"peca_id": ids["part"], "quantidade": 2, "valor_unitario": 80}).status_code == 200
+    adicionada = _json(browser, "POST", f"/api/os/{ids['order']}/pecas", {
+        "peca_id": ids["part"],
+        "quantidade": 2,
+        "valor_unitario": 80,
+        "link_compra": "https://fornecedor.example/tela",
+    })
+    assert adicionada.status_code == 200
+    assert adicionada.get_json()["pecas"][0]["link_compra"] == "https://fornecedor.example/tela"
+    assert _json(browser, "POST", f"/api/os/{ids['order']}/pecas", {
+        "peca_id": ids["part"],
+        "quantidade": 2,
+        "valor_unitario": 80,
+        "link_compra": "javascript:alert(1)",
+    }).status_code == 400
     assert _json(browser, "POST", f"/api/os/{ids['order']}/pecas", {"peca_id": ids["part"], "quantidade": 1, "valor_unitario": 70}).status_code == 200
     with app.app_context():
         part = db.session.get(Peca, ids["part"])

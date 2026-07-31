@@ -157,3 +157,32 @@ def test_api_client_usa_token_portal_e_isola_cliente():
     })
     assert created.status_code == 201
     assert created.json["result"]["equipamento"] == "Tablet"
+
+
+def test_api_publica_consulta_os_por_numero_e_documento_sem_vazar_dados():
+    app = make_app()
+    _user_id, os_id = seed(app)
+    with app.app_context():
+        service_order = db.session.get(OrdemServico, os_id)
+        service_order.numero = 2668
+        service_order.cliente.cpf = "12345678909"
+        db.session.commit()
+
+    client = app.test_client()
+    response = client.post(
+        "/api/public/os-consulta",
+        json={"numero": "2668", "documento": "123.456.789-09"},
+        headers={"Origin": "https://djtechinfo.com.br"},
+    )
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == "https://djtechinfo.com.br"
+    assert response.json["status"] is True
+    assert response.json["result"]["numero"] == "2668"
+    assert response.json["result"]["cliente"] == "Cliente"
+    assert response.json["result"]["equipamento"] == "Notebook Dell XPS"
+    assert "SERIE-SECRETA" not in response.get_data(as_text=True)
+    assert "DIAGNOSTICO INTERNO" not in response.get_data(as_text=True)
+
+    wrong = client.post("/api/public/os-consulta", json={"numero": "2668", "documento": "000.000.000-00"})
+    assert wrong.status_code == 404
+    assert wrong.json["message"] == "OS não encontrada com os dados informados."

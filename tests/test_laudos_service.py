@@ -107,7 +107,7 @@ def test_edita_rascunho_e_bloqueia_finalizado():
         try:
             atualizar_laudo(laudo, {"conclusao_tecnica": "Alteracao indevida"}, usuario)
         except ValueError as exc:
-            assert "nao podem ser editados" in str(exc)
+            assert "não podem ser editados" in str(exc)
         else:
             raise AssertionError("Laudo finalizado aceitou edicao")
 
@@ -301,7 +301,7 @@ def test_upload_foto_rejeita_mime_falso():
                 usuario,
             )
         except ValueError as exc:
-            assert "imagem valida" in str(exc)
+            assert "imagem válida" in str(exc)
         else:
             raise AssertionError("Upload falso foi aceito")
 
@@ -681,11 +681,11 @@ def test_permissoes_snapshots_e_criacao_cobrem_erros_de_negocio():
         assert snapshot_cliente(None) == {}
         assert snapshot_equipamento(None) == {}
 
-        with pytest.raises(ValueError, match="Ordem de servico nao encontrada"):
+        with pytest.raises(ValueError, match="Ordem de serviço não encontrada"):
             criar_rascunho(999999, usuario)
-        with pytest.raises(ValueError, match="Ordem de servico nao encontrada"):
+        with pytest.raises(ValueError, match="Ordem de serviço não encontrada"):
             criar_rascunho(os_obj.id, intruso)
-        with pytest.raises(ValueError, match="Template de laudo nao encontrado"):
+        with pytest.raises(ValueError, match="Template de laudo não encontrado"):
             criar_rascunho(os_obj.id, usuario, template_id=999999)
 
 
@@ -707,11 +707,11 @@ def test_validacao_de_imagem_cobre_ausente_import_formato_e_dimensoes(monkeypatc
             return original_import(name, *args, **kwargs)
 
         monkeypatch.setattr("builtins.__import__", import_sem_pillow)
-        with pytest.raises(ValueError, match="Pillow nao esta instalado"):
+        with pytest.raises(ValueError, match="Pillow não está instalado"):
             validar_imagem_upload(FileStorage(stream=png_preparado, filename="foto.png", content_type="image/png"))
         monkeypatch.setattr("builtins.__import__", original_import)
 
-        with pytest.raises(ValueError, match="Formato de imagem nao permitido"):
+        with pytest.raises(ValueError, match="Formato de imagem não permitido"):
             validar_imagem_upload(FileStorage(stream=_image_file("GIF"), filename="foto.gif", content_type="image/gif"))
 
         from PIL import Image
@@ -742,7 +742,7 @@ def test_fotos_orfaos_reordenacao_e_pdf_com_imagens(monkeypatch):
 
             remover_foto(primeira, usuario)
         laudo.status = "draft"
-        with pytest.raises(ValueError, match="invalida ou incompleta"):
+        with pytest.raises(ValueError, match="inválida ou incompleta"):
             reordenar_fotos(laudo, [primeira.id], usuario)
 
         pdf = gerar_pdf_laudo(laudo)
@@ -816,7 +816,7 @@ def test_guardas_de_foto_pdf_finalizacao_e_cancelamento(monkeypatch):
             "app.services.laudos.gerar_numero_laudo",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(IntegrityError("stmt", "params", "orig")),
         )
-        with pytest.raises(ValueError, match="Falha ao reservar numero"):
+        with pytest.raises(ValueError, match="Falha ao reservar número"):
             finalizar_laudo(laudo, usuario)
         db.session.rollback()
 

@@ -88,7 +88,7 @@
     </a>
     <div class="os-mobile-actions" data-stop>
       <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs">Editar</a>
-      <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank">PDF</a>
+      <a href="{{ url_for('pages.os_print', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener">Imprimir</a>
       {% if tel %}<a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener noreferrer">WhatsApp</a>{% endif %}
       {% if baixadas %}
       <form method="post" action="{{ url_for('pages.os_restaurar', id=os.id) }}" class="inline-form">
@@ -157,7 +157,7 @@
           <td data-stop>
             <div class="action-row">
               <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-ghost btn-xs" aria-label="Editar OS">Editar</a>
-              <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank" aria-label="Abrir PDF">PDF</a>
+              <a href="{{ url_for('pages.os_print', id=os.id) }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener" aria-label="Imprimir OS">Imprimir</a>
               {% if tel %}
               <a href="https://wa.me/55{{ tel }}?text={{ msg_wpp }}" class="btn btn-ghost btn-xs" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp">WhatsApp</a>
               {% endif %}

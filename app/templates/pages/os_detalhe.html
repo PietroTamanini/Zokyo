@@ -11,8 +11,8 @@
     <div class="page-sub">{{ os.tipo_aparelho }} {{ os.marca }} {{ os.modelo }} · {{ os.cliente.nome if os.cliente else '—' }}</div>
   </div>
   <div class="flex-gap">
-    <a href="{{ url_for('pages.os_pdf', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank">PDF</a>
-    <button id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">WhatsApp</button>
+    <a href="{{ url_for('pages.os_print', id=os.id) }}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Imprimir</a>
+    <button type="button" id="btn-whatsapp" class="btn btn-ghost btn-sm" data-action="os-whatsapp">WhatsApp</button>
     {% if os.baixada %}
     <form method="post" action="{{ url_for('pages.os_restaurar', id=os.id) }}" class="inline-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -22,6 +22,12 @@
     <form method="post" action="{{ url_for('pages.os_baixar', id=os.id) }}" class="inline-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-ghost btn-sm">Arquivar OS</button>
+    </form>
+    {% endif %}
+    {% if os.em_garantia and nivel_usuario in ('admin', 'operacional') %}
+    <form method="post" action="{{ url_for('pages.os_retorno_garantia', id=os.id) }}" class="inline-form" data-confirm="Criar retorno de garantia para esta OS?">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline btn-sm">Retorno garantia</button>
     </form>
     {% endif %}
     <a href="{{ url_for('pages.os_editar', id=os.id) }}" class="btn btn-primary btn-sm">Editar OS</a>
@@ -127,7 +133,7 @@
       <div class="card-body">
         <div class="photo-grid">
           {% for foto in os.fotos %}
-          <a href="{{ url_for('pages.os_foto', foto_id=foto.id) }}" target="_blank" class="photo-thumb">
+          <a href="{{ url_for('pages.os_foto', foto_id=foto.id) }}" target="_blank" rel="noopener noreferrer" class="photo-thumb">
             <img src="{{ url_for('pages.os_foto', foto_id=foto.id) }}" alt="{{ foto.original_filename or 'Foto da OS' }}">
           </a>
           {% endfor %}
@@ -140,11 +146,13 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Peças Utilizadas</div>
-        <button class="btn btn-ghost btn-sm" data-action="os-peca-adicionar">Adicionar</button>
+        {% if nivel_usuario in ('admin', 'operacional') %}
+        <button type="button" class="btn btn-ghost btn-sm" data-action="os-peca-adicionar">Adicionar</button>
+        {% endif %}
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Peça</th><th>Qtd</th><th>Vlr Unit.</th><th class="txt-r">Subtotal</th><th></th></tr></thead>
+          <thead><tr><th>Peça</th><th>Qtd</th><th>Vlr Unit.</th>{% if nivel_usuario in ('admin', 'operacional') %}<th>Compra</th>{% endif %}<th class="txt-r">Subtotal</th>{% if nivel_usuario in ('admin', 'operacional') %}<th></th>{% endif %}</tr></thead>
           <tbody>
             {% if pecas_dict %}
               {% for p in pecas_dict %}
@@ -152,22 +160,27 @@
                 <td class="td-strong">{{ p.nome }}</td>
                 <td class="td-mono">{{ p.quantidade }}</td>
                 <td class="td-mono">{{ p.valor_unitario | moeda }}</td>
+                {% if nivel_usuario in ('admin', 'operacional') %}
+                <td>{% if p.link_compra %}<a class="btn btn-ghost btn-xs" href="{{ p.link_compra }}" target="_blank" rel="noopener noreferrer">Abrir link</a>{% else %}<span class="txt-faint">-</span>{% endif %}</td>
+                {% endif %}
                 <td class="td-mono txt-blue txt-r">{{ p.subtotal | moeda }}</td>
+                {% if nivel_usuario in ('admin', 'operacional') %}
                 <td data-stop>
-                  <button class="btn btn-ghost btn-xs danger-text"
+                  <button type="button" class="btn btn-ghost btn-xs danger-text"
                           data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">Remover</button>
                 </td>
+                {% endif %}
               </tr>
               {% endfor %}
             {% else %}
-              <tr><td colspan="5" class="td-empty">Nenhuma peça registrada</td></tr>
+              <tr><td colspan="{{ 6 if nivel_usuario in ('admin', 'operacional') else 4 }}" class="td-empty">Nenhuma peça registrada</td></tr>
             {% endif %}
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="3" class="table-total-label">TOTAL PEÇAS</td>
+              <td colspan="{{ 4 if nivel_usuario in ('admin', 'operacional') else 3 }}" class="table-total-label">TOTAL PEÇAS</td>
               <td class="td-mono txt-r fw7 table-total-value">{{ os.valor_pecas | moeda }}</td>
-              <td></td>
+              {% if nivel_usuario in ('admin', 'operacional') %}<td></td>{% endif %}
             </tr>
           </tfoot>
         </table>
@@ -179,7 +192,7 @@
       <div class="card-header"><div class="card-title">Checklist técnico</div></div>
       <div class="card-body">
         {% for item in os.checklist_snapshot %}<label class="check-inline mb8"><input type="checkbox" data-checklist-item="{{ item|e }}" {{ 'checked' if os.checklist_answers and os.checklist_answers.get(item) is sameas true }}> {{ item }}</label>{% endfor %}
-        <div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-checklist-salvar">Salvar checklist</button></div>
+        <div class="form-actions"><button type="button" class="btn btn-primary btn-sm" data-action="os-checklist-salvar">Salvar checklist</button></div>
       </div>
     </div>
     {% endif %}
@@ -188,7 +201,7 @@
       <div class="card-header"><div class="card-title">Termo de autorização</div></div>
       <div class="card-body">
         {% if os.authorization_accepted_at %}<div class="alert a-green">Aceito por {{ os.authorization_accepted_by }} em {{ os.authorization_accepted_at|fmtdata }}.</div>
-        {% else %}<div class="form-group"><label>Responsável pelo aceite</label><input id="authorization-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><label class="check-inline"><input id="authorization-accepted" type="checkbox"> Autorizo diagnóstico e reparo conforme o orçamento aprovado.</label><div class="form-actions"><button class="btn btn-primary btn-sm" data-action="os-autorizacao-salvar">Registrar aceite</button></div>{% endif %}
+        {% else %}<div class="form-group"><label>Responsável pelo aceite</label><input id="authorization-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><label class="check-inline"><input id="authorization-accepted" type="checkbox"> Autorizo diagnóstico e reparo conforme o orçamento aprovado.</label><div class="form-actions"><button type="button" class="btn btn-primary btn-sm" data-action="os-autorizacao-salvar">Registrar aceite</button></div>{% endif %}
       </div>
     </div>
 
@@ -197,7 +210,7 @@
       <div class="card-body">
         {% set active_signature = os.signatures|selectattr('revoked_at', 'none')|list|first %}
         {% if active_signature %}<img class="signature-preview" src="{{ url_for('os.baixar_assinatura', id=os.id) }}" alt="Assinatura de {{ active_signature.signer_name }}"><div class="muted-sm">{{ active_signature.signer_name }} - {{ active_signature.created_at|fmtdata }} - SHA-256 {{ active_signature.sha256[:12] }}...</div>
-        {% else %}<div class="form-group"><label>Nome de quem assina</label><input id="signature-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><canvas id="signature-canvas" class="signature-canvas" width="600" height="180" aria-label="Área para assinatura"></canvas><div class="form-actions"><button class="btn btn-ghost btn-sm" data-action="os-assinatura-limpar">Limpar</button><button class="btn btn-primary btn-sm" data-action="os-assinatura-salvar">Registrar assinatura</button></div>{% endif %}
+        {% else %}<div class="form-group"><label>Nome de quem assina</label><input id="signature-name" maxlength="120" value="{{ os.cliente.nome if os.cliente else '' }}"></div><canvas id="signature-canvas" class="signature-canvas" width="600" height="180" aria-label="Área para assinatura"></canvas><div class="form-actions"><button type="button" class="btn btn-ghost btn-sm" data-action="os-assinatura-limpar">Limpar</button><button type="button" class="btn btn-primary btn-sm" data-action="os-assinatura-salvar">Registrar assinatura</button></div>{% endif %}
       </div>
     </div>
 
@@ -264,7 +277,7 @@
         <div class="d-row"><div class="d-label">Mão de obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
         <div class="d-row"><div class="d-label">Peças</div><div class="d-value txt-r">{{ os.valor_pecas | moeda }}</div></div>
         {% if os.desconto and os.desconto > 0 %}
-        <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">− {{ os.desconto | moeda }}</div></div>
+        <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">âˆ’ {{ os.desconto | moeda }}</div></div>
         {% endif %}
         <div class="d-row"><div class="d-label">Pago</div><div class="d-value txt-r txt-green">{{ valor_pago | moeda }}</div></div>
         <div class="d-row"><div class="d-label">Restante</div><div class="d-value txt-r {{ 'txt-green' if valor_restante <= 0 else 'txt-red' }}">{{ valor_restante | moeda }}</div></div>
@@ -412,9 +425,13 @@ function abrirModalAdicionarPeca() {
       <div class="form-group"><label>Quantidade</label><input type="number" id="ap-qtd" min="1" value="1"></div>
       <div class="form-group"><label>Valor Unit. (R$)</label><input type="number" id="ap-vlr" step="0.01" min="0" value="0.00"></div>
     </div>
+    <div class="form-group">
+      <label>Link de compra da peça</label>
+      <input type="url" id="ap-link" maxlength="1000" placeholder="https://...">
+    </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" data-action="close-modal">Cancelar</button>
-      <button class="btn btn-primary" data-action="os-peca-confirmar">Adicionar</button>
+      <button type="button" class="btn btn-ghost" data-action="close-modal">Cancelar</button>
+      <button type="button" class="btn btn-primary" data-action="os-peca-confirmar">Adicionar</button>
     </div>`);
 }
 function autoPreco() {
@@ -427,8 +444,9 @@ async function confirmarAdicionarPeca() {
   const pid = parseInt(document.getElementById('ap-id')?.value);
   const qtd = parseInt(document.getElementById('ap-qtd')?.value || 1);
   const vlr = parseFloat(document.getElementById('ap-vlr')?.value || 0);
+  const link = document.getElementById('ap-link')?.value?.trim() || '';
   if (!pid) { showToast('Selecione uma peça','amber'); return; }
-  const r = await apiFetch('POST', `/api/os/{{ os.id }}/pecas`, {peca_id:pid, quantidade:qtd, valor_unitario:vlr});
+  const r = await apiFetch('POST', `/api/os/{{ os.id }}/pecas`, {peca_id:pid, quantidade:qtd, valor_unitario:vlr, link_compra:link});
   if (r) { closeModal(); location.reload(); }
 }
 async function removerPeca(osId, pecaId) {

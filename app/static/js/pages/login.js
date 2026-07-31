@@ -7,8 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   toggle?.addEventListener('click', () => {
     const visible = password.type === 'text';
-    password.type = visible ? 'password' : 'text';
-    toggle.textContent = visible ? 'Mostrar' : 'Ocultar';
+    password.type = visible ?'password' : 'text';
+    toggle.textContent = visible ?'Mostrar' : 'Ocultar';
     toggle.setAttribute('aria-pressed', String(!visible));
     password.focus();
   });

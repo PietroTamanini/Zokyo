@@ -11,12 +11,12 @@ function escapeHtml(value) {
 
 function formatarCpfCnpj(valor) {
   const d = soDigitos(valor || '').slice(0, 14);
-  return d.length > 11 ? formatarCNPJ(d) : formatarCPF(d);
+  return d.length > 11 ?formatarCNPJ(d) : formatarCPF(d);
 }
 
 function clienteFormHtml(c = null) {
   const isEdit = Boolean(c?.id);
-  const doc = c ? (c.cpf_cnpj_raw || c.cpf || c.cnpj || '') : '';
+  const doc = c ?(c.cpf_cnpj_raw || c.cpf || c.cnpj || '') : '';
   return `
     <form id="cliente-form" data-validate>
       <div class="form-row fr2">
@@ -36,13 +36,13 @@ function clienteFormHtml(c = null) {
       <div class="form-row fr2">
         <div class="form-group">
           <label>Telefone</label>
-          <input type="text" name="telefone" value="${escapeHtml(c?.telefone ? formatarTelefone(c.telefone) : '')}"
+          <input type="text" name="telefone" value="${escapeHtml(c?.telefone ?formatarTelefone(c.telefone) : '')}"
                  class="mask-phone validate-phone" data-label="Telefone"
                  placeholder="(00) 00000-0000">
         </div>
         <div class="form-group">
           <label>CEP</label>
-          <input type="text" name="cep" value="${escapeHtml(c?.cep ? formatarCEP(c.cep) : '')}"
+          <input type="text" name="cep" value="${escapeHtml(c?.cep ?formatarCEP(c.cep) : '')}"
                  class="mask-cep validate-cep" data-label="CEP"
                  data-viacep
                  data-fill-logradouro="[name=endereco]"
@@ -73,12 +73,12 @@ function clienteFormHtml(c = null) {
           <input type="text" name="uf" value="${escapeHtml(c?.uf)}" maxlength="2" placeholder="SC">
         </div>
       </div>
-      ${isEdit ? `
+      ${isEdit ?`
       <div class="form-group">
         <label>Status</label>
         <select name="ativo">
-          <option value="1" ${c.ativo ? 'selected' : ''}>Ativo</option>
-          <option value="0" ${!c.ativo ? 'selected' : ''}>Inativo</option>
+          <option value="1" ${c.ativo ?'selected' : ''}>Ativo</option>
+          <option value="0" ${!c.ativo ?'selected' : ''}>Inativo</option>
         </select>
       </div>` : ''}
       <div class="modal-actions">
@@ -129,7 +129,7 @@ function formPayload(form) {
     numero_casa: form.elements.numero_casa?.value || '',
     cidade: form.elements.cidade?.value || '',
     uf: form.elements.uf?.value || '',
-    ativo: form.elements.ativo ? form.elements.ativo.value === '1' : true,
+    ativo: form.elements.ativo ?form.elements.ativo.value === '1' : true,
     _csrf_token: CSRF,
   };
 }
@@ -140,7 +140,7 @@ function clearFieldErrors(form) {
 }
 
 function showFieldError(form, field, message) {
-  const name = field === 'documento' || field === 'cpf' || field === 'cnpj' ? 'cpf_cnpj' : field;
+  const name = field === 'documento' || field === 'cpf' || field === 'cnpj' ?'cpf_cnpj' : field;
   const input = form.elements[name] || form.elements.nome;
   if (!input) {
     showToast(message || 'Erro no formulario.', 'red');
@@ -165,9 +165,9 @@ async function salvarCliente(id = null) {
   if (window.DJValidators && !DJValidators.validate(form)) return;
 
   const payload = formPayload(form);
-  const result = await apiCall(id ? 'PUT' : 'POST', id ? `/api/clientes/${id}` : '/api/clientes', payload);
+  const result = await apiCall(id ?'PUT' : 'POST', id ?`/api/clientes/${id}` : '/api/clientes', payload);
   if (result.ok && result.data?.success !== false) {
-    showToast(id ? 'Cliente atualizado.' : 'Cliente salvo.', 'green');
+    showToast(id ?'Cliente atualizado.' : 'Cliente salvo.', 'green');
     window.location.reload();
     return;
   }

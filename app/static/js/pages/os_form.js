@@ -1,11 +1,14 @@
 const dropdown = document.getElementById('cliente-dropdown');
 const input = document.getElementById('cliente-busca');
 const hiddenId = document.getElementById('cliente_id');
+const partDropdown = document.getElementById('peca-dropdown');
+const partInput = document.getElementById('os-peca-busca');
+const partHiddenId = document.getElementById('os-peca-id');
 
 function _soDigitos(v) { return (v || '').replace(/\D/g, ''); }
 function _formatDoc(c) {
   const doc = c?.documento || c?.cpf || c?.cnpj || '';
-  return typeof formatarCpfCnpj === 'function' ? formatarCpfCnpj(doc) : doc;
+  return typeof formatarCpfCnpj === 'function' ?formatarCpfCnpj(doc) : doc;
 }
 function _safe(v) {
   return String(v || '')
@@ -23,6 +26,33 @@ function clienteMatches(c, q, qDigits) {
   const cnpjOk = qDigits.length >= 2 && (c.cnpj || '').includes(qDigits);
   return nomeOk || telOk || cpfOk || cnpjOk;
 }
+
+function pecaMatches(p, q) {
+  const text = `${p.nome || ''} ${p.codigo || ''}`.toLowerCase();
+  return text.includes(q);
+}
+
+function selecionarPeca(p) {
+  if (!partHiddenId || !partInput) return;
+  partHiddenId.value = p.id;
+  partInput.value = `${p.nome || ''}${p.codigo ?' - ' + p.codigo : ''}`;
+  if (partDropdown) partDropdown.classList.remove('show');
+  const price = document.getElementById('os-peca-vlr');
+  if (price) price.value = parseFloat(p.preco || 0).toFixed(2);
+}
+
+document.querySelectorAll('[data-other-select]').forEach((select) => {
+  const target = document.querySelector(select.dataset.otherSelect);
+  const otherInput = target?.querySelector('input');
+  const sync = () => {
+    const show = select.value === 'Outros';
+    target?.classList.toggle('is-hidden', !show);
+    if (otherInput) otherInput.required = show;
+    if (!show && otherInput) otherInput.value = '';
+  };
+  select.addEventListener('change', sync);
+  sync();
+});
 
 if (input) {
   input.addEventListener('input', function () {
@@ -49,7 +79,7 @@ if (input) {
            class="dropdown-result">
         <strong>${_safe(c.nome)}</strong>
         <span class="dropdown-meta">
-          ${_safe(c.telefone)} ${docFmt ? ' - ' + _safe(docFmt) : ''}
+          ${_safe(c.telefone)} ${docFmt ?' - ' + _safe(docFmt) : ''}
         </span>
       </div>`;
     }).join('');
@@ -59,6 +89,39 @@ if (input) {
   document.addEventListener('click', e => {
     if (!e.target.closest('#cliente-busca') && !e.target.closest('#cliente-dropdown')) {
       dropdown.classList.remove('show');
+    }
+  });
+}
+
+if (partInput && partDropdown) {
+  partInput.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    if (partHiddenId) partHiddenId.value = '';
+    if (q.length < 2) {
+      partDropdown.classList.remove('show');
+      return;
+    }
+
+    const matches = (PECAS_DATA || []).filter(p => pecaMatches(p, q));
+    if (!matches.length) {
+      partDropdown.innerHTML = '<div class="dropdown-result dropdown-empty">Nenhuma peça encontrada</div>';
+      partDropdown.classList.add('show');
+      return;
+    }
+
+    partDropdown.innerHTML = matches.slice(0, 10).map(p => `
+      <div data-action="os-peca-select" data-id="${p.id}" class="dropdown-result">
+        <strong>${_safe(p.nome)}</strong>
+        <span class="dropdown-meta">
+          ${p.codigo ?_safe(p.codigo) + ' - ' : ''}Estoque: ${_safe(p.quantidade)} - R$ ${parseFloat(p.preco || 0).toFixed(2).replace('.', ',')}
+        </span>
+      </div>`).join('');
+    partDropdown.classList.add('show');
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#os-peca-busca') && !e.target.closest('#peca-dropdown')) {
+      partDropdown.classList.remove('show');
     }
   });
 }
@@ -139,7 +202,7 @@ function quickPayload(form) {
 }
 
 function quickError(form, field, message) {
-  const name = field === 'cpf' || field === 'cnpj' || field === 'documento' ? 'cpf_cnpj' : field;
+  const name = field === 'cpf' || field === 'cnpj' || field === 'documento' ?'cpf_cnpj' : field;
   const inputEl = form.elements[name] || form.elements.nome;
   inputEl.classList.add('input-error');
   let hint = inputEl.parentElement.querySelector('.field-error');
@@ -187,10 +250,16 @@ async function adicionarPecaOS(osId) {
   const pid = document.getElementById('os-peca-id')?.value;
   const qtd = parseInt(document.getElementById('os-peca-qtd')?.value || 1);
   const vlr = parseFloat(document.getElementById('os-peca-vlr')?.value || 0);
-  if (!pid) { showToast('Selecione uma peca', 'amber'); return; }
-  const r = await apiCall('POST', `/api/os/${osId}/pecas`, { peca_id: parseInt(pid), quantidade: qtd, valor_unitario: vlr });
+  const link = document.getElementById('os-peca-link')?.value?.trim() || '';
+  if (!pid) { showToast('Selecione uma peça', 'amber'); return; }
+  const r = await apiCall('POST', `/api/os/${osId}/pecas`, {
+    peca_id: parseInt(pid),
+    quantidade: qtd,
+    valor_unitario: vlr,
+    link_compra: link
+  });
   if (r.ok) location.reload();
-  else showToast(r.data.erro || 'Erro ao adicionar peca', 'red');
+  else showToast(r.data.erro || 'Erro ao adicionar peça', 'red');
 }
 
 async function removerPecaOS(osId, pecaId) {
@@ -199,13 +268,6 @@ async function removerPecaOS(osId, pecaId) {
   if (r.ok) location.reload();
   else showToast(r.data.erro || 'Erro ao remover', 'red');
 }
-
-document.getElementById('os-peca-id')?.addEventListener('change', function () {
-  const opt = this.options[this.selectedIndex];
-  const preco = opt?.getAttribute('data-preco') || 0;
-  const el = document.getElementById('os-peca-vlr');
-  if (el) el.value = parseFloat(preco).toFixed(2);
-});
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
@@ -224,6 +286,11 @@ document.addEventListener('click', (e) => {
   if (action === 'os-peca-adicionar') {
     const osId = parseInt(el.getAttribute('data-os-id'));
     if (osId) return adicionarPecaOS(osId);
+  }
+  if (action === 'os-peca-select') {
+    const pecaId = parseInt(el.getAttribute('data-id'));
+    const peca = (PECAS_DATA || []).find(item => String(item.id) === String(pecaId));
+    if (peca) return selecionarPeca(peca);
   }
   if (action === 'os-peca-remover') {
     const osId = parseInt(el.getAttribute('data-os-id'));

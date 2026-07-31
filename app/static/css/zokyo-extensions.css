@@ -444,7 +444,7 @@
 }
 
 .card-header-gradient {
-  background: linear-gradient(180deg, var(--blue), var(--blue-dk));
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
   color: #fff;
 }
 

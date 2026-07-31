@@ -35,10 +35,10 @@ function closeModal() {
 function showToast(msg, color = 'blue') {
   const t = document.createElement('div');
   const allowed = ['green', 'blue', 'amber', 'red'];
-  t.className = `toast toast-${allowed.includes(color) ? color : 'blue'}`;
+  t.className = `toast toast-${allowed.includes(color) ?color : 'blue'}`;
   t.textContent = msg;
-  t.setAttribute('role', color === 'red' ? 'alert' : 'status');
-  t.setAttribute('aria-live', color === 'red' ? 'assertive' : 'polite');
+  t.setAttribute('role', color === 'red' ?'alert' : 'status');
+  t.setAttribute('aria-live', color === 'red' ?'assertive' : 'polite');
   document.body.appendChild(t);
   setTimeout(() => t.remove(), 3200);
 }
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const optionText = control.tagName === 'SELECT'
-      ? control.querySelector('option')?.textContent?.trim()
+      ?control.querySelector('option')?.textContent?.trim()
       : '';
     const fieldName = (control.name || control.placeholder || optionText || 'Campo')
       .replace(/[_-]+/g, ' ')
@@ -136,6 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (action === 'close-sidebar') return closeSidebar();
     if (action === 'toggle-theme') return toggleTheme();
     if (action === 'close-modal') return closeModal();
-    if (action === 'history-back') return history.length > 1 ? history.back() : (location.href = '/');
+    if (action === 'history-back') return history.length > 1 ?history.back() : (location.href = '/');
   });
 });

@@ -1,16 +1,15 @@
-<aside id="sidebar" aria-label="Menu lateral">
+﻿<aside id="sidebar" aria-label="Menu lateral">
   {% set nav_active = active|default(request.endpoint, true) %}
   {% set nav_endpoint = request.endpoint or '' %}
   {% set nav_path = request.path or '' %}
   {% set brand_name = cfg.nome_empresa if cfg else APP_NAME %}
 
   <div class="logo-area">
-    <div class="logo-mark" aria-hidden="true">Z</div>
     <div class="logo-content">
       <div class="logo-brand" title="{{ brand_name }}">{{ brand_name }}</div>
       <div class="logo-tag">Assistência técnica</div>
     </div>
-    <button class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">x</button>
+    <button type="button" class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">x</button>
   </div>
 
   <nav aria-label="Navegação principal">
@@ -19,34 +18,38 @@
       <input type="search" name="termo" placeholder="Buscar cliente, OS ou produto" autocomplete="off">
     </form>
 
-    <section class="nav-module" data-nav-module="zokyo">
-      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-zokyo">
+    <section class="nav-module" data-nav-module="atendimento">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-atendimento">
         <span>Atendimento</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
-      <div class="nav-module-links" id="nav-zokyo">
+      <div class="nav-module-links" id="nav-atendimento">
         <a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path in ['/', '/zokyo', '/home'] }}" href="{{ url_for('pages.dashboard') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-home"></use></svg></span>
           Início
         </a>
-        <a class="nav-item {{ 'active' if nav_active and 'clientes' in nav_active or nav_path.startswith('/clientes') }}" href="{{ url_for('pages.clientes') }}">
+        <a class="nav-item {{ 'active' if (nav_active and 'clientes' in nav_active) or nav_path.startswith('/clientes') }}" href="{{ url_for('pages.clientes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
           Clientes
         </a>
-        <a class="nav-item {{ 'active' if nav_active and 'estoque' in nav_active or nav_path.startswith('/produtos') }}" href="{{ url_for('pages.estoque') }}">
-          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
-          Produtos
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'servicos' or nav_path.startswith('/servicos') }}" href="{{ url_for('pages.servicos') }}">
-          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
-          Servi&ccedil;os
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'vendas' or nav_path.startswith('/vendas') }}" href="{{ url_for('pages.vendas') }}">
+        <a class="nav-item {{ 'active' if nav_path == '/coleta' or (nav_path.startswith('/coletas/') and not nav_path.startswith('/coletas/rota')) }}" href="{{ url_for('pages.coleta') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
-          Vendas
+          Coletas
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.coleta_rota' or nav_path.startswith('/coletas/rota') }}" href="{{ url_for('pages.coleta_rota') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Rota de coleta
         </a>
         <a class="nav-item {{ 'active' if nav_endpoint != 'pages.os_baixadas' and (nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or (nav_path.startswith('/os') and not nav_path.startswith('/os/baixadas'))) }}" href="{{ url_for('pages.os_lista') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
-          Ordens de Servi&ccedil;o
+          Ordens de Serviço
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_kanban' }}" href="{{ url_for('pages.os_kanban') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
+          Kanban de OS
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.agenda_tecnica' }}" href="{{ url_for('pages.agenda_tecnica') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Agenda técnica
         </a>
         <a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_baixadas' or nav_path.startswith('/os/baixadas') }}" href="{{ url_for('pages.os_baixadas') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-archive"></use></svg></span>
@@ -56,12 +59,60 @@
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>
           Garantias
         </a>
-        <a class="nav-item {{ 'active' if nav_active == 'arquivos' or nav_path.startswith('/arquivos') }}" href="{{ url_for('pages.arquivos') }}">
-          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
-          Arquivos
+      </div>
+    </section>
+
+    <section class="nav-module" data-nav-module="oficina">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-oficina">
+        <span>Oficina</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-oficina">
+        <a class="nav-item {{ 'active' if (nav_active and 'estoque' in nav_active) or nav_path.startswith('/produtos') }}" href="{{ url_for('pages.estoque') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
+          Produtos
         </a>
-        {% if is_financeiro %}
-        <a class="nav-item {{ 'active' if nav_active and 'financeiro' in nav_active or nav_path.startswith('/financeiro') or nav_path.startswith('/lancamentos') }}" href="{{ url_for('pages.financeiro') }}">
+        <a class="nav-item {{ 'active' if nav_active == 'servicos' or nav_path.startswith('/servicos') }}" href="{{ url_for('pages.servicos') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
+          Serviços
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.bancada' }}" href="{{ url_for('pages.bancada') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
+          Bancada
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.checklists_tecnicos' }}" href="{{ url_for('pages.checklists_tecnicos') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Checklists
+        </a>
+      </div>
+    </section>
+
+    <section class="nav-module" data-nav-module="comercial">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-comercial">
+        <span>Comercial</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-comercial">
+        <a class="nav-item {{ 'active' if nav_active == 'vendas' or nav_path.startswith('/vendas') }}" href="{{ url_for('pages.vendas') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
+          Vendas
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'fornecedores' or nav_path.startswith('/fornecedores') }}" href="{{ url_for('pages.fornecedores') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
+          Fornecedores
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.compras_pecas' }}" href="{{ url_for('pages.compras_pecas') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
+          Compras de peças
+        </a>
+      </div>
+    </section>
+
+    {% if is_financeiro %}
+    <section class="nav-module" data-nav-module="financeiro">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-financeiro">
+        <span>Financeiro</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-financeiro">
+        <a class="nav-item {{ 'active' if (nav_active and 'financeiro' in nav_active) or nav_path.startswith('/financeiro') or nav_path.startswith('/lancamentos') }}" href="{{ url_for('pages.financeiro') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
           Financeiro
         </a>
@@ -69,7 +120,31 @@
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
           Cobranças
         </a>
-        {% endif %}
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="nav-module" data-nav-module="documentos">
+      <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-documentos">
+        <span>Documentos</span><span class="nav-chevron" aria-hidden="true">v</span>
+      </button>
+      <div class="nav-module-links" id="nav-documentos">
+        <a class="nav-item {{ 'active' if nav_active == 'laudos' or nav_path.startswith('/laudos') }}" href="{{ url_for('laudos.index') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
+          Laudos
+        </a>
+        <a class="nav-item {{ 'active' if nav_active == 'arquivos' or nav_path.startswith('/arquivos') }}" href="{{ url_for('pages.arquivos') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
+          Arquivos
+        </a>
+        <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
+          Relatórios
+        </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.produtividade' }}" href="{{ url_for('pages.produtividade') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
+          Produtividade
+        </a>
       </div>
     </section>
 
@@ -94,10 +169,6 @@
         <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-mail"></use></svg></span>
           Mensagens
-        </a>
-        <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
-          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
-          Relatórios
         </a>
         <a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>

@@ -1,4 +1,4 @@
-"""Relatorios gerenciais e exportacoes autorizadas."""
+"""Relatórios gerenciais e exportações autorizadas."""
 import csv
 import io
 from datetime import date, datetime, time, timedelta
@@ -121,7 +121,7 @@ def save_report():
     )
     db.session.add(report)
     db.session.commit()
-    flash("Relatorio salvo.", "success")
+    flash("Relatório salvo.", "success")
     return redirect(url_for("relatorios.index"))
 
 
@@ -131,7 +131,7 @@ def delete_saved_report(report_id):
     report = SavedReport.query.filter_by(id=report_id, user_id=session["usuario_id"]).first_or_404()
     db.session.delete(report)
     db.session.commit()
-    flash("Relatorio salvo removido.", "success")
+    flash("Relatório salvo removido.", "success")
     return redirect(url_for("relatorios.index"))
 
 
@@ -141,7 +141,7 @@ def ordens_csv():
     dados = _dados()
     output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";")
-    writer.writerow(["OS", "Entrada", "Cliente", "Equipamento", "Status", "Tecnico", "Total"])
+    writer.writerow(["OS", "Entrada", "Cliente", "Equipamento", "Status", "Técnico", "Total"])
     for order in dados["ordens"]:
         values = [
             order.id, order.data_entrada.strftime("%d/%m/%Y") if order.data_entrada else "",
@@ -173,7 +173,7 @@ def gerencial_xlsx():
     summary.append(["Saldo", dados["saldo"]])
     summary["A1"].font = Font(bold=True)
     orders = workbook.create_sheet("Ordens")
-    orders.append(["OS", "Entrada", "Cliente", "Equipamento", "Status", "Tecnico", "Total"])
+    orders.append(["OS", "Entrada", "Cliente", "Equipamento", "Status", "Técnico", "Total"])
     for cell in orders[1]:
         cell.font = Font(bold=True)
     for order in dados["ordens"]:
@@ -219,7 +219,7 @@ def gerencial_pdf():
         ("FONTSIZE", (0, 0), (-1, -1), 8), ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
     story = [
-        Paragraph("Relatorio gerencial", styles["Title"]),
+        Paragraph("Relatório gerencial", styles["Title"]),
         Paragraph(f"Periodo: {dados['inicio']:%d/%m/%Y} a {dados['fim']:%d/%m/%Y}", styles["Normal"]),
         Spacer(1, 5 * mm),
         Paragraph(

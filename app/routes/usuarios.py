@@ -135,7 +135,7 @@ def criar_convite():
     if not validar_email(email) or role not in PERFIS:
         return jsonify({"erro": "E-mail ou perfil inválido"}), 400
     if Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email).first():
-        return jsonify({"erro": "E-mail ja cadastrado"}), 409
+        return jsonify({"erro": "E-mail já cadastrado"}), 409
     organization_id = _organization_id()
     try:
         assert_write_allowed(organization_id)
@@ -148,7 +148,7 @@ def criar_convite():
     from app.utils.email_delivery import send_email
     delivery = send_email(
         email, "Convite para acessar o Zokyo",
-        f"Voce foi convidado para acessar o sistema. O link expira em 48 horas e pode ser usado uma vez.\n\n{link}",
+        f"Você foi convidado para acessar o sistema. O link expira em 48 horas e pode ser usado uma vez.\n\n{link}",
     )
     registrar("convite", "usuarios", f"Convite criado para {email}")
     db.session.commit()

@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from io import BytesIO
+from urllib.parse import quote_plus
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
@@ -17,6 +18,7 @@ from app.models import (
     EventoLog,
     Fornecedor,
     InventoryMovement,
+    LaudoTecnico,
     Notification,
     OrdemServico,
     Organization,
@@ -223,15 +225,23 @@ def test_paginas_principais_autenticadas_renderizam_sem_erro(monkeypatch, tmp_pa
         "/ajuda",
         "/clientes",
         "/os",
+        "/os/kanban",
         "/os/nova",
         f"/os/{ordem_id}",
+        f"/os/{ordem_id}/imprimir",
         f"/os/{ordem_id}/editar",
+        "/agenda",
         "/estoque",
         "/estoque/movimentacoes",
+        "/compras-pecas",
         "/fornecedores",
         "/financeiro",
         "/coleta",
+        "/coletas/rota",
+        "/bancada",
+        "/checklists",
         "/relatorios",
+        "/produtividade",
         "/usuarios",
         "/configuracoes",
         "/configuracoes/notificacoes",
@@ -264,6 +274,43 @@ def test_frontend_nao_regride_logout_e_scripts_globais(tmp_path):
     for path in ("/clientes/adicionar", "/fornecedores/adicionar", "/configurar"):
         html = client.get(path).get_data(as_text=True)
         assert html.count("/static/js/masks.js") == 1
+
+
+def test_pesquisa_global_encontra_fluxos_principais(tmp_path):
+    app, client, ordem_id = _make_pages_client(tmp_path)
+    with app.app_context():
+        ordem = db.session.get(OrdemServico, ordem_id)
+        ordem.numero_serie = "SERIAL-TOP-9988"
+        ordem.defeito_encontrado = "Placa oxidada"
+        fornecedor = Fornecedor.query.filter_by(nome="Fornecedor Paginas").one()
+        fornecedor.cidade = "Joinville"
+        servico = DefeitoPadrao(
+            organization_id=1,
+            tipo_aparelho="Notebook",
+            sintoma="Troca de conector de carga",
+            solucao="Substituição e teste de carregamento",
+        )
+        laudo = LaudoTecnico(
+            organization_id=1,
+            os_id=ordem.id,
+            cliente_id=ordem.cliente_id,
+            criado_por_id=ordem.usuario_id,
+            numero="LT-OS-0001",
+            status="draft",
+            diagnostico_tecnico="Oxidação no setor de alimentação",
+        )
+        db.session.add_all([servico, laudo])
+        db.session.commit()
+
+    checks = [
+        ("SERIAL-TOP-9988", "OS0001"),
+        ("Joinville", "Fornecedor Paginas"),
+        ("conector de carga", "Troca de conector de carga"),
+        ("LT-OS-0001", "Laudo"),
+    ]
+    for termo, esperado in checks:
+        html = client.get(f"/pesquisar?termo={quote_plus(termo)}").get_data(as_text=True)
+        assert esperado in html
 
 
 def test_logout_legado_exige_post_para_encerrar_sessao(tmp_path):
@@ -955,7 +1002,6 @@ def test_aliases_zokyo_renderizam_ou_redirecionam_sem_erro(tmp_path):
         "/zokyo/backup",
         "/permissoes",
         "/auditoria",
-        "/auditoria/clean",
         "/relatorios/clientes",
         "/relatorios/produtos",
         "/relatorios/servicos",
@@ -1017,6 +1063,9 @@ def test_aliases_zokyo_renderizam_ou_redirecionam_sem_erro(tmp_path):
     for path in paths:
         response = client.get(path, follow_redirects=True)
         assert response.status_code == 200, f"{path}: {response.status_code} {response.get_data(as_text=True)[:300]}"
+
+    assert client.get("/auditoria/clean").status_code == 405
+    assert _post(client, "/auditoria/clean", {}).status_code == 302
 
     relatorio_clientes = client.get("/relatorios/clientes")
     assert relatorio_clientes.status_code == 200

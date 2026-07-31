@@ -335,15 +335,15 @@ def test_schema_preview_commit_e_log_banco_externo(monkeypatch, tmp_path):
     monkeypatch.setattr(importer, "_os_rows", lambda: os_rows)
 
     assert importer._split_address(None) == (None, None, None)
-    assert importer._split_address("Sem numero") == ("Sem numero", None, "Numero da casa nao separado com seguranca.")
+    assert importer._split_address("Sem numero") == ("Sem numero", None, "Número da casa não separado com segurança.")
     assert importer._map_cliente({"CODCLI": 1, "NOMECLI": "X", "CPF": "111", "CNPJ": "222", "ENDERECO": ""})["cpf"] is None
     assert importer._map_produto({"PRECUSTO": 0, "PRECO": 20, "CODPROD": 1, "NOMEPROD": "Servico"})["margem"] == 0
     with app.app_context():
         db.session.add(Cliente(nome="Empresa CNPJ", cnpj="04252011000110", organization_id=1))
         db.session.commit()
-        assert importer._cliente_duplicate({"cnpj": "04252011000110"})[1] == "CNPJ ja existe"
-        assert importer._cliente_duplicate({"nome": "Duplicado", "telefone": "47999999999"})[1] == "nome + telefone ja existem"
-        assert importer._produto_duplicate({"nome": "Duplicada"})[1] == "nome ja existe"
+        assert importer._cliente_duplicate({"cnpj": "04252011000110"})[1] == "CNPJ já existe"
+        assert importer._cliente_duplicate({"nome": "Duplicado", "telefone": "47999999999"})[1] == "nome + telefone já existem"
+        assert importer._produto_duplicate({"nome": "Duplicada"})[1] == "nome já existe"
         assert importer._os_duplicate({"cliente": None})[1] == "cliente ausente"
     assert importer._status_zokyo("orcamento") == "aguardando_aprovacao"
     assert importer._status_zokyo("pronto retirada") == "pronto"
@@ -358,9 +358,9 @@ def test_schema_preview_commit_e_log_banco_externo(monkeypatch, tmp_path):
         assert preview["counts"] == {"clientes": 3, "produtos": 3, "ordens_servico": 3, "financeiro": 0}
         assert preview["invalid_records"]["clientes"][0]["reason"] == "nome vazio"
         assert preview["invalid_records"]["ordens_servico"][0]["source_id"] == "100"
-        assert preview["probable_duplicates"]["clientes"][0]["reason"] == "CPF ja existe"
-        assert preview["probable_duplicates"]["produtos"][0]["reason"] == "codigo ja existe"
-        assert preview["probable_duplicates"]["ordens_servico"][0]["reason"] == "OS semelhante ja existe"
+        assert preview["probable_duplicates"]["clientes"][0]["reason"] == "CPF já existe"
+        assert preview["probable_duplicates"]["produtos"][0]["reason"] == "código já existe"
+        assert preview["probable_duplicates"]["ordens_servico"][0]["reason"] == "OS semelhante já existe"
         assert preview["examples"]["ordens_servico"][0]["cliente"] is None
         assert "Commit exige" in preview["manual_confirmation"][3]
 

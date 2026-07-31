@@ -46,7 +46,7 @@ function formatarCNPJ(v) {
 
 function formatarCpfCnpj(v) {
   const d = soDigitos(v).slice(0, 14);
-  return d.length > 11 ? formatarCNPJ(d) : formatarCPF(d);
+  return d.length > 11 ?formatarCNPJ(d) : formatarCPF(d);
 }
 
 function formatarCEP(v) {
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function bindRawValue(el) {
     el._getRawValue = function () {
       const digits = soDigitos(el.value);
-      return digits ? parseInt(digits, 10) / 100 : 0;
+      return digits ?parseInt(digits, 10) / 100 : 0;
     };
   }
   document.querySelectorAll('.mask-currency').forEach(bindRawValue);

@@ -15,6 +15,7 @@ from flask import current_app, has_app_context
 from app.extensions import db
 from app.models import Cliente, OrdemServico, OSHistorico, Peca, Transacao, proximo_numero_os
 from app.models.ordem_servico import os_pecas
+from app.utils.blind_index import blind_index
 from app.utils.sanitizers import sanitize_cep, sanitize_phone, sanitize_text
 from app.utils.validators import validar_cnpj, validar_cpf
 
@@ -103,7 +104,7 @@ class ExternalFirebirdImporter:
             self._driver = "fdb"
             return fdb.connect(**kwargs)
         except ImportError as exc:
-            errors.append(f"fdb nao instalado: {exc}")
+            errors.append(f"fdb não instalado: {exc}")
         except Exception as exc:
             errors.append(str(exc))
 
@@ -121,7 +122,7 @@ class ExternalFirebirdImporter:
                 charset=self.credentials.charset or "WIN1252",
             )
         except ImportError as exc:
-            errors.append(f"firebird-driver nao instalado: {exc}")
+            errors.append(f"firebird-driver não instalado: {exc}")
         except Exception as exc:
             errors.append(str(exc))
 
@@ -256,7 +257,7 @@ class ExternalFirebirdImporter:
         match = re.match(r"^(.*?)[,\s]+(\d+[A-Za-z0-9\-\/]*)$", text)
         if match and len(match.group(1).strip()) >= 3:
             return match.group(1).strip(), match.group(2).strip(), None
-        return text, None, "Numero da casa nao separado com seguranca."
+        return text, None, "Número da casa não separado com segurança."
 
     def _map_cliente(self, row):
         cpf = _digits(row.get("CPF"), 11)
@@ -283,28 +284,28 @@ class ExternalFirebirdImporter:
 
     def _cliente_duplicate(self, item):
         if item.get("cpf"):
-            found = Cliente.query.filter_by(cpf=item["cpf"]).first()
+            found = Cliente.query.filter_by(cpf_bidx=blind_index(item["cpf"], "cpf")).first()
             if found:
-                return found, "CPF ja existe"
+                return found, "CPF já existe"
         if item.get("cnpj"):
-            found = Cliente.query.filter_by(cnpj=item["cnpj"]).first()
+            found = Cliente.query.filter_by(cnpj_bidx=blind_index(item["cnpj"], "cnpj")).first()
             if found:
-                return found, "CNPJ ja existe"
+                return found, "CNPJ já existe"
         if item.get("nome") and item.get("telefone"):
             found = Cliente.query.filter_by(nome=item["nome"], telefone=item["telefone"]).first()
             if found:
-                return found, "nome + telefone ja existem"
+                return found, "nome + telefone já existem"
         if item.get("nome") and item.get("endereco"):
             found = Cliente.query.filter(
                 db.func.lower(Cliente.nome) == item["nome"].lower(),
                 db.func.lower(Cliente.endereco) == item["endereco"].lower(),
             ).first()
             if found:
-                return found, "nome + endereco ja existem"
+                return found, "nome + endereço já existem"
         if item.get("nome") and not any(item.get(key) for key in ("cpf", "cnpj", "telefone", "endereco")):
             found = Cliente.query.filter(db.func.lower(Cliente.nome) == item["nome"].lower()).first()
             if found:
-                return found, "nome ja existe"
+                return found, "nome já existe"
         return None, None
 
     def _cliente_rows(self):
@@ -351,10 +352,10 @@ class ExternalFirebirdImporter:
         if item.get("codigo"):
             found = Peca.query.filter_by(codigo=item["codigo"]).first()
             if found:
-                return found, "codigo ja existe"
+                return found, "código já existe"
         found = Peca.query.filter_by(nome=item["nome"]).first() if item.get("nome") else None
         if found:
-            return found, "nome ja existe"
+            return found, "nome já existe"
         return None, None
 
     def _os_rows(self):
@@ -448,7 +449,7 @@ class ExternalFirebirdImporter:
                 OrdemServico.deletado_em.is_(None)
             ).first()
             if found:
-                return found, "numero de OS ja existe"
+                return found, "número de OS já existe"
         q = OrdemServico.query.filter_by(cliente_id=item["cliente"].id).filter(
             OrdemServico.deletado_em.is_(None)
         )
@@ -460,7 +461,7 @@ class ExternalFirebirdImporter:
             q = q.filter(OrdemServico.defeito_alegado == item["defeito_alegado"])
         found = q.first()
         if found:
-            return found, "OS semelhante ja existe"
+            return found, "OS semelhante já existe"
         return None, None
 
     def _contapagar_rows(self):

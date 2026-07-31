@@ -18,7 +18,7 @@ import threading
 import time
 from datetime import timedelta
 
-from flask import Flask, abort, g, redirect, request, session, url_for
+from flask import Flask, abort, g, jsonify, redirect, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import db, migrate
@@ -90,7 +90,7 @@ def create_app(config_name="default"):
             try:
                 usuario = db.session.get(Usuario, _s["usuario_id"])
             except Exception:
-                app.logger.debug("Nao foi possivel carregar usuario do contexto.", exc_info=True)
+                app.logger.debug("Não foi possível carregar usuário do contexto.", exc_info=True)
         try:
             cfg = Configuracao.get()
         except Exception:
@@ -133,6 +133,53 @@ def create_app(config_name="default"):
         else:
             g.request_id = secrets.token_hex(16)
         start_request_metrics()
+
+    @app.before_request
+    def aplicar_rate_limit_global():
+        """Rate limit global para todas as rotas dinâmicas."""
+        if not app.config.get("RATE_LIMIT_ENABLED", True):
+            return
+        endpoint = request.endpoint or ""
+        if endpoint.startswith("static"):
+            return
+        if endpoint in {"health.healthz", "health.readyz", "health.metrics", "pages.service_worker"}:
+            return
+
+        from app.utils.rate_limit import hit_rate_limit
+
+        is_api = (request.path or "").startswith("/api/")
+        is_write = request.method in {"POST", "PUT", "PATCH", "DELETE"}
+        window = app.config.get("RATE_LIMIT_WINDOW_SECONDS", 60)
+        ip = request.remote_addr or "unknown"
+
+        if is_api:
+            global_limit = app.config.get("RATE_LIMIT_GLOBAL_API", 600)
+            endpoint_limit = app.config.get("RATE_LIMIT_ENDPOINT_API", 240)
+            global_bucket = "global:api"
+        elif is_write:
+            global_limit = app.config.get("RATE_LIMIT_GLOBAL_WRITE", 300)
+            endpoint_limit = app.config.get("RATE_LIMIT_ENDPOINT_WRITE", 120)
+            global_bucket = "global:write"
+        else:
+            global_limit = app.config.get("RATE_LIMIT_GLOBAL_GET", 1000)
+            endpoint_limit = app.config.get("RATE_LIMIT_ENDPOINT_GET", 300)
+            global_bucket = "global:get"
+
+        remaining = hit_rate_limit(ip, global_bucket, global_limit, window)
+        if not remaining:
+            method_bucket = "write" if is_write else "read"
+            remaining = hit_rate_limit(ip, f"endpoint:{method_bucket}:{endpoint}", endpoint_limit, window)
+        if remaining:
+            if is_api or request.accept_mimetypes.best == "application/json":
+                response = jsonify({
+                    "success": False,
+                    "erro": "Muitas requisições. Aguarde alguns instantes e tente novamente.",
+                    "retry_after": remaining,
+                })
+                response.status_code = 429
+                response.headers["Retry-After"] = str(remaining)
+                return response
+            abort(429)
 
     @app.before_request
     def protect_csrf():
@@ -275,6 +322,7 @@ def create_app(config_name="default"):
                 "auth.login_page", "auth.login_post",
                 "auth.recuperar_senha", "auth.redefinir_senha",
                 "usuarios.aceitar_convite", "portal.publico", "laudos.verificar",
+                "client_api.consulta_os_publica",
                 "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
         )
@@ -289,6 +337,13 @@ def create_app(config_name="default"):
             _tem_usuarios = True
         except Exception:
             app.logger.debug("Verificacao de primeiro acesso ignorada por indisponibilidade do banco.", exc_info=True)
+
+    @app.before_request
+    def aplicar_rbac_abac():
+        """Aplica RBAC/ABAC central em toda rota nao publica."""
+        from app.utils.permissions import enforce_request_authorization
+
+        return enforce_request_authorization()
 
     # ── After request: security headers ──────────────────────────────────
 
@@ -305,8 +360,11 @@ def create_app(config_name="default"):
 
         # X-Content-Type-Options
         response.headers["X-Content-Type-Options"] = "nosniff"
+        endpoint = request.endpoint or ""
+        allow_same_origin_frame = endpoint in {"pages.os_pdf", "os.pdf"}
+
         # X-Frame-Options
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN" if allow_same_origin_frame else "DENY"
         # Referrer-Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         # X-XSS-Protection (browsers legados)
@@ -315,6 +373,13 @@ def create_app(config_name="default"):
         response.headers["Permissions-Policy"] = (
             "geolocation=(), microphone=(), camera=(), payment=()"
         )
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+        if session.get("usuario_id") and endpoint != "static" and "Cache-Control" not in response.headers:
+            response.headers["Cache-Control"] = "no-store, private, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
 
         # V-03 FIX: CSP com nonce — remove unsafe-inline de script-src
         # Templates devem usar: <script nonce="{{ csp_nonce }}">
@@ -323,14 +388,15 @@ def create_app(config_name="default"):
         connect_src = "connect-src 'self' https://viacep.com.br;"
         if not is_prod:
             connect_src = "connect-src 'self' http://localhost:* ws://localhost:* https://viacep.com.br;"
+        frame_ancestors = "frame-ancestors 'self';" if allow_same_origin_frame else "frame-ancestors 'none';"
         csp = (
             f"default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'; "
             f"style-src 'self' 'nonce-{nonce}'; "
             f"font-src 'self'; "
-            f"img-src 'self' data:; "
+            f"img-src 'self' data: https:; "
             f"{connect_src} "
-            f"frame-ancestors 'none'; "
+            f"{frame_ancestors} "
             f"base-uri 'self'; "
             f"form-action 'self';"
             f"{upgrade}"
@@ -450,11 +516,11 @@ def create_app(config_name="default"):
 
     @app.errorhandler(404)
     def not_found(exc):
-        return _error_response(404, "Recurso nao encontrado.")
+        return _error_response(404, "Recurso não encontrado.")
 
     @app.errorhandler(405)
     def method_not_allowed(exc):
-        return _error_response(405, "Metodo nao permitido.")
+        return _error_response(405, "Método não permitido.")
 
     @app.errorhandler(422)
     def unprocessable(exc):

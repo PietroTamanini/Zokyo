@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon">
+    <title>Consultar Ordem de Serviço | DJ TECH</title>
+    <meta name="description" content="Consulte o andamento da sua ordem de serviço da DJ TECH em Joinville. Veja status, equipamento, previsão e garantia usando número da OS e CPF ou CNPJ.">
+    <meta name="keywords" content="consultar OS DJ TECH, ordem de serviço DJ TECH, assistência técnica Joinville OS, acompanhar conserto notebook Joinville, acompanhar reparo TV Joinville">
+    <link rel="canonical" href="https://djtechinfo.com.br/os/">
+    <link rel="alternate" href="https://djtechinfo.com.br/os/" hreflang="pt-BR">
+    <meta name="robots" content="index, follow">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Consultar OS | DJ TECH Joinville">
+    <meta property="og:description" content="Acompanhe sua ordem de serviço da DJ TECH pelo número da OS e CPF ou CNPJ.">
+    <meta property="og:url" content="https://djtechinfo.com.br/os/">
+    <meta property="og:site_name" content="DJ TECH - Assistência Técnica">
+    <meta property="og:image" content="https://djtechinfo.com.br/img/LOGO.jpg">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Consultar OS | DJ TECH">
+    <meta name="twitter:description" content="Consulta online de ordem de serviço da DJ TECH em Joinville.">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../assets/css/os-consulta.css">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Consultar Ordem de Serviço DJ TECH",
+      "description": "Página para clientes acompanharem ordens de serviço da DJ TECH em Joinville.",
+      "url": "https://djtechinfo.com.br/os/",
+      "isPartOf": {
+        "@type": "WebSite",
+        "name": "DJ TECH",
+        "url": "https://djtechinfo.com.br/"
+      },
+      "about": {
+        "@type": "LocalBusiness",
+        "name": "DJ TECH - Assistência Técnica",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Rua Pavo, 217",
+          "addressLocality": "Joinville",
+          "addressRegion": "SC",
+          "addressCountry": "BR"
+        }
+      }
+    }
+    </script>
+</head>
+<body class="os-consulta-page">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNavbar">
+            <div class="container">
+                <a class="navbar-brand" href="../">
+                    <div class="brand-content">
+                        <img src="../img/LOGO.jpg" alt="DJ TECH Logo" class="brand-logo">
+                        <div class="brand-text">
+                            <div class="brand-title">DJ TECH</div>
+                            <div class="brand-subtitle">ASSISTÊNCIA TÉCNICA</div>
+                        </div>
+                    </div>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item"><a class="nav-link" href="../#servicos">Serviços</a></li>
+                        <li class="nav-item"><a class="nav-link" href="../#processo">Como Funciona</a></li>
+                        <li class="nav-item"><a class="nav-link" href="../#sobre">Sobre</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="./" aria-current="page">Consultar OS</a></li>
+                    </ul>
+                    <a href="../#contato" class="btn btn-outline-light ms-lg-3">
+                        <i class="bi bi-whatsapp me-2"></i>Orçamento
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="os-hero section-padding">
+            <div class="container">
+                <div class="row align-items-center g-5">
+                    <div class="col-lg-6">
+                        <p class="os-kicker">Acompanhamento online</p>
+                        <h1 class="hero-title mb-4">Consulte sua ordem de serviço.</h1>
+                        <p class="lead hero-description mb-4">Digite o número da OS e o CPF ou CNPJ usado no atendimento. A consulta mostra somente o andamento básico para proteger seus dados.</p>
+                        <div class="benefits-list mb-4">
+                            <div class="benefit-item"><i class="bi bi-clipboard-check"></i><span>Status do atendimento</span></div>
+                            <div class="benefit-item"><i class="bi bi-shield-check"></i><span>Dados protegidos</span></div>
+                            <div class="benefit-item"><i class="bi bi-whatsapp"></i><span>Contato direto com a equipe</span></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="os-card">
+                            <div class="os-card-header">
+                                <img src="../img/LOGO.jpg" alt="DJ TECH Logo">
+                                <div>
+                                    <h2>Consultar OS</h2>
+                                    <p>Use os dados do comprovante de entrada.</p>
+                                </div>
+                            </div>
+                            <form id="os-form" autocomplete="off" novalidate>
+                                <div class="mb-3">
+                                    <label for="numero" class="form-label">Número da OS</label>
+                                    <input id="numero" name="numero" class="form-control form-control-lg" inputmode="numeric" placeholder="Ex: 2668" required>
+                                </div>
+                                <div class="mb-4">
+                                    <label for="documento" class="form-label">CPF ou CNPJ</label>
+                                    <input id="documento" name="documento" class="form-control form-control-lg" inputmode="numeric" placeholder="Ex: 000.000.000-00" required>
+                                </div>
+                                <button class="btn btn-primary btn-lg w-100" type="submit">
+                                    <i class="bi bi-search me-2"></i>Consultar OS
+                                </button>
+                            </form>
+                            <div id="os-result" class="result-panel" hidden></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <div class="footer-brand">
+                        <div class="brand-content">
+                            <img src="../img/LOGO.jpg" alt="DJ TECH Logo" class="brand-logo-footer">
+                            <div class="brand-text">
+                                <div class="brand-title">DJ TECH</div>
+                                <div class="brand-subtitle">ASSISTÊNCIA TÉCNICA</div>
+                            </div>
+                        </div>
+                        <p class="footer-description mt-3">
+                            Mais de 20 anos de experiência transformando problemas tecnológicos em soluções.
+                            Sua tranquilidade é minha prioridade.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h5 class="footer-title">Serviços</h5>
+                    <ul class="footer-links">
+                        <li><a href="../#servicos">Notebooks</a></li>
+                        <li><a href="../#servicos">Smart TVs & Monitores</a></li>
+                        <li><a href="../#servicos">Desktops</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h5 class="footer-title">A Empresa</h5>
+                    <ul class="footer-links">
+                        <li><a href="../#marcas">Marcas Atendidas</a></li>
+                        <li><a href="../#processo">Como Funciona</a></li>
+                        <li><a href="../#contato">Contato</a></li>
+                        <li><a href="../#sobre">Sobre</a></li>
+                        <li><a href="./">Consultar OS</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-4 mb-4">
+                    <h5 class="footer-title">Informações de Contato</h5>
+                    <div class="contact-details">
+                        <div class="contact-detail">
+                            <i class="bi bi-whatsapp"></i>
+                            <a href="https://wa.me/5547991425273?text=Olá! Vim pelo site e gostaria de solicitar um orçamento." target="_blank" rel="noopener">(47) 99142-5273</a>
+                        </div>
+                        <div class="contact-detail">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Rua Pavo, 217 - Jardim Paraíso, Joinville - SC</span>
+                        </div>
+                    </div>
+
+                    <div class="social-links mt-3">
+                        <a href="https://www.facebook.com/djtechinformatica" class="social-link" aria-label="Facebook"><i class="bi bi-facebook"></i></a>
+                        <a href="https://www.instagram.com/djtech.assistencia/" class="social-link" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="footer-divider">
+
+            <div class="row align-items-center">
+                <div class="col-12">
+                    <p class="footer-copyright">64.448.602 Djonathan Tamanini - CNPJ 64.448.602/0001-99</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/js/config.js"></script>
+    <script src="../assets/js/os-consulta.js"></script>
+</body>
+</html>

@@ -54,7 +54,7 @@ def _pdf_publico_os(portal_token) -> bytes:
         ["Status", STATUS_OS_LABELS.get(os_obj.status, os_obj.status)],
         ["Equipamento", equipamento],
         ["Entrada", os_obj.data_entrada.strftime("%d/%m/%Y") if os_obj.data_entrada else "-"],
-        ["Previsao", os_obj.data_prev.strftime("%d/%m/%Y") if os_obj.data_prev else "-"],
+        ["Previsão", os_obj.data_prev.strftime("%d/%m/%Y") if os_obj.data_prev else "-"],
         ["Valor total", f"R$ {float(os_obj.valor_total or 0):.2f}"],
     ]
     table = Table(rows, colWidths=[35 * mm, 135 * mm])
@@ -66,7 +66,7 @@ def _pdf_publico_os(portal_token) -> bytes:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
     ]))
     story = [
-        Paragraph("Acompanhamento da ordem de servico", styles["Title"]),
+        Paragraph("Acompanhamento da ordem de serviço", styles["Title"]),
         Paragraph("Documento público gerado pelo Zokyo. Dados internos de diagnóstico e identificadores sensíveis não são exibidos.", styles["Normal"]),
         Spacer(1, 7 * mm),
         table,

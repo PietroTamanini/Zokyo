@@ -6,6 +6,9 @@
 {% block content %}
 {% set fd = form_data or {} %}
 {% set fe = form_errors or {} %}
+{% set tipos_equipamento = ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
+{% set tipo_atual = fd.get('tipo_aparelho', os.tipo_aparelho if os else 'Notebook') %}
+{% set tipo_outro = fd.get('tipo_aparelho_outro', tipo_atual if tipo_atual and tipo_atual not in tipos_equipamento else '') %}
 
 <div class="page-header">
   <div>
@@ -34,7 +37,7 @@
   <div class="os-column">
 
     <!-- Cliente -->
-    <div class="card">
+    <div class="card os-client-card">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg> Cliente</div></div>
       <div class="card-body os-client-body">
         <div class="form-group">
@@ -71,12 +74,15 @@
         <div class="form-row fr4">
           <div class="form-group">
             <label>Tipo <span class="req">*</span></label>
-            <select name="tipo_aparelho" required>
-              {% for t in ['Notebook','Smartphone','Desktop','Tablet','TV','Monitor','Impressora','Videogame','Outros'] %}
-              {% set v = fd.get('tipo_aparelho', os.tipo_aparelho if os else 'Notebook') %}
-              <option {{ 'selected' if v == t }}>{{ t }}</option>
+            <select name="tipo_aparelho" data-other-select="#tipo-aparelho-outro" required>
+              {% for t in tipos_equipamento %}
+              <option {{ 'selected' if (tipo_atual == t or (t == 'Outros' and tipo_outro)) }}>{{ t }}</option>
               {% endfor %}
             </select>
+          </div>
+          <div class="form-group other-field {{ '' if tipo_outro else 'is-hidden' }}" id="tipo-aparelho-outro">
+            <label>Qual equipamento?<span class="req">*</span></label>
+            <input type="text" name="tipo_aparelho_outro" value="{{ tipo_outro }}" placeholder="Ex: Projetor, nobreak, roteador">
           </div>
           <div class="form-group">
             <label>Marca <span class="req">*</span></label>
@@ -219,23 +225,28 @@
     </div>
 
     <!-- Peças vinculadas -->
-    <div class="card">
+    <div class="card os-parts-card">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Peças</div></div>
       <div class="card-body parts-body">
 
         {% if os and pecas_usadas %}
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Peça</th><th>Qtd</th><th>Unit.</th><th class="txt-r">Sub</th><th></th></tr></thead>
+            <thead><tr><th>Peça</th><th>Qtd</th><th>Unit.</th>{% if nivel_usuario in ('admin', 'operacional') %}<th>Compra</th>{% endif %}<th class="txt-r">Sub</th>{% if nivel_usuario in ('admin', 'operacional') %}<th></th>{% endif %}</tr></thead>
             <tbody>
               {% for p in pecas_usadas %}
               <tr class="tr-static">
                 <td class="td-strong td-muted">{{ p.nome }}</td>
                 <td class="td-mono">{{ p.quantidade }}</td>
                 <td class="td-mono">{{ p.valor_unitario | moeda }}</td>
+                {% if nivel_usuario in ('admin', 'operacional') %}
+                <td>{% if p.link_compra %}<a class="btn btn-ghost btn-xs" href="{{ p.link_compra }}" target="_blank" rel="noopener noreferrer">Abrir link</a>{% else %}<span class="txt-faint">-</span>{% endif %}</td>
+                {% endif %}
                 <td class="td-mono txt-r txt-blue">{{ p.subtotal | moeda }}</td>
+                {% if nivel_usuario in ('admin', 'operacional') %}
                 <td><button type="button" class="btn btn-ghost btn-xs danger-text"
                             data-action="os-peca-remover" data-os-id="{{ os.id }}" data-peca-id="{{ p.id }}">Remover</button></td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>
@@ -247,18 +258,13 @@
         </div>
         {% endif %}
 
-        {% if os %}
-        <div class="form-row fr3 items-end">
+        {% if os and nivel_usuario in ('admin', 'operacional') %}
+        <div class="form-row fr3 items-end os-part-add-row">
           <div class="form-group form-group-compact">
             <label>Peça</label>
-            <select id="os-peca-id">
-              <option value="">Selecione</option>
-              {% for p in pecas_estoque or [] %}
-              <option value="{{ p.id }}" data-preco="{{ p.preco_venda }}">
-                {{ p.nome }}{% if p.codigo %} ({{ p.codigo }}){% endif %} — est.{{ p.quantidade }}
-              </option>
-              {% endfor %}
-            </select>
+            <input type="search" id="os-peca-busca" autocomplete="off" placeholder="Buscar peça por nome ou código">
+            <input type="hidden" id="os-peca-id">
+            <div id="peca-dropdown" class="part-dropdown"></div>
           </div>
           <div class="form-group form-group-compact">
             <label>Quantidade</label>
@@ -268,6 +274,10 @@
             <label>Valor (R$)</label>
             <input type="number" id="os-peca-vlr" step="0.01" min="0" value="0.00">
           </div>
+        </div>
+        <div class="form-group form-group-compact">
+          <label>Link de compra da peça</label>
+          <input type="url" id="os-peca-link" maxlength="1000" placeholder="https://...">
         </div>
         <button type="button" class="btn btn-primary btn-sm" data-action="os-peca-adicionar" data-os-id="{{ os.id }}">
           Adicionar peça
@@ -288,11 +298,17 @@
 
 <script nonce="{{ csp_nonce }}">
 const CLIENTES_DATA = {{ clientes_json | safe }};
-function autoPrecoPeca() {
-  const sel = document.getElementById('os-peca-id');
-  const preco = sel.options[sel.selectedIndex]?.getAttribute('data-preco') || 0;
-  document.getElementById('os-peca-vlr').value = parseFloat(preco).toFixed(2);
-}
+const PECAS_DATA = [
+  {% for p in pecas_estoque or [] %}
+  {
+    id: {{ p.id }},
+    nome: {{ (p.nome or '')|tojson }},
+    codigo: {{ (p.codigo or '')|tojson }},
+    quantidade: {{ p.quantidade or 0 }},
+    preco: {{ '%.2f'|format(p.preco_venda or 0) }}
+  }{{ ',' if not loop.last }}
+  {% endfor %}
+];
 </script>
 {% endblock %}
 

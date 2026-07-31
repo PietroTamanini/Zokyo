@@ -73,6 +73,9 @@ def check_production_readiness(
     if not _base64_decodes_to_32_bytes(_get(env, "ENCRYPTION_SALT")):
         add("error", "ENCRYPTION_SALT", "Defina ENCRYPTION_SALT Base64 com exatamente 32 bytes.")
 
+    if not _base64_decodes_to_32_bytes(_get(env, "BLIND_INDEX_KEY"), urlsafe=True):
+        add("error", "BLIND_INDEX_KEY", "Defina BLIND_INDEX_KEY URL-safe Base64 com exatamente 32 bytes.")
+
     if not _is_truthy(_get(env, "REQUIRE_ADMIN_2FA") or "true"):
         add("error", "REQUIRE_ADMIN_2FA", "Mantenha REQUIRE_ADMIN_2FA=true em producao.")
 

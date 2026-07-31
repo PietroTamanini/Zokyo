@@ -3,9 +3,10 @@ import os
 import re
 
 import click
+from sqlalchemy.orm import attributes
 
 from app.extensions import db
-from app.models import Configuracao, Organization, Plan, Usuario, registrar
+from app.models import Cliente, ColetaAgendada, Configuracao, Fornecedor, Organization, Plan, Usuario, registrar
 from app.utils.auth import validar_senha_forte
 from app.utils.sanitizers import sanitize_email, sanitize_text
 from app.utils.validators import validar_email
@@ -54,6 +55,43 @@ def register_cli(app):
         db.session.commit()
         click.echo("Seed concluido: 3 planos globais ativos.")
 
+    @app.cli.command("encrypt-sensitive-fields")
+    def encrypt_sensitive_fields():
+        """Regrava campos sensiveis para aplicar criptografia transparente."""
+        targets = (
+            (Cliente, ("endereco", "numero_casa")),
+            (Fornecedor, ("endereco",)),
+            (ColetaAgendada, ("telefone_contato", "endereco", "numero_casa", "observacoes")),
+            (Configuracao, ("endereco", "dados_pagamento", "pix_chave")),
+        )
+        touched = 0
+        fields = 0
+        for model, names in targets:
+            for obj in model.query.execution_options(include_all_tenants=True).all():
+                changed = False
+                for name in names:
+                    value = getattr(obj, name, None)
+                    if value:
+                        attributes.flag_modified(obj, name)
+                        changed = True
+                        fields += 1
+                if changed:
+                    touched += 1
+        db.session.commit()
+        click.echo(f"Criptografia reaplicada: {touched} registros, {fields} campos.")
+
+    @app.cli.command("rebuild-blind-indexes")
+    def rebuild_blind_indexes():
+        """Reconstrui hashes HMAC usados em buscas exatas de dados sensiveis."""
+        targets = (Cliente, Fornecedor, Usuario)
+        touched = 0
+        for model in targets:
+            for obj in model.query.execution_options(include_all_tenants=True).all():
+                obj.refresh_blind_indexes()
+                touched += 1
+        db.session.commit()
+        click.echo(f"Indices cegos reconstruidos: {touched} registros.")
+
     @app.cli.command("create-organization")
     @click.option("--name", required=True, help="Nome da organizacao.")
     @click.option("--slug", required=True, help="Identificador URL em minusculas.")
@@ -61,18 +99,18 @@ def register_cli(app):
     @click.option("--admin-email", required=True, help="E-mail do administrador inicial.")
     @click.password_option("--password", confirmation_prompt=True)
     def create_organization(name, slug, admin_name, admin_email, password):
-        """Provisiona uma organizacao e seu primeiro administrador."""
+        """Provisiona uma organização e seu primeiro administrador."""
         name = sanitize_text(name, max_length=200)
         slug = slug.strip().lower()
         admin_name = sanitize_text(admin_name, max_length=120)
         admin_email = sanitize_email(admin_email)
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,78}[a-z0-9]", slug):
-            raise click.ClickException("Slug invalido. Use 3-80 caracteres: letras minusculas, numeros e hifen.")
+            raise click.ClickException("Slug inválido. Use 3-80 caracteres: letras minúsculas, números e hífen.")
         if not validar_email(admin_email):
-            raise click.ClickException("E-mail administrativo invalido.")
+            raise click.ClickException("E-mail administrativo inválido.")
         password_errors = validar_senha_forte(password)
         if password_errors:
-            raise click.ClickException("Senha invalida: " + " ".join(password_errors))
+            raise click.ClickException("Senha inválida: " + " ".join(password_errors))
         if Organization.query.filter_by(slug=slug).first():
             raise click.ClickException("Slug ja cadastrado.")
         if Usuario.query.filter_by(email=admin_email).first():

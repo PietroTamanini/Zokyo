@@ -39,16 +39,16 @@ function abrirModalEditarFornecedor(id) {
       <input type="hidden" name="_csrf_token" value="${CSRF}">
       <div class="form-row fr2">
         <div class="form-group"><label>Nome *</label><input type="text" name="nome" value="${f.nome || ''}" required class="validate-required" data-label="Nome" data-min="2" placeholder="Ex: Distribuidora ABC"></div>
-        <div class="form-group"><label>CNPJ</label><input type="text" name="cnpj" value="${f.cnpj ? formatarCNPJ(f.cnpj) : ''}" class="mask-cnpj validate-cnpj" data-label="CNPJ" placeholder="00.000.000/0001-00"></div>
+        <div class="form-group"><label>CNPJ</label><input type="text" name="cnpj" value="${f.cnpj ?formatarCNPJ(f.cnpj) : ''}" class="mask-cnpj validate-cnpj" data-label="CNPJ" placeholder="00.000.000/0001-00"></div>
       </div>
       <div class="form-row fr2">
-        <div class="form-group"><label>Telefone</label><input type="text" name="telefone" value="${f.telefone ? formatarTelefone(f.telefone) : ''}" class="mask-phone validate-phone" data-label="Telefone" placeholder="(00) 00000-0000"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" name="telefone" value="${f.telefone ?formatarTelefone(f.telefone) : ''}" class="mask-phone validate-phone" data-label="Telefone" placeholder="(00) 00000-0000"></div>
         <div class="form-group"><label>E-mail</label><input type="email" name="email" value="${f.email || ''}" class="validate-email" data-label="E-mail" placeholder="contato@empresa.com.br"></div>
       </div>
       <div class="form-row fr2">
         <div class="form-group">
           <label>CEP</label>
-          <input type="text" name="cep" value="${f.cep ? formatarCEP(f.cep) : ''}" class="mask-cep validate-cep" data-label="CEP"
+          <input type="text" name="cep" value="${f.cep ?formatarCEP(f.cep) : ''}" class="mask-cep validate-cep" data-label="CEP"
             data-viacep
             data-fill-logradouro="[name=endereco]"
             data-fill-cidade="[name=cidade]"

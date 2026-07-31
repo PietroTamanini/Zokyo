@@ -1,14 +1,23 @@
 """API de cliente autenticada por token de portal."""
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, current_app, g, jsonify, make_response, request
 
 from app.extensions import db
-from app.models import OrdemServico, Transacao, Usuario
+from app.models import Cliente, Configuracao, OrdemServico, Transacao, Usuario
+from app.models.ordem_servico import STATUS_OS_LABELS
 from app.services.portal import buscar_token_portal
+from app.utils.blind_index import blind_index
 from app.utils.rate_limit import rate_limit_route
 from app.utils.sanitizers import sanitize_text
 
 client_api_bp = Blueprint("client_api", __name__)
 BEARER_SCHEME = "Bearer"
+PUBLIC_SITE_ORIGINS = {
+    "https://djtechinfo.com.br",
+    "https://www.djtechinfo.com.br",
+    "https://painel.djtechinfo.com.br",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+}
 
 
 def _raw_token():
@@ -83,6 +92,83 @@ def _serialize_transacao(item):
         "data_vencimento": item.data_vencimento.isoformat() if item.data_vencimento else None,
         "data_pagamento": item.data_pagamento.isoformat() if item.data_pagamento else None,
     }
+
+
+def _digits(value):
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def _public_origin_allowed(origin):
+    configured = current_app.config.get("DJTECH_SITE_ORIGINS") or ""
+    allowed = set(PUBLIC_SITE_ORIGINS)
+    allowed.update(item.strip().rstrip("/") for item in str(configured).split(",") if item.strip())
+    return origin.rstrip("/") if origin and origin.rstrip("/") in allowed else None
+
+
+def _public_json(payload, status=200):
+    response = make_response(jsonify(payload), status)
+    origin = _public_origin_allowed(request.headers.get("Origin", ""))
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def _cliente_primeiro_nome(nome):
+    partes = str(nome or "").strip().split()
+    if not partes:
+        return "Cliente"
+    return partes[0]
+
+
+def _public_os_payload(os_obj):
+    cfg = Configuracao.get()
+    equipamento = " ".join(part for part in [os_obj.tipo_aparelho, os_obj.marca, os_obj.modelo] if part) or "Equipamento"
+    return {
+        "numero": os_obj.codigo_os,
+        "status": os_obj.status,
+        "status_label": cfg.get_os_status_map().get(os_obj.status, STATUS_OS_LABELS.get(os_obj.status, os_obj.status)),
+        "cliente": _cliente_primeiro_nome(os_obj.cliente.nome if os_obj.cliente else ""),
+        "equipamento": equipamento,
+        "entrada": os_obj.data_entrada.isoformat() if os_obj.data_entrada else None,
+        "previsao": os_obj.data_prev.isoformat() if os_obj.data_prev else None,
+        "saida": os_obj.data_saida.isoformat() if os_obj.data_saida else None,
+        "atualizado_em": os_obj.atualizado_em.isoformat() if os_obj.atualizado_em else None,
+        "garantia_dias": os_obj.garantia_dias or 90,
+    }
+
+
+@client_api_bp.route("/api/public/os-consulta", methods=["POST", "OPTIONS"])
+@rate_limit_route(max_hits=40, window_seconds=300)
+def consulta_os_publica():
+    if request.method == "OPTIONS":
+        return _public_json({}, 204)
+
+    data = request.get_json(silent=True) or {}
+    numero = _digits(data.get("numero") or data.get("os") or data.get("codigo"))
+    documento = _digits(data.get("documento") or data.get("cpf_cnpj") or data.get("cpf") or data.get("cnpj"))
+    if not numero or len(numero) > 10 or len(documento) not in {11, 14}:
+        return _public_json({"status": False, "message": "Informe número da OS e CPF/CNPJ válidos."}, 400)
+
+    numero_int = int(numero)
+    query = (
+        OrdemServico.query
+        .join(Cliente)
+        .filter(OrdemServico.deletado_em.is_(None))
+        .filter(db.or_(OrdemServico.numero == numero_int, OrdemServico.id == numero_int))
+    )
+    query = query.filter(
+        Cliente.cpf_bidx == blind_index(documento, "cpf")
+        if len(documento) == 11
+        else Cliente.cnpj_bidx == blind_index(documento, "cnpj")
+    )
+    os_obj = query.order_by(OrdemServico.data_entrada.desc()).first()
+    if not os_obj:
+        return _public_json({"status": False, "message": "OS não encontrada com os dados informados."}, 404)
+    return _public_json({"status": True, "result": _public_os_payload(os_obj)})
 
 
 def _orders_for_client(cliente):

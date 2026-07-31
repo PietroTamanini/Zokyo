@@ -80,7 +80,7 @@
       <div class="card-body">
         <div class="photo-grid">
           {% for foto in laudo.fotos|sort(attribute='ordem') %}
-          <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank" class="photo-thumb">
+          <a href="{{ url_for('laudos.foto', foto_id=foto.id) }}" target="_blank" rel="noopener noreferrer" class="photo-thumb">
             <img src="{{ url_for('laudos.foto', foto_id=foto.id) }}" alt="{{ foto.legenda or foto.tipo }}">
           </a>
           {% endfor %}

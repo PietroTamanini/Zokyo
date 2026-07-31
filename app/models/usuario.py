@@ -1,8 +1,10 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import event
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
+from app.utils.blind_index import blind_index
 
 PERFIS = ("admin","operacional","cadastro","consulta","financeiro")
 PERFIS_LABELS = {
@@ -21,6 +23,7 @@ class Usuario(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome       = db.Column(db.String(120), nullable=False)
     email      = db.Column(db.String(120), nullable=False, unique=True)
+    email_bidx = db.Column(db.String(64), index=True)
     senha_hash = db.Column(db.String(256), nullable=False)
     nivel      = db.Column(db.String(20), nullable=False, default="operacional")
     ativo      = db.Column(db.Boolean, default=True)
@@ -45,3 +48,12 @@ class Usuario(db.Model):
                 "totp_enabled": self.totp_enabled,
                 "permissoes_extra": self.permissoes_extra or [],
                 "permissoes_negadas": self.permissoes_negadas or []}
+
+    def refresh_blind_indexes(self):
+        self.email_bidx = blind_index(self.email, "email")
+
+
+@event.listens_for(Usuario, "before_insert")
+@event.listens_for(Usuario, "before_update")
+def _usuario_blind_indexes(_mapper, _connection, target):
+    target.refresh_blind_indexes()

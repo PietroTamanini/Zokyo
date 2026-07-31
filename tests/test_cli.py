@@ -15,6 +15,7 @@ def _production_check_env():
         "SECRET_KEY": "s" * 32,  # pragma: allowlist secret
         "DATABASE_URL": "mysql+pymysql://zokyo:" + "senha" + "@db:3306/zokyo",
         "ENCRYPTION_SALT": base64.b64encode(b"0" * 32).decode("ascii"),
+        "BLIND_INDEX_KEY": base64.urlsafe_b64encode(b"2" * 32).decode("ascii"),
         "REQUIRE_ADMIN_2FA": "true",
         "PUBLIC_BASE_URL": "https://zokyo.example.com",
         "METRICS_TOKEN": "m" * 32,

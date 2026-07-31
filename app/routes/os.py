@@ -10,6 +10,7 @@ Fixes:
 """
 import io
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request, send_file, session
 from sqlalchemy import text
@@ -80,6 +81,17 @@ def _parse_date(valor):
         return datetime.fromisoformat(str(valor)[:10])
     except (ValueError, TypeError):
         return None
+
+
+def _sanitize_purchase_url(value):
+    link = sanitize_text(value or "", max_length=1000)
+    if not link:
+        return ""
+    parsed = urlparse(link)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Link de compra deve comecar com http:// ou https://")
+    return link
+
 
 def _registrar_historico(os_id, anterior, novo, usuario_id):
     db.session.add(OSHistorico(
@@ -553,7 +565,16 @@ def adicionar_peca(id):
     if valor_unitario < 0:
         return jsonify({"erro": "valor_unitario não pode ser negativo"}), 400
 
-    peca = Peca.query.filter_by(id=peca_id).first()
+    try:
+        link_compra = _sanitize_purchase_url(data.get("link_compra") or data.get("link_compra_peca"))
+    except ValueError as exc:
+        return jsonify({"erro": str(exc)}), 400
+
+    peca = (
+        Peca.query.filter_by(id=peca_id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .first()
+    )
     if not peca:
         return jsonify({"erro": "Peça não encontrada"}), 404
 
@@ -581,10 +602,10 @@ def adicionar_peca(id):
         if diff > 0:
             consume_reservation(peca.id, os_obj.id, diff)
         db.session.execute(
-            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v "
+            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l "
                  "WHERE os_id=:o AND peca_id=:p"),
             {"q": quantidade, "v": valor_unitario,
-             "o": os_obj.id, "p": peca_id},
+             "l": link_compra or None, "o": os_obj.id, "p": peca_id},
         )
     else:
         if available_for_order < quantidade:
@@ -598,10 +619,10 @@ def adicionar_peca(id):
         )
         consume_reservation(peca.id, os_obj.id, quantidade)
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id,peca_id,quantidade,valor_unitario) "
-                 "VALUES (:o,:p,:q,:v)"),
+            text("INSERT INTO os_pecas (os_id,peca_id,quantidade,valor_unitario,link_compra) "
+                 "VALUES (:o,:p,:q,:v,:l)"),
             {"o": os_obj.id, "p": peca_id,
-             "q": quantidade, "v": valor_unitario},
+             "q": quantidade, "v": valor_unitario, "l": link_compra or None},
         )
 
     total_pecas = db.session.execute(
@@ -670,7 +691,12 @@ def servicos_os(id):
         return jsonify({"erro": "Acesso negado"}), 403
     data, _ = get_request_data()
     servico_id = data.get("servico_id") or data.get("idServico") or data.get("defeito_id")
-    servico = db.session.get(DefeitoPadrao, int(servico_id)) if servico_id else None
+    servico = (
+        DefeitoPadrao.query.filter_by(id=int(servico_id), ativo=True)
+        .filter(DefeitoPadrao.deletado_em.is_(None))
+        .first()
+        if servico_id else None
+    )
     descricao = sanitize_text(
         data.get("descricao") or data.get("nome") or (servico.sintoma if servico else ""),
         max_length=300,
@@ -723,8 +749,8 @@ def anotacoes_os(id):
         texto = sanitize_text(data.get("anotacao") or data.get("descricao") or data.get("texto") or "", max_length=1000)
         if not texto:
             return jsonify({"erro": "anotacao e obrigatoria"}), 400
-        os_obj.observacoes = "\n".join(part for part in [os_obj.observacoes, f"Anotacao: {texto}"] if part)
-        registrar("edicao", "ordens_servico", f"Anotacao adicionada na OS #{os_obj.id}")
+        os_obj.observacoes = "\n".join(part for part in [os_obj.observacoes, f"Anotação: {texto}"] if part)
+        registrar("edicao", "ordens_servico", f"Anotação adicionada na OS #{os_obj.id}")
         db.session.commit()
     historico = OSHistorico.query.filter_by(os_id=os_obj.id).order_by(OSHistorico.criado_em.desc()).all()
     return jsonify({
@@ -792,7 +818,11 @@ def reservar_peca(id):
         quantity = int(data.get("quantidade"))
     except (TypeError, ValueError):
         return jsonify({"erro": "peca_id e quantidade devem ser inteiros"}), 400
-    part = Peca.query.filter_by(id=part_id).first_or_404()
+    part = (
+        Peca.query.filter_by(id=part_id, ativo=True)
+        .filter(Peca.deletado_em.is_(None))
+        .first_or_404()
+    )
     try:
         reservation = reserve_stock(part, os_obj, session["usuario_id"], quantity)
     except ValueError as exc:
@@ -831,7 +861,7 @@ def pdf(id):
         return jsonify({"erro": str(exc)}), 500
     return send_file(
         io.BytesIO(pdf_bytes), mimetype="application/pdf",
-        as_attachment=True, download_name=f"OS_{os_obj.codigo_os}.pdf",
+        as_attachment=False, download_name=f"OS_{os_obj.codigo_os}.pdf",
     )
 
 

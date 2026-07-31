@@ -14,7 +14,7 @@
     <button class="btn btn-danger" type="submit">Desativar 2FA</button>
   </form>
 {% else %}
-  <p>Escaneie o QR Code no aplicativo autenticador e confirme com o codigo de seis dígitos.</p>
+  <p>Escaneie o QR Code no aplicativo autenticador e confirme com o código de seis dígitos.</p>
   <img src="{{ qr }}" alt="QR Code para configurar autenticador" width="240" height="240">
   <div class="form-group"><label>Chave manual</label><input value="{{ secret }}" readonly></div>
   <form method="POST"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">

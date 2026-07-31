@@ -30,7 +30,7 @@ def criar_token(usuario: Usuario, ip: str) -> tuple[PasswordResetToken, str]:
         solicitado_ip_hash=_hash(ip or "unknown"),
     )
     db.session.add(token)
-    registrar("senha", "usuarios", "Recuperacao de senha solicitada.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    registrar("senha", "usuarios", "Recuperação de senha solicitada.", usuario_id=usuario.id, usuario_nome=usuario.nome)
     return token, raw_token
 
 
@@ -64,7 +64,7 @@ def enviar_link(usuario: Usuario, raw_token: str):
     host = current_app.config.get("SMTP_HOST")
     sender = current_app.config.get("MAIL_FROM")
     if not host or not sender:
-        current_app.logger.error("Recuperacao solicitada, mas SMTP_HOST/MAIL_FROM nao estao configurados.")
+        current_app.logger.error("Recuperação solicitada, mas SMTP_HOST/MAIL_FROM não estão configurados.")
         return
     message = EmailMessage()
     message["Subject"] = "Redefinicao de senha - Zokyo"

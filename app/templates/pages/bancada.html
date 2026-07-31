@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Bancada técnica - Zokyo{% endblock %}
+{% block breadcrumb %}Bancada{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('pages.os_kanban') }}" class="btn btn-ghost btn-sm">Kanban</a>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Bancada técnica</div>
+    <div class="page-sub">Tela curta para diagnóstico, reparo, laudo e peças.</div>
+  </div>
+  <div class="flex-gap">
+    <a class="btn btn-{{ 'primary' if somente_minhas else 'ghost' }} btn-sm" href="{{ url_for('pages.bancada', minhas=1) }}">Minhas</a>
+    <a class="btn btn-{{ 'ghost' if somente_minhas else 'primary' }} btn-sm" href="{{ url_for('pages.bancada', minhas=0) }}">Todas</a>
+  </div>
+</div>
+
+<div class="workbench-grid">
+  {% for os in orders %}
+  <article class="card workbench-card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">OS #{{ os.codigo_os }}</div>
+        <div class="muted-xs">{{ os.cliente.nome if os.cliente else '-' }}</div>
+      </div>
+      <span class="badge b-blue"><span class="dot"></span>{{ status_map.get(os.status, os.status) }}</span>
+    </div>
+    <div class="card-body">
+      <div class="d-row"><div class="d-label">Equipamento</div><div class="d-value">{{ os.tipo_aparelho or '-' }} {{ os.marca or '' }} {{ os.modelo or '' }}</div></div>
+      <div class="d-row"><div class="d-label">Técnico</div><div class="d-value">{{ os.tecnico_nome or 'Sem técnico' }}</div></div>
+      <div class="d-row"><div class="d-label">Prazo</div><div class="d-value">{{ os.data_prev|fmtdata if os.data_prev else '-' }}</div></div>
+      <div class="note-block note-amber">{{ os.defeito_alegado or 'Sem defeito informado.' }}</div>
+      <div class="form-actions">
+        <a class="btn btn-primary btn-sm" href="{{ url_for('pages.os_detalhe', id=os.id) }}">Abrir</a>
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('laudos.novo', os_id=os.id) }}">Laudo</a>
+        <a class="btn btn-outline btn-sm" href="{{ url_for('pages.os_editar', id=os.id) }}">Peças</a>
+      </div>
+    </div>
+  </article>
+  {% else %}
+  <div class="empty">Nenhuma OS na bancada agora.</div>
+  {% endfor %}
+</div>
+{% endblock %}

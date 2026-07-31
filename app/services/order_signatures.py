@@ -1,4 +1,4 @@
-"""Captura privada e verificavel de assinatura em ordens de servico."""
+"""Captura privada e verificável de assinatura em ordens de serviço."""
 import hashlib
 import io
 import secrets
@@ -42,7 +42,7 @@ def capture_signature(order, user_id, signer_name, uploaded_file, ip_address):
     relative = Path(str(order.organization_id)) / f"{secrets.token_hex(20)}.png"
     target = (signature_root() / relative).resolve()
     if not target.is_relative_to(signature_root()):
-        raise ValueError("Destino de assinatura invalido.")
+        raise ValueError("Destino de assinatura inválido.")
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(".tmp")
     temporary.write_bytes(content)
@@ -62,5 +62,5 @@ def capture_signature(order, user_id, signer_name, uploaded_file, ip_address):
 def signature_path(signature):
     path = (signature_root() / signature.storage_key).resolve()
     if not path.is_relative_to(signature_root()) or not path.is_file():
-        raise FileNotFoundError("Assinatura nao encontrada.")
+        raise FileNotFoundError("Assinatura não encontrada.")
     return path

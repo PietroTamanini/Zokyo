@@ -15,6 +15,7 @@ V-02 FIX: register_fail usa INSERT … ON DUPLICATE KEY UPDATE atômico no MySQL
 """
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from hashlib import sha256
 
 from flask import abort, jsonify, request
 from sqlalchemy import text
@@ -149,6 +150,45 @@ def clear_fails(ip: str):
 
 
 # ── Rate limit genérico para APIs (H03) ───────────────────────────────────────
+
+def _endpoint_key(raw: str) -> str:
+    if len(raw) <= 100:
+        return raw
+    digest = sha256(raw.encode("utf-8")).hexdigest()[:16]
+    return f"{raw[:80]}:{digest}"
+
+
+def hit_rate_limit(ip: str, endpoint: str, max_hits: int, window_seconds: int) -> int:
+    """Registra um hit. Retorna 0 se permitido ou segundos de espera se bloqueado."""
+    endpoint = _endpoint_key(endpoint or "unknown")
+    ip = ip or "unknown"
+    now = _now()
+    window = timedelta(seconds=window_seconds)
+
+    rec = ApiRateLimit.query.filter_by(ip=ip, endpoint=endpoint).first()
+    if not rec:
+        rec = ApiRateLimit(ip=ip, endpoint=endpoint, hits=1, janela_inicio=now)
+        db.session.add(rec)
+        db.session.commit()
+        return 0
+
+    ji = rec.janela_inicio
+    if ji.tzinfo is None:
+        ji = ji.replace(tzinfo=timezone.utc)
+
+    if now - ji > window:
+        rec.hits = 1
+        rec.janela_inicio = now
+        db.session.commit()
+        return 0
+
+    if rec.hits >= max_hits:
+        return max(1, int((ji + window - now).total_seconds()))
+
+    rec.hits += 1
+    db.session.commit()
+    return 0
+
 
 def rate_limit_route(max_hits: int = 30, window_seconds: int = 60,
                      abort_code: int = 429):

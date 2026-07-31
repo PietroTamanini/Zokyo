@@ -5,6 +5,10 @@ from app.extensions import db
 
 class Peca(db.Model):
     __tablename__ = "pecas"
+    __table_args__ = (
+        db.Index("ix_pecas_nome", "nome"),
+        db.Index("ix_pecas_codigo", "codigo"),
+    )
     id             = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome           = db.Column(db.String(200), nullable=False)
@@ -16,6 +20,8 @@ class Peca(db.Model):
     custo          = db.Column(db.Numeric(10,2), default=0)
     margem         = db.Column(db.Numeric(5,2), default=0)
     fornecedor_id  = db.Column(db.Integer, db.ForeignKey("fornecedores.id"))
+    ativo          = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    deletado_em    = db.Column(db.DateTime, nullable=True, index=True)
     criado_em      = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     @property
     def preco_venda(self):
@@ -36,4 +42,5 @@ class Peca(db.Model):
                 "quantidade_reservada":self.quantidade_reservada,
                 "quantidade_disponivel":self.quantidade_disponivel,
                 "custo":float(self.custo or 0),"margem":float(self.margem or 0),
+                "ativo":bool(self.ativo),
                 "preco_venda":self.preco_venda,"fornecedor_id":self.fornecedor_id}
