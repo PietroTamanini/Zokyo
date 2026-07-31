@@ -6,7 +6,7 @@ Site estático para `https://djtechinfo.com.br/` com consulta pública de OS em 
 
 - `index.html`: clone local do site institucional atual da DJ Tech, com link para consulta de OS.
 - `os/index.html`: consulta de ordem de serviço por número + CPF/CNPJ.
-- `css/style.css` e `js/main.js`: arquivos espelhados do site atual.
+- `css/style.css`, `js/main.js` e `img/`: arquivos espelhados do site atual.
 - `assets/css/os-consulta.css`: acabamento visual da página de consulta.
 - `assets/js/config.js`: define a base da API pública.
 - `assets/js/os-consulta.js`: integra com `POST /api/public/os-consulta` no mesmo domínio.
