@@ -24,7 +24,7 @@ jobs:
           [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
       - name: Install and test
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: release-validation-secret  # pragma: allowlist secret
         run: |
           pip install -r requirements-dev.txt
@@ -40,6 +40,7 @@ jobs:
           DATABASE_URL: mysql+pymysql://zokyo:release_ci_password@db:3306/zokyo_ci  # pragma: allowlist secret
           SECRET_KEY: release-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
           REQUIRE_ADMIN_2FA: "true"
           PUBLIC_BASE_URL: https://zokyo-release.example.com
           METRICS_TOKEN: mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  # pragma: allowlist secret

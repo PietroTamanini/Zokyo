@@ -127,6 +127,15 @@ def salvar():
         flash("Telefone da empresa inválido.", "error")
         return redirect(url_for("configuracoes.index"))
 
+    try:
+        dias_vencimento = int(data.get("dias_vencimento") or 30)
+    except (ValueError, TypeError):
+        flash("Dias para vencimento deve ser um numero inteiro.", "error")
+        return redirect(url_for("configuracoes.index"))
+    if dias_vencimento < 1:
+        flash("Dias para vencimento deve ser maior que zero.", "error")
+        return redirect(url_for("configuracoes.index"))
+
     cfg.nome_empresa    = nome_emp
     cfg.cnpj            = cnpj_raw or None
     cfg.email           = email_emp or None
@@ -158,10 +167,7 @@ def salvar():
         setattr(cfg, field, value)
     cfg.dados_pagamento = sanitize_text(data.get("dados_pagamento", ""), max_length=2000) or None
     cfg.pix_chave       = sanitize_text(data.get("pix_chave", ""), max_length=200) or None
-    try:
-        cfg.dias_vencimento = int(data.get("dias_vencimento") or 30)
-    except (ValueError, TypeError):
-        pass
+    cfg.dias_vencimento = dias_vencimento
 
     registrar("edicao", "configuracoes", "Configurações gerais salvas")
     db.session.commit()
@@ -175,12 +181,20 @@ def salvar_dashboard():
     cfg  = Configuracao.get()
     data = request.form
     try:
-        cfg.meta_receita_mensal    = float(data.get("meta_receita_mensal")    or 0)
-        cfg.alerta_caixa_minimo    = float(data.get("alerta_caixa_minimo")    or 0)
-        cfg.alerta_estoque_minimo  = int(data.get("alerta_estoque_minimo")    or 5)
-        cfg.alerta_vencimento_dias = int(data.get("alerta_vencimento_dias")   or 5)
+        meta_receita_mensal = float(data.get("meta_receita_mensal") or 0)
+        alerta_caixa_minimo = float(data.get("alerta_caixa_minimo") or 0)
+        alerta_estoque_minimo = int(data.get("alerta_estoque_minimo") or 5)
+        alerta_vencimento_dias = int(data.get("alerta_vencimento_dias") or 5)
     except (ValueError, TypeError):
-        pass
+        flash("Os indicadores do dashboard devem conter apenas numeros validos.", "error")
+        return redirect(url_for("configuracoes.index"))
+    if min(meta_receita_mensal, alerta_caixa_minimo, alerta_estoque_minimo, alerta_vencimento_dias) < 0:
+        flash("Os indicadores do dashboard nao podem ser negativos.", "error")
+        return redirect(url_for("configuracoes.index"))
+    cfg.meta_receita_mensal = meta_receita_mensal
+    cfg.alerta_caixa_minimo = alerta_caixa_minimo
+    cfg.alerta_estoque_minimo = alerta_estoque_minimo
+    cfg.alerta_vencimento_dias = alerta_vencimento_dias
     registrar("edicao", "configuracoes", "Configurações de dashboard salvas")
     db.session.commit()
     flash("Configurações de dashboard salvas!", "success")

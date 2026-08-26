@@ -44,12 +44,12 @@ jobs:
           pip-audit -r requirements-prod.txt
       - name: Test
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: ci-secret-key
         run: pytest -q
       - name: Coverage
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: ci-secret-key
         run: |
           coverage run -m pytest -q
@@ -57,7 +57,7 @@ jobs:
           coverage report --include="app/models/*,app/services/*" --omit="app/services/cplus_firebird_importer.py" --fail-under=80
       - name: Validate migrations command
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: ci-secret-key
         run: python -m flask --app wsgi:app db current
       - name: Validate production readiness contract
@@ -66,6 +66,7 @@ jobs:
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@db:3306/zokyo_ci  # pragma: allowlist secret
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
           REQUIRE_ADMIN_2FA: "true"
           PUBLIC_BASE_URL: https://zokyo-ci.example.com
           METRICS_TOKEN: mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  # pragma: allowlist secret
@@ -82,8 +83,9 @@ jobs:
         env:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
-          SECRET_KEY: ci-production-secret-key
+          SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: |
@@ -94,8 +96,9 @@ jobs:
         env:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
-          SECRET_KEY: ci-production-secret-key
+          SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: python scripts/test_laudo_concurrency.py
@@ -103,8 +106,9 @@ jobs:
         env:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
-          SECRET_KEY: ci-production-secret-key
+          SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
           GUNICORN_BIND: 127.0.0.1:8000

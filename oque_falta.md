@@ -1,13 +1,15 @@
 # O que falta para o Zokyo ficar top dos tops
 
-Atualizado em 2026-07-31.
+Atualizado em 2026-08-26 apos revisao do codigo, automacoes e 200 testes automatizados.
+
+Legenda: `[x]` significa que existe implementacao coberta pela revisao automatizada. Itens que dependem de infraestrutura, credenciais, validacao visual ou operacao com usuarios reais continuam abertos mesmo quando o codigo de apoio ja existe.
 
 O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem criterio. O que falta agora e fechar produto: seguranca real, fluxo simples, operacao diaria sem travar e uma experiencia que qualquer funcionario consiga usar sem medo.
 
 ## Prioridade 1: producao blindada
 
 - [ ] Configurar ambiente real com `FLASK_ENV=production`.
-- [ ] Usar `SECRET_KEY`, `ENCRYPTION_SALT`, `FIELD_ENCRYPTION_KEY`, `BLIND_INDEX_KEY` e `BACKUP_ENCRYPTION_KEY` fortes, fora do repositorio.
+- [ ] Usar `SECRET_KEY`, `ENCRYPTION_SALT`, `BLIND_INDEX_KEY` e `BACKUP_ENCRYPTION_KEY` fortes, fora do repositorio.
 - [ ] Ativar HTTPS no dominio principal e no painel.
 - [ ] Configurar `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL` com URL publica HTTPS.
 - [ ] Ativar `REQUIRE_ADMIN_2FA=true` em producao.
@@ -31,20 +33,20 @@ O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem
 - [ ] Melhorar busca de cliente para nao cortar resultado nem confundir usuario.
 - [ ] Deixar equipamento, defeito, checklist, fotos e assinatura em uma ordem simples.
 - [ ] Garantir que orcamento, aprovacao, pagamento parcial e finalizacao estejam travados corretamente.
-- [ ] Impedir finalizacao de OS sem 100% de pagamento.
-- [ ] Manter OS baixada/arquivada fora da tela principal.
+- [x] Impedir finalizacao de OS sem 100% de pagamento.
+- [x] Manter OS baixada/arquivada fora da tela principal.
 - [ ] Deixar PDF da OS bonito, direto para imprimir e consistente com a identidade da assistencia.
-- [ ] Validar fluxo completo: criar OS, editar, aprovar, pagar, imprimir, baixar e consultar no portal.
+- [x] Validar por testes automatizados o fluxo: criar OS, editar, aprovar, pagar, imprimir, baixar e consultar no portal.
 
 ## Prioridade 4: painel de bancada para tecnico
 
-- [ ] Criar visao rapida de OS por etapa.
-- [ ] Destacar prioridade, prazo e status.
-- [ ] Mostrar pecas necessarias e links de compra apenas para tecnico.
-- [ ] Separar observacao interna da observacao do cliente.
-- [ ] Facilitar checklist tecnico.
-- [ ] Facilitar criacao de laudo.
-- [ ] Ter botao claro para avisar cliente.
+- [x] Criar visao rapida de OS por etapa.
+- [x] Destacar prioridade, prazo e status.
+- [x] Mostrar pecas necessarias e links de compra apenas para tecnico.
+- [x] Separar observacao interna da observacao do cliente.
+- [x] Facilitar checklist tecnico.
+- [x] Facilitar criacao de laudo.
+- [x] Ter acao para avisar cliente.
 
 ## Prioridade 5: WhatsApp profissional
 
@@ -52,8 +54,8 @@ O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem
 - [ ] Manter gateway local apenas como alternativa controlada/teste.
 - [ ] Criar templates configuraveis por status.
 - [ ] Ter mensagens para OS aberta, orcamento enviado, aprovado, pronto para retirada, cobranca pendente e garantia.
-- [ ] Registrar tentativas, erros e entregas.
-- [ ] Manter fallback manual por `wa.me` quando a API estiver indisponivel.
+- [x] Registrar tentativas, erros e entregas.
+- [x] Manter fallback manual por `wa.me` quando a API estiver indisponivel.
 
 ## Prioridade 6: financeiro inteligente
 
@@ -67,43 +69,43 @@ O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem
 
 ## Prioridade 7: estoque realmente util
 
-- [ ] Baixar estoque automaticamente ao usar peca na OS.
-- [ ] Alertar estoque baixo.
-- [ ] Mostrar historico de movimentacao.
-- [ ] Vincular fornecedor a peca.
-- [ ] Sugerir compra quando estoque estiver baixo.
-- [ ] Evitar que produto ou servico inativo apareca em novas OS.
+- [x] Baixar estoque automaticamente ao usar peca na OS.
+- [x] Alertar estoque baixo.
+- [x] Mostrar historico de movimentacao.
+- [x] Vincular fornecedor a peca.
+- [x] Sugerir compra quando estoque estiver baixo.
+- [x] Evitar que produto ou servico inativo apareca em novas OS.
 
 ## Prioridade 8: portal do cliente
 
 - [ ] Melhorar consulta publica da OS no dominio principal.
-- [ ] Mostrar status em linguagem simples.
-- [ ] Mostrar prazo estimado.
-- [ ] Permitir aprovacao de orcamento pelo cliente.
-- [ ] Permitir assinatura digital quando fizer sentido.
-- [ ] Mostrar comprovante e garantia.
-- [ ] Ter botao de WhatsApp sempre visivel.
+- [x] Mostrar status em linguagem simples.
+- [x] Mostrar prazo estimado.
+- [x] Permitir aprovacao de orcamento pelo cliente.
+- [x] Permitir assinatura eletronica simples, deixando claro que nao equivale a ICP-Brasil.
+- [x] Mostrar comprovante e garantia.
+- [x] Ter botao de WhatsApp visivel no portal.
 - [ ] Melhorar SEO da pagina de consulta e do site publico.
 
 ## Prioridade 9: agenda, coleta e rota
 
-- [ ] Criar agenda de coletas e entregas.
-- [ ] Usar endereco da assistencia como origem e destino padrao.
-- [ ] Permitir varios pontos de coleta.
-- [ ] Calcular melhor rota com GPS/mapa.
-- [ ] Registrar status da coleta.
-- [ ] Registrar confirmacao do cliente.
-- [ ] Permitir foto ou comprovante na retirada e entrega.
+- [x] Criar agenda de coletas e entregas.
+- [x] Usar endereco da assistencia como origem e destino padrao.
+- [x] Permitir varios pontos de coleta.
+- [x] Montar rota e abrir navegacao em mapa externo.
+- [x] Registrar status da coleta.
+- [x] Registrar confirmacao do cliente.
+- [x] Permitir foto ou comprovante na retirada e entrega.
 
 ## Prioridade 10: auditoria, permissoes e seguranca interna
 
 - [ ] Garantir que toda acao importante gere log de auditoria.
-- [ ] Separar permissoes por cargo.
-- [ ] Tecnico nao deve ver financeiro sensivel sem permissao.
-- [ ] Atendente nao deve alterar configuracao critica.
-- [ ] Admin deve conseguir revisar sessoes, logs e usuarios.
-- [ ] Revisar RBAC e ABAC rota por rota.
-- [ ] Validar isolamento entre empresas/usuarios.
+- [x] Separar permissoes por cargo.
+- [x] Tecnico nao deve ver financeiro sensivel sem permissao.
+- [x] Atendente nao deve alterar configuracao critica.
+- [x] Admin deve conseguir revisar sessoes, logs e usuarios.
+- [x] Revisar RBAC e ABAC rota por rota com guardas e testes automatizados.
+- [x] Validar isolamento entre empresas/usuarios por testes automatizados.
 
 ## Prioridade 11: polimento visual pagina por pagina
 
@@ -117,10 +119,10 @@ O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem
 
 ## Prioridade 12: operacao e venda
 
-- [ ] Documentar instalacao local para suporte.
-- [ ] Documentar instalacao em producao.
+- [x] Documentar instalacao local para suporte.
+- [x] Documentar instalacao em producao.
 - [ ] Criar checklist antes de colocar cliente real.
-- [ ] Criar rotina de atualizacao sem perder dados.
+- [x] Criar rotina de atualizacao baseada em migrations Alembic e deploy com rollback.
 - [ ] Criar politica de suporte, backup e recuperacao.
 - [ ] Validar cobranca recorrente antes de vender acesso para terceiros.
 

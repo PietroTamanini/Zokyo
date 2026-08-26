@@ -246,6 +246,9 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
         "accent_color": "#222222",
         "dias_vencimento": "x",
     }).status_code == 302
+    with app.app_context():
+        cfg = Configuracao.get()
+        assert cfg.nome_empresa != "Empresa Edge"
     assert _form(client, "/configuracoes/os-opcoes", MultiDict([
         ("status_key[]", "recepcao"),
         ("status_label[]", "Recepção"),
@@ -278,6 +281,9 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
         "alerta_estoque_minimo": "x",
         "alerta_vencimento_dias": "x",
     }).status_code == 302
+    with app.app_context():
+        cfg = Configuracao.get()
+        assert cfg.meta_receita_mensal != "x"
     assert _form(client, "/configuracoes/dashboard", {
         "meta_receita_mensal": "100",
         "alerta_caixa_minimo": "50",

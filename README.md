@@ -61,7 +61,7 @@ flask --app wsgi:app db current
 flask --app wsgi:app db check
 ```
 
-Instalacoes novas usam uma unica migration baseline em `migrations/versions/`.
+Instalacoes novas executam a cadeia Alembic iniciada pela baseline consolidada em `migrations/versions/`, seguida das evolucoes incrementais.
 
 ## Testes e qualidade
 
