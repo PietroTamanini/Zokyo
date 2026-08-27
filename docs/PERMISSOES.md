@@ -1,5 +1,7 @@
 # Permissoes
 
+Estado revisado em 2026-08-27: perfis, permissões atômicas, restrições de páginas/APIs e isolamento multiempresa possuem testes automatizados. A matriz de auditoria de todas as mutações continua como tarefa de homologação.
+
 O projeto usa uma matriz central em `app/utils/permissions.py`. Perfis fornecem permissoes base e cada usuario pode receber listas persistidas de `permissoes_extra` e `permissoes_negadas`. Permissoes desconhecidas sao recusadas pela API. Administradores mantem acesso total para evitar bloqueio acidental da administracao.
 
 ## Perfis atuais

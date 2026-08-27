@@ -114,7 +114,7 @@ test('alternancia de tema persiste apos navegacao', async ({ page }) => {
 
 test('modal de cliente abre, valida e fecha sem recarregar', async ({ page }) => {
   await page.goto('/clientes');
-  const newClient = page.getByRole('link', { name: /Cadastrar cliente/ });
+  const newClient = page.locator('[data-action="cliente-novo"]');
   await newClient.click();
   await expect(page.locator('#modal .modal-title')).toHaveText('Cadastrar cliente');
   await expect(page.locator('#cliente-form [name="nome"]')).toBeFocused();

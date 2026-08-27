@@ -1,5 +1,7 @@
 # Configuracao
 
+Estado revisado em 2026-08-27. O ambiente Docker de desenvolvimento foi validado; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, HTTPS, SMTP, alertas e WhatsApp não forem configurados.
+
 Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 
 ## Obrigatorias

@@ -1,5 +1,7 @@
 # Recuperacao de desastre
 
+Estado revisado em 2026-08-27: o runbook e as ferramentas existem, mas a recuperação externa ainda deve ser simulada e documentada com a infraestrutura escolhida.
+
 ## Objetivos
 
 - RPO: no maximo 24 horas de dados, reduzido conforme a frequencia real dos backups.

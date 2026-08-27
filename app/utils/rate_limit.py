@@ -16,9 +16,11 @@ V-02 FIX: register_fail usa INSERT … ON DUPLICATE KEY UPDATE atômico no MySQL
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from hashlib import sha256
+from time import sleep
 
 from flask import abort, jsonify, request
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
 
@@ -48,6 +50,11 @@ class ApiRateLimit(db.Model):
 
 def _now():
     return datetime.now(timezone.utc)
+
+
+def _dialect_name():
+    """Retorna o dialeto efetivo da aplicacao, sem depender de mocks do ORM."""
+    return db.engine.dialect.name
 
 
 # ── Login rate limit ──────────────────────────────────────────────────────────
@@ -164,6 +171,56 @@ def hit_rate_limit(ip: str, endpoint: str, max_hits: int, window_seconds: int) -
     ip = ip or "unknown"
     now = _now()
     window = timedelta(seconds=window_seconds)
+
+    # O limitador global e executado por todos os workers antes de cada
+    # requisicao. No MySQL/MariaDB, ler o registro e depois altera-lo pelo ORM
+    # permite que workers concorrentes atualizem a mesma linha e pode causar o
+    # erro 1020 ("Record has changed since last read"). O upsert abaixo faz o
+    # reset da janela ou o incremento em uma unica operacao atomica.
+    if _dialect_name() in {"mysql", "mariadb"}:
+        statement = text("""
+                INSERT INTO api_rate_limits (ip, endpoint, hits, janela_inicio)
+                VALUES (:ip, :endpoint, 1, :now)
+                ON DUPLICATE KEY UPDATE
+                    hits = IF(
+                        janela_inicio < DATE_SUB(:now, INTERVAL :window_seconds SECOND),
+                        1,
+                        hits + 1
+                    ),
+                    janela_inicio = IF(
+                        janela_inicio < DATE_SUB(:now, INTERVAL :window_seconds SECOND),
+                        :now,
+                        janela_inicio
+                    )
+            """)
+        params = {
+            "ip": ip,
+            "endpoint": endpoint,
+            "now": now,
+            "window_seconds": window_seconds,
+        }
+        for attempt in range(8):
+            try:
+                db.session.execute(statement, params)
+                db.session.commit()
+                break
+            except OperationalError as exc:
+                db.session.rollback()
+                error_code = exc.orig.args[0] if getattr(exc, "orig", None) and exc.orig.args else None
+                if error_code not in {1020, 1205, 1213} or attempt == 7:
+                    raise
+                # MariaDB pode devolver 1020 mesmo em um upsert atomico quando
+                # ha forte disputa pela mesma chave. Uma espera curta e
+                # limitada preserva a requisicao sem esconder outros erros.
+                sleep(0.002 * (attempt + 1))
+        db.session.expire_all()
+        rec = ApiRateLimit.query.filter_by(ip=ip, endpoint=endpoint).one()
+        if rec.hits <= max_hits:
+            return 0
+        ji = rec.janela_inicio
+        if ji.tzinfo is None:
+            ji = ji.replace(tzinfo=timezone.utc)
+        return max(1, int((ji + window - now).total_seconds()))
 
     rec = ApiRateLimit.query.filter_by(ip=ip, endpoint=endpoint).first()
     if not rec:

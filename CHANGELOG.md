@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Corrigido
+
+- Eliminada falha de concorrência do rate limit global no MariaDB, com incremento atômico e retry limitado para conflitos transitórios reconhecidos.
+- Tornada determinística a auditoria E2E do modal de clientes quando a tela vazia oferece mais de um link com o mesmo texto.
+
+### Verificado
+
+- 201 testes Python, lint, compilação e validação JavaScript aprovados em 2026-08-27.
+- Auditoria autenticada das telas em compact, mobile, tablet, desktop e wide, incluindo runtime, HTTP 500, overflow e WCAG.
+- Teste local com 150 requisições simultâneas sem erro após a correção de concorrência.
+
+### Documentação
+
+- Reescrita a lista de conclusão do produto para separar código, infraestrutura, homologação e decisões externas.
+- Adicionados checklist de go-live e política de suporte/operação.
+
 - Revisao geral removeu entrypoints, templates, assets e utilitarios sem uso comprovado.
 - PDFs de OS foram consolidados em ReportLab, com escape de conteudo; `pdfkit`/wkhtmltopdf foram removidos.
 - Cryptography e Pillow foram atualizados para versoes sem vulnerabilidades conhecidas; `pip-audit` passou sem achados.

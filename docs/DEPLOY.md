@@ -1,5 +1,7 @@
 # Deploy
 
+Estado revisado em 2026-08-27: build, Compose, migrations, staging, produção e rollback estão automatizados. Nenhum host real foi homologado nesta revisão; execute o [checklist de go-live](GO_LIVE.md) antes da liberação.
+
 ## Variaveis
 
 Use `.env.production.example` como base. Em producao sao obrigatorias:

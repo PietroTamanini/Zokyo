@@ -1,5 +1,7 @@
 # Seguranca
 
+Estado revisado em 2026-08-27 após testes automatizados, auditoria de dependências e carga concorrente no MariaDB. A segurança de produção ainda depende do host, HTTPS, segredos, 2FA obrigatório, backups externos e alertas reais.
+
 ## Implementado
 
 - CSRF global para metodos mutantes.

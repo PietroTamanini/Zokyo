@@ -1,5 +1,7 @@
 # Rotas
 
+Estado revisado em 2026-08-27. As páginas principais foram auditadas com Playwright em cinco tamanhos; aliases legados permanecem por compatibilidade e devem ser removidos somente com plano de migração.
+
 ## HTML
 
 - `/` - dashboard.

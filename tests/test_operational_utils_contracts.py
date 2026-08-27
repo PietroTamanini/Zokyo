@@ -287,6 +287,38 @@ def test_rate_limit_mysql_atomic_branch(monkeypatch):
     assert commits
 
 
+def test_hit_rate_limit_mysql_usa_upsert_atomico(monkeypatch, request):
+    app, _user_id = _make_rate_limit_app()
+    context = app.app_context()
+    context.push()
+    request.addfinalizer(context.pop)
+
+    class Dialect:
+        name = "mysql"
+
+    class Bind:
+        dialect = Dialect()
+
+    record = types.SimpleNamespace(hits=2, janela_inicio=datetime.now(timezone.utc))
+    query = types.SimpleNamespace(
+        filter_by=lambda **_kwargs: types.SimpleNamespace(one=lambda: record)
+    )
+    executed = []
+    commits = []
+
+    monkeypatch.setattr(rate_limit, "_dialect_name", lambda: Bind().dialect.name)
+    monkeypatch.setattr(rate_limit.db.session, "execute", lambda statement, params: executed.append((statement, params)))
+    monkeypatch.setattr(rate_limit.db.session, "commit", lambda: commits.append(True))
+    monkeypatch.setattr(rate_limit.db.session, "expire_all", lambda: None)
+    monkeypatch.setattr(ApiRateLimit, "query", query)
+
+    assert rate_limit.hit_rate_limit("10.0.0.2", "global", max_hits=2, window_seconds=60) == 0
+    record.hits = 3
+    assert rate_limit.hit_rate_limit("10.0.0.2", "global", max_hits=2, window_seconds=60) > 0
+    assert "ON DUPLICATE KEY UPDATE" in str(executed[0][0])
+    assert len(commits) == 2
+
+
 def test_operational_metrics_network_e_coleta(monkeypatch, tmp_path):
     class FakePath:
         def __init__(self, _value):

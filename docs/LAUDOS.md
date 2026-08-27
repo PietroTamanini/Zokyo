@@ -1,5 +1,7 @@
 # Modulo de laudos tecnicos
 
+Estado revisado em 2026-08-27: criação, rascunho, templates, PDF, storage privado e concorrência possuem cobertura automatizada e auditoria visual responsiva. A identidade final do PDF e eventual validade jurídica dependem de homologação externa.
+
 O modulo de laudos cria documentos tecnicos vinculados a uma ordem de servico existente. O fluxo atual cobre:
 
 - listagem paginada em `/laudos`;

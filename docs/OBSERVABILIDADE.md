@@ -1,5 +1,7 @@
 # Observabilidade
 
+Estado revisado em 2026-08-27: healthchecks, métricas, logs, regras Prometheus/Grafana e alertas estão implementados. Coleta e entrega de alertas no ambiente real ainda precisam ser configuradas e testadas.
+
 ## Healthchecks
 
 - `GET /healthz`: indica que o processo Flask esta respondendo.

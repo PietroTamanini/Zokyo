@@ -1,5 +1,7 @@
 # Arquitetura
 
+Estado revisado em 2026-08-27 após execução completa em Docker, migrations no MariaDB, 201 testes Python e auditoria E2E autenticada.
+
 O Zokyo usa Flask com application factory em `app/__init__.py`.
 
 ## Camadas

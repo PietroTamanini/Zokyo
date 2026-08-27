@@ -1,5 +1,7 @@
 # DJ Tech site público
 
+Estado verificado em 2026-08-27: página inicial e consulta de OS responderam em Docker; metadados SEO, canonical, Open Graph e dados estruturados estão presentes. A publicação final ainda exige domínio/DNS/HTTPS reais e validação das URLs públicas.
+
 Site estático para `https://djtechinfo.com.br/` com consulta pública de OS em `/os`.
 
 ## Estrutura

@@ -65,6 +65,8 @@ Instalacoes novas executam a cadeia Alembic iniciada pela baseline consolidada e
 
 ## Testes e qualidade
 
+Estado verificado em 2026-08-27: 201 testes Python aprovados, 200 cenários Playwright executados nos projetos compact, mobile, tablet, desktop e wide, e teste local de 150 requisições simultâneas sem erro. A auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
+
 ```bash
 pytest -q
 ruff check app tests scripts
@@ -111,6 +113,11 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 - [Rotas](docs/ROTAS.md)
 - [Permissoes](docs/PERMISSOES.md)
 - [SaaS e LGPD](docs/SAAS.md)
+- [Checklist de go-live](docs/GO_LIVE.md)
+- [Política de suporte e operação](docs/SUPORTE_OPERACAO.md)
+- [Backup e restore](docs/BACKUP_RESTORE.md)
+- [Recuperação de desastre](docs/DISASTER_RECOVERY.md)
+- [Observabilidade](docs/OBSERVABILIDADE.md)
 - [Pendencias atuais](oque_falta.md)
 - [Decisoes externas](docs/DECISOES_EXTERNAS.md)
 

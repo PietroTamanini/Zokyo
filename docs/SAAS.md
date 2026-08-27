@@ -1,5 +1,7 @@
 # Preparacao SaaS
 
+Estado revisado em 2026-08-27: multiempresa, planos, limites, isolamento e provider sandbox estão implementados. Cobrança recorrente real, preços, impostos, licença e contratos continuam fora do código e impedem venda SaaS ampla.
+
 ## Estado atual
 
 O Zokyo ja possui base SaaS operacional:

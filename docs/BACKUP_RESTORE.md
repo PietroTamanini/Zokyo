@@ -1,5 +1,7 @@
 # Backup e restore
 
+Estado revisado em 2026-08-27: scripts, criptografia, manifestos e validações automatizadas existem. Backup externo agendado e restore com dados de produção ainda precisam ser configurados e comprovados antes do go-live.
+
 ## Banco
 
 ```bash

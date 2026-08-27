@@ -1,5 +1,7 @@
 # API
 
+Estado revisado em 2026-08-27. As rotas documentadas possuem cobertura automatizada; integrações externas e consumidores reais ainda devem ser homologados antes de produção.
+
 As APIs autenticadas usam `/api/*` e retornam JSON. Requisicoes `POST`, `PUT`, `PATCH` e `DELETE` exigem CSRF.
 
 ## Ordens de servico

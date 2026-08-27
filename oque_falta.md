@@ -1,144 +1,142 @@
-# O que falta para o Zokyo ficar top dos tops
+# O que falta para concluir o Zokyo
 
-Atualizado em 2026-08-26 apos revisao do codigo, automacoes e 200 testes automatizados.
+Atualizado em 2026-08-27 após execução em Docker, auditoria visual autenticada, teste de carga e 201 testes automatizados de domínio/API.
 
-Legenda: `[x]` significa que existe implementacao coberta pela revisao automatizada. Itens que dependem de infraestrutura, credenciais, validacao visual ou operacao com usuarios reais continuam abertos mesmo quando o codigo de apoio ja existe.
+Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
-O sistema ja esta grande. O proximo salto nao e colocar qualquer modulo novo sem criterio. O que falta agora e fechar produto: seguranca real, fluxo simples, operacao diaria sem travar e uma experiencia que qualquer funcionario consiga usar sem medo.
+## Estado atual
 
-## Prioridade 1: producao blindada
+O sistema está tecnicamente apto para um piloto controlado. Ainda não está liberado para produção comercial porque o ambiente real, os backups externos, as integrações e as políticas operacionais não foram configurados ou homologados.
 
-- [ ] Configurar ambiente real com `FLASK_ENV=production`.
-- [ ] Usar `SECRET_KEY`, `ENCRYPTION_SALT`, `BLIND_INDEX_KEY` e `BACKUP_ENCRYPTION_KEY` fortes, fora do repositorio.
-- [ ] Ativar HTTPS no dominio principal e no painel.
-- [ ] Configurar `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL` com URL publica HTTPS.
-- [ ] Ativar `REQUIRE_ADMIN_2FA=true` em producao.
-- [ ] Configurar SMTP real para recuperacao de senha e avisos importantes.
-- [ ] Configurar canal de alerta operacional por e-mail ou webhook.
-- [ ] Rodar `flask --app wsgi:app production-check --strict-integrations` e so publicar quando passar sem erro.
+- [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
+- [x] Schema atualizado até a migration `20260731_0012` e sem divergência detectada pelo Alembic.
+- [x] 201 testes Python aprovados.
+- [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
+- [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
+- [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
+- [x] Ruff, compilação Python, validação JavaScript e auditorias de dependências aprovados.
 
-## Prioridade 2: backup e restore de verdade
+## 1. Bloqueadores de produção
 
-- [ ] Agendar backup automatico diario do MySQL/MariaDB.
-- [ ] Agendar backup dos uploads e arquivos privados.
-- [ ] Criptografar backups antes de enviar para fora do servidor.
-- [ ] Enviar backup para destino externo confiavel.
-- [ ] Testar restore em banco descartavel antes de colocar cliente real.
-- [ ] Criar rotina mensal de verificacao de restore.
-- [ ] Monitorar falha de backup e backup vencido.
+- [ ] Configurar o host real com `FLASK_ENV=production`.
+- [ ] Armazenar `SECRET_KEY`, `ENCRYPTION_SALT`, `BLIND_INDEX_KEY`, `BACKUP_ENCRYPTION_KEY` e `METRICS_TOKEN` fortes fora do repositório.
+- [ ] Configurar domínio, DNS, HTTPS e proxy reverso.
+- [ ] Definir `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL` com a URL HTTPS pública.
+- [ ] Ativar `REQUIRE_ADMIN_2FA=true` e cadastrar o segundo fator dos administradores.
+- [ ] Configurar SMTP e `MAIL_FROM`, então testar recuperação de senha real.
+- [ ] Configurar `ALERT_EMAIL` ou `ALERT_WEBHOOK_URL` e confirmar o recebimento de um alerta de teste.
+- [ ] Configurar WhatsApp Cloud API ou aceitar formalmente a operação apenas com fallback manual.
+- [ ] Executar `flask --app wsgi:app production-check --strict-integrations` até não haver erros.
+- [ ] Executar o checklist de [go-live](docs/GO_LIVE.md).
 
-## Prioridade 3: fluxo de OS impecavel
+## 2. Backup e recuperação
 
-- [ ] Abrir OS em menos de 1 minuto.
-- [ ] Melhorar busca de cliente para nao cortar resultado nem confundir usuario.
-- [ ] Deixar equipamento, defeito, checklist, fotos e assinatura em uma ordem simples.
-- [ ] Garantir que orcamento, aprovacao, pagamento parcial e finalizacao estejam travados corretamente.
-- [x] Impedir finalizacao de OS sem 100% de pagamento.
-- [x] Manter OS baixada/arquivada fora da tela principal.
-- [ ] Deixar PDF da OS bonito, direto para imprimir e consistente com a identidade da assistencia.
-- [x] Validar por testes automatizados o fluxo: criar OS, editar, aprovar, pagar, imprimir, baixar e consultar no portal.
+- [x] Scripts de banco, storage privado, criptografia, manifesto, integridade e restore implementados.
+- [x] Runbooks de backup e recuperação documentados.
+- [ ] Escolher provedor, região, retenção e responsável pelo backup externo.
+- [ ] Agendar backup diário do MariaDB e dos uploads privados.
+- [ ] Criptografar e enviar cada backup para fora do host da aplicação.
+- [ ] Configurar alerta para backup falho ou vencido.
+- [ ] Restaurar banco e arquivos em ambiente descartável antes do primeiro cliente real.
+- [ ] Registrar evidência do teste de restore e repetir mensalmente.
+- [ ] Simular recuperação de desastre trimestralmente.
 
-## Prioridade 4: painel de bancada para tecnico
+## 3. Fluxo de ordem de serviço
 
-- [x] Criar visao rapida de OS por etapa.
-- [x] Destacar prioridade, prazo e status.
-- [x] Mostrar pecas necessarias e links de compra apenas para tecnico.
-- [x] Separar observacao interna da observacao do cliente.
-- [x] Facilitar checklist tecnico.
-- [x] Facilitar criacao de laudo.
-- [x] Ter acao para avisar cliente.
+- [x] Criar, editar, aprovar, pagar parcialmente, imprimir, baixar, restaurar e consultar OS.
+- [x] Impedir finalização sem pagamento integral.
+- [x] Manter OS baixadas fora da lista operacional principal.
+- [x] Checklist, fotos, assinatura, laudo, peças, serviços e observações internas separados.
+- [x] Fluxo principal coberto por testes automatizados.
+- [ ] Medir com atendente real se uma OS pode ser aberta em menos de um minuto.
+- [ ] Homologar a busca de clientes com uma base grande e nomes/documentos semelhantes.
+- [ ] Testar o formulário com atendente e técnico e reduzir etapas que gerarem dúvida.
+- [ ] Aprovar visualmente o PDF final com a identidade da assistência e uma impressora real.
+- [ ] Executar um ciclo real de orçamento, aprovação, pagamento parcial, entrega e garantia no piloto.
 
-## Prioridade 5: WhatsApp profissional
+## 4. Financeiro
 
-- [ ] Configurar WhatsApp Cloud API oficial da Meta para producao.
-- [ ] Manter gateway local apenas como alternativa controlada/teste.
-- [ ] Criar templates configuraveis por status.
-- [ ] Ter mensagens para OS aberta, orcamento enviado, aprovado, pronto para retirada, cobranca pendente e garantia.
-- [x] Registrar tentativas, erros e entregas.
-- [x] Manter fallback manual por `wa.me` quando a API estiver indisponivel.
+- [x] Mostrar entrada do dia, receitas, despesas, saldo, caixa, valores a receber e a pagar.
+- [x] Filtrar lançamentos por período, tipo e status.
+- [x] Registrar pagamentos, conciliação, descontos e comissões.
+- [x] Exportar dados contábeis e gerar relatórios gerenciais.
+- [ ] Criar uma lista direta de OS com pagamento incompleto.
+- [ ] Calcular lucro por OS usando custo efetivo das peças, mão de obra e desconto.
+- [ ] Exibir inadimplência por cliente e OS, com vencimento e total em atraso.
+- [ ] Criar um resumo mensal simplificado para o proprietário.
+- [ ] Homologar valores, estornos, cancelamentos e fechamento de caixa com o responsável financeiro.
 
-## Prioridade 6: financeiro inteligente
+## 5. WhatsApp e notificações
 
-- [ ] Mostrar quanto entrou hoje.
-- [ ] Mostrar quanto esta pendente.
-- [ ] Mostrar OS com pagamento incompleto.
-- [ ] Calcular lucro por OS.
-- [ ] Separar custo de peca, mao de obra e desconto.
-- [ ] Mostrar inadimplencia.
-- [ ] Gerar relatorio mensal simples para o dono.
+- [x] Registrar tentativas, resultados e erros de envio.
+- [x] Manter fallback manual por `wa.me`.
+- [x] Suportar templates versionados e variáveis restritas.
+- [x] Permitir retry administrativo de notificações.
+- [ ] Criar e aprovar templates padrão para OS aberta, orçamento enviado, aprovado, pronto para retirada, cobrança e garantia.
+- [ ] Ligar cada evento de negócio ao template correspondente e cobrir o fluxo com testes.
+- [ ] Homologar templates e credenciais na Meta.
+- [ ] Decidir se o gateway local continuará permitido e em quais ambientes.
 
-## Prioridade 7: estoque realmente util
+## 6. Estoque, bancada, agenda e coleta
 
-- [x] Baixar estoque automaticamente ao usar peca na OS.
-- [x] Alertar estoque baixo.
-- [x] Mostrar historico de movimentacao.
-- [x] Vincular fornecedor a peca.
-- [x] Sugerir compra quando estoque estiver baixo.
-- [x] Evitar que produto ou servico inativo apareca em novas OS.
+- [x] Baixa automática, estoque mínimo, histórico, lotes, fornecedor e sugestão de compra.
+- [x] Produtos e serviços inativos não aparecem em novas OS.
+- [x] Bancada por etapa, prioridade, prazo, checklist, laudo e aviso ao cliente.
+- [x] Agenda de coleta/entrega, múltiplos pontos, rota externa, status, confirmação e comprovantes.
+- [ ] Homologar contagem física e ajuste de estoque com dados reais do piloto.
+- [ ] Confirmar rotas e comprovantes em um aparelho móvel real.
 
-## Prioridade 8: portal do cliente
+## 7. Portal e site público
 
-- [ ] Melhorar consulta publica da OS no dominio principal.
-- [x] Mostrar status em linguagem simples.
-- [x] Mostrar prazo estimado.
-- [x] Permitir aprovacao de orcamento pelo cliente.
-- [x] Permitir assinatura eletronica simples, deixando claro que nao equivale a ICP-Brasil.
-- [x] Mostrar comprovante e garantia.
-- [x] Ter botao de WhatsApp visivel no portal.
-- [ ] Melhorar SEO da pagina de consulta e do site publico.
+- [x] Consulta pública de OS integrada ao site.
+- [x] Status simples, prazo, aprovação, assinatura, comprovante, garantia e botão de WhatsApp.
+- [x] Site e consulta possuem description, canonical, Open Graph e dados estruturados.
+- [x] Páginas privadas e links de convite usam `noindex`.
+- [ ] Publicar no domínio final e validar DNS, HTTPS, compartilhamento social e indexação.
+- [ ] Fazer teste de usabilidade com clientes reais sem explicar previamente a tela.
 
-## Prioridade 9: agenda, coleta e rota
+## 8. Auditoria, permissões e LGPD
 
-- [x] Criar agenda de coletas e entregas.
-- [x] Usar endereco da assistencia como origem e destino padrao.
-- [x] Permitir varios pontos de coleta.
-- [x] Montar rota e abrir navegacao em mapa externo.
-- [x] Registrar status da coleta.
-- [x] Registrar confirmacao do cliente.
-- [x] Permitir foto ou comprovante na retirada e entrega.
+- [x] RBAC/ABAC, isolamento por empresa e restrições de financeiro/configuração testados.
+- [x] Administrador pode revisar usuários, sessões, eventos e configurações críticas.
+- [x] Ações centrais de clientes, OS, estoque, financeiro, usuários, privacidade e segurança geram auditoria.
+- [x] Exportação, consentimento, anonimização e retenção estão implementados.
+- [ ] Criar uma matriz formal de todas as mutações e confirmar log de auditoria rota por rota.
+- [ ] Aprovar juridicamente os prazos de retenção antes de ativá-los.
+- [ ] Aprovar termos de uso, política de privacidade e natureza da assinatura eletrônica.
 
-## Prioridade 10: auditoria, permissoes e seguranca interna
+## 9. Experiência e homologação
 
-- [ ] Garantir que toda acao importante gere log de auditoria.
-- [x] Separar permissoes por cargo.
-- [x] Tecnico nao deve ver financeiro sensivel sem permissao.
-- [x] Atendente nao deve alterar configuracao critica.
-- [x] Admin deve conseguir revisar sessoes, logs e usuarios.
-- [x] Revisar RBAC e ABAC rota por rota com guardas e testes automatizados.
-- [x] Validar isolamento entre empresas/usuarios por testes automatizados.
+- [x] Auditoria automatizada em 320 px, Pixel 7, tablet, desktop e wide.
+- [x] Tema, menu, foco, modal, tabelas e ausência de overflow crítico testados.
+- [x] Screenshots representativos revisados manualmente.
+- [ ] Revisar português de todas as telas com revisor humano.
+- [ ] Homologar dark mode página por página em aparelhos reais.
+- [ ] Testar com atendente, técnico, proprietário e clientes com diferentes níveis de familiaridade digital.
+- [ ] Avaliar divisão dos formulários longos de OS e laudo em etapas.
+- [ ] Confirmar legibilidade de tabelas com usuários mais velhos.
 
-## Prioridade 11: polimento visual pagina por pagina
+## 10. Operação e comercialização
 
-- [ ] Revisar portugues de todas as telas.
-- [ ] Padronizar botoes, icones, cores e espacamentos.
-- [ ] Garantir dark mode bonito em todas as paginas.
-- [ ] Corrigir cortes no mobile.
-- [ ] Reduzir poluicao visual dos formularios.
-- [ ] Melhorar tabelas grandes para pessoas mais velhas usarem sem dificuldade.
-- [ ] Rodar Playwright autenticado em compact, mobile, tablet, desktop e wide.
+- [x] Instalação, configuração, deploy, rollback, observabilidade e recuperação documentados.
+- [x] CI, release versionada, imagem imutável e deploy staging/produção disponíveis.
+- [x] Checklist de go-live e política operacional documentados.
+- [ ] Definir licença e condições de distribuição.
+- [ ] Definir planos, preços, impostos, moeda e gateway recorrente.
+- [ ] Definir SLA, canais, horários e responsáveis pelo suporte.
+- [ ] Definir controlador LGPD e procedimento de atendimento ao titular.
+- [ ] Executar piloto com uma assistência e registrar problemas por pelo menos um ciclo operacional.
+- [ ] Aprovar formalmente o go-live após o piloto.
 
-## Prioridade 12: operacao e venda
+## Ordem recomendada
 
-- [x] Documentar instalacao local para suporte.
-- [x] Documentar instalacao em producao.
-- [ ] Criar checklist antes de colocar cliente real.
-- [x] Criar rotina de atualizacao baseada em migrations Alembic e deploy com rollback.
-- [ ] Criar politica de suporte, backup e recuperacao.
-- [ ] Validar cobranca recorrente antes de vender acesso para terceiros.
-
-## Ordem certa de execucao
-
-1. Producao segura.
-2. Backup e restore testados.
-3. OS perfeita.
-4. WhatsApp real.
-5. Financeiro e estoque confiaveis.
-6. Portal do cliente.
-7. Agenda e coleta.
-8. Auditoria e permissoes.
-9. Polimento visual final.
-10. Operacao comercial.
-
-## Observacao direta
-
-O sistema nao precisa de mais acumulacao aleatoria de funcoes. Ele precisa ficar simples, confiavel e impossivel de quebrar na mao de funcionario comum. Esse e o caminho para virar um sistema realmente profissional para assistencia tecnica.
+1. Salvar e publicar as correções verificadas.
+2. Configurar staging com segredos, HTTPS, SMTP, alertas e WhatsApp.
+3. Configurar backup externo e provar o restore.
+4. Fechar as lacunas financeiras por OS.
+5. Homologar o fluxo de OS e os PDFs com usuários reais.
+6. Executar piloto controlado.
+7. Corrigir os problemas do piloto.
+8. Concluir decisões jurídicas e comerciais.
+9. Executar o checklist de go-live.
+10. Liberar produção gradualmente e monitorar.
