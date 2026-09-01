@@ -58,10 +58,17 @@ class Config:
     # ── PDF ────────────────────────────────────────────────────────────────
     REPORTS_UPLOAD_FOLDER = os.environ.get("REPORTS_UPLOAD_FOLDER", "").strip() or None
     REPORTS_PUBLIC_VERIFICATION = os.environ.get("REPORTS_PUBLIC_VERIFICATION", "true").lower() in ("1", "true", "yes", "on")
+    S3_BUCKET = os.environ.get("S3_BUCKET", "").strip() or None
+    S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "").strip() or None
+    S3_REGION = os.environ.get("S3_REGION", "").strip() or None
+    S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID", "").strip() or None
+    S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY", "").strip() or None
+    S3_SSE = os.environ.get("S3_SSE", "AES256").strip()
     # O schema da aplicacao e gerenciado exclusivamente pelo Alembic.
     DISABLE_CREATE_ALL = True
     CSRF_EXEMPT_ENDPOINTS = {
         "platform.sandbox_webhook",
+        "platform.asaas_webhook",
         "auth.api_v1_login",
         "client_api.auth",
         "client_api.os_collection",
@@ -81,6 +88,7 @@ class Config:
     RATE_LIMIT_ENDPOINT_WRITE = int(os.environ.get("RATE_LIMIT_ENDPOINT_WRITE", "120"))
     RATE_LIMIT_ENDPOINT_API = int(os.environ.get("RATE_LIMIT_ENDPOINT_API", "240"))
     RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    REDIS_URL = os.environ.get("REDIS_URL", "").strip() or None
 
     # ── WhatsApp ───────────────────────────────────────────────────────────
     WPP_SERVER_URL = os.environ.get("WPP_SERVER_URL", "").strip() or None

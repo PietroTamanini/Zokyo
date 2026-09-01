@@ -16,6 +16,7 @@ os_pecas = db.Table(
     db.Column("peca_id",      db.Integer, db.ForeignKey("pecas.id"),          primary_key=True),
     db.Column("quantidade",    db.Integer,       default=1, nullable=False),
     db.Column("valor_unitario",db.Numeric(10,2), default=0),
+    db.Column("custo_unitario",db.Numeric(10,2), nullable=True),
     db.Column("link_compra",   db.String(1000)),
 )
 
@@ -82,6 +83,8 @@ class OrdemServico(db.Model):
     valor_servico = db.Column(db.Numeric(10,2), default=0)
     valor_pecas   = db.Column(db.Numeric(10,2), default=0)
     desconto      = db.Column(db.Numeric(10,2), default=0)
+    horas_trabalho = db.Column(db.Numeric(8,2), default=0, nullable=False)
+    custo_hora = db.Column(db.Numeric(10,2), default=0, nullable=False)
     orcamento_status = db.Column(db.String(20))
     orcamento_decidido_em = db.Column(db.DateTime)
     checklist_template_id = db.Column(db.Integer, db.ForeignKey("service_checklist_templates.id"))
@@ -128,6 +131,10 @@ class OrdemServico(db.Model):
         vp = float(self.valor_pecas   or 0)
         dc = float(self.desconto      or 0)
         return round(vs + vp - dc, 2)
+
+    @property
+    def custo_mao_obra(self):
+        return round(float(self.horas_trabalho or 0) * float(self.custo_hora or 0), 2)
 
     @property
     def numero_display(self):
@@ -182,6 +189,9 @@ class OrdemServico(db.Model):
             "valor_pecas":         float(self.valor_pecas   or 0),
             "desconto":            float(self.desconto      or 0),
             "valor_total":         self.valor_total,
+            "horas_trabalho":      float(self.horas_trabalho or 0),
+            "custo_hora":          float(self.custo_hora or 0),
+            "custo_mao_obra":      self.custo_mao_obra,
             "status":              self.status,
             "prio":                self.prio or "normal",
             "tipo_atendimento":     self.tipo_atendimento or "balcao",

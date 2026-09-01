@@ -41,7 +41,7 @@ jobs:
       - name: Security audit
         run: |
           bandit -q -r app scripts -x tests -lll
-          pip-audit -r requirements-prod.txt
+          pip-audit -r requirements-prod.lock
       - name: Test
         env:
           DATABASE_URL: "sqlite:///:memory:"
@@ -72,6 +72,7 @@ jobs:
           METRICS_TOKEN: mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  # pragma: allowlist secret
           BACKUP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
           REPORTS_UPLOAD_FOLDER: /var/lib/zokyo/uploads/reports
+          REDIS_URL: redis://redis:6379/0
           ALERT_EMAIL: ops@example.com
           SMTP_HOST: smtp.example.com
           MAIL_FROM: no-reply@example.com

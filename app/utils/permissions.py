@@ -139,6 +139,7 @@ PUBLIC_ENDPOINTS = {
     "client_api.auth",
     "client_api.consulta_os_publica",
     "platform.sandbox_webhook",
+    "platform.asaas_webhook",
     "static",
 }
 

@@ -210,6 +210,10 @@
                  readonly class="readonly-field"
                  title="Calculado automaticamente ao vincular peças">
         </div>
+        <div class="form-row fr2 mb16">
+          <div class="form-group"><label>Horas trabalhadas</label><input type="number" name="horas_trabalho" step="0.25" min="0" value="{{ fd.get('horas_trabalho', os.horas_trabalho if os else 0) }}"></div>
+          <div class="form-group"><label>Custo interno/hora (R$)</label><input type="number" name="custo_hora" step="0.01" min="0" value="{{ fd.get('custo_hora', os.custo_hora if os else 0) }}"></div>
+        </div>
         <div class="form-group mb20">
           <label>Desconto (R$)</label>
              <input type="number" name="desconto" id="f-dc" step="0.01" min="0"

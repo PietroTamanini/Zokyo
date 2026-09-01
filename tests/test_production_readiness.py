@@ -29,6 +29,7 @@ def _production_env() -> dict[str, str]:
         "WHATSAPP_CLOUD_API_TOKEN": "meta-token",
         "WHATSAPP_CLOUD_PHONE_NUMBER_ID": "1234567890",
         "WHATSAPP_CLOUD_API_VERSION": "v23.0",
+        "REDIS_URL": "redis://redis:6379/0",
     }
 
 

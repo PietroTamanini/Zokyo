@@ -10,8 +10,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends mariadb-client curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements-prod.txt requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements-prod.txt
+COPY requirements-prod.txt requirements-prod.lock requirements.txt ./
+RUN pip install --upgrade pip && pip install -r requirements-prod.lock
 
 COPY . .
 

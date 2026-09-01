@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-08-27 após execução em Docker, auditoria visual autenticada, teste de carga e 201 testes automatizados de domínio/API.
+Atualizado em 2026-09-01 após nova execução da suíte, da composição de produção com MariaDB e do teste de carga.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -60,10 +60,10 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] Filtrar lançamentos por período, tipo e status.
 - [x] Registrar pagamentos, conciliação, descontos e comissões.
 - [x] Exportar dados contábeis e gerar relatórios gerenciais.
-- [ ] Criar uma lista direta de OS com pagamento incompleto.
-- [ ] Calcular lucro por OS usando custo efetivo das peças, mão de obra e desconto.
-- [ ] Exibir inadimplência por cliente e OS, com vencimento e total em atraso.
-- [ ] Criar um resumo mensal simplificado para o proprietário.
+- [x] Criar uma lista direta de OS com pagamento incompleto.
+- [x] Calcular lucro por OS usando custo registrado das peças, comissão e desconto. A mão de obra interna continua refletida no valor do serviço, sem folha/custo-hora automático.
+- [x] Exibir inadimplência por cliente e OS, com vencimento e total em atraso.
+- [x] Criar um resumo mensal simplificado para o proprietário.
 - [ ] Homologar valores, estornos, cancelamentos e fechamento de caixa com o responsável financeiro.
 
 ## 5. WhatsApp e notificações
@@ -72,7 +72,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] Manter fallback manual por `wa.me`.
 - [x] Suportar templates versionados e variáveis restritas.
 - [x] Permitir retry administrativo de notificações.
-- [ ] Criar e aprovar templates padrão para OS aberta, orçamento enviado, aprovado, pronto para retirada, cobrança e garantia.
+- [x] Criar templates padrão editáveis para OS aberta, orçamento enviado, aprovado, pronto para retirada, cobrança e garantia. A aprovação final do texto ainda depende do proprietário/Meta.
 - [ ] Ligar cada evento de negócio ao template correspondente e cobrir o fluxo com testes.
 - [ ] Homologar templates e credenciais na Meta.
 - [ ] Decidir se o gateway local continuará permitido e em quais ambientes.
@@ -122,7 +122,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] CI, release versionada, imagem imutável e deploy staging/produção disponíveis.
 - [x] Checklist de go-live e política operacional documentados.
 - [ ] Definir licença e condições de distribuição.
-- [ ] Definir planos, preços, impostos, moeda e gateway recorrente.
+- [ ] Definir planos, preços, impostos e moeda. O adapter recorrente Asaas, checkout por API, cancelamento e webhooks já estão implementados; faltam credenciais e homologação.
 - [ ] Definir SLA, canais, horários e responsáveis pelo suporte.
 - [ ] Definir controlador LGPD e procedimento de atendimento ao titular.
 - [ ] Executar piloto com uma assistência e registrar problemas por pelo menos um ciclo operacional.

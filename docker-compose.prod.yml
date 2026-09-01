@@ -1,4 +1,16 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   db:
     image: mariadb:11
     restart: unless-stopped
@@ -30,6 +42,12 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_SSE: ${S3_SSE:-AES256}
       DISABLE_CREATE_ALL: "true"
       SCHEDULER_ENABLED: "false"
       GUNICORN_BIND: 0.0.0.0:8000
@@ -38,6 +56,7 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-4}
       GUNICORN_FORWARDED_IPS: "*"
       PROXY_COUNT: 1
+      REDIS_URL: redis://redis:6379/0
       REQUIRE_ADMIN_2FA: ${REQUIRE_ADMIN_2FA:-true}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -54,11 +73,19 @@ services:
       WHATSAPP_CLOUD_API_TOKEN: ${WHATSAPP_CLOUD_API_TOKEN:-}
       WHATSAPP_CLOUD_PHONE_NUMBER_ID: ${WHATSAPP_CLOUD_PHONE_NUMBER_ID:-}
       WHATSAPP_CLOUD_API_VERSION: ${WHATSAPP_CLOUD_API_VERSION:-}
+      ASAAS_API_KEY: ${ASAAS_API_KEY:-}
+      ASAAS_SANDBOX: ${ASAAS_SANDBOX:-true}
+      ASAAS_BASE_URL: ${ASAAS_BASE_URL:-}
+      ASAAS_TIMEOUT: ${ASAAS_TIMEOUT:-15}
+      ASAAS_USER_AGENT: ${ASAAS_USER_AGENT:-Zokyo/1.0 (Flask)}
+      ASAAS_WEBHOOK_TOKEN: ${ASAAS_WEBHOOK_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     volumes:
       - uploads_data:/app/instance/uploads
     expose:
@@ -83,6 +110,7 @@ services:
       DISABLE_CREATE_ALL: "true"
       SCHEDULER_ENABLED: "true"
       PROXY_COUNT: 1
+      REDIS_URL: redis://redis:6379/0
       ALERT_EMAIL: ${ALERT_EMAIL:-}
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       ALERT_WEBHOOK_ALLOWED_HOSTS: ${ALERT_WEBHOOK_ALLOWED_HOSTS:-}
@@ -95,8 +123,16 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     volumes:
       - uploads_data:/app/instance/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   migrate:
     image: ${APP_IMAGE:-zokyo:local}
@@ -142,3 +178,4 @@ services:
 volumes:
   db_data:
   uploads_data:
+  redis_data:

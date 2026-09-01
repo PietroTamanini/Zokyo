@@ -101,7 +101,8 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert {"subtitulo_empresa", "logo_url", "site_url", "instagram_url", "whatsapp_publico"} <= config_columns
     assert {"os_status_options", "os_priority_options", "attendance_type_options", "entry_checklist_options"} <= config_columns
     assert "tipo_atendimento" in order_columns
-    assert "link_compra" in order_part_columns
+    assert {"horas_trabalho", "custo_hora"} <= order_columns
+    assert {"link_compra", "custo_unitario"} <= order_part_columns
     assert {"ativo", "deletado_em"} <= part_columns
     assert {"ativo", "deletado_em"} <= service_columns
-    assert revision == "20260731_0012"
+    assert revision == "20260901_0015"

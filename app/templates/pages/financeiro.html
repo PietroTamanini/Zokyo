@@ -96,6 +96,29 @@
   </div>
 </div>
 
+<div class="stats-grid mb20" aria-label="Resumo mensal do proprietário">
+  <div class="stat-card c-blue"><div class="stat-label">OS no mês</div><div class="stat-value">{{ resumo_mensal.orders }}</div></div>
+  <div class="stat-card c-green"><div class="stat-label">Faturado em OS</div><div class="stat-value stat-money">{{ resumo_mensal.billed|moeda }}</div></div>
+  <div class="stat-card c-amber"><div class="stat-label">Falta receber</div><div class="stat-value stat-money">{{ resumo_mensal.outstanding|moeda }}</div></div>
+  <div class="stat-card c-red"><div class="stat-label">Em atraso</div><div class="stat-value stat-money">{{ resumo_mensal.overdue|moeda }}</div></div>
+</div>
+
+{% if inadimplentes %}
+<div class="card card-accent-red mb20">
+  <div class="card-header"><span class="card-title">Inadimplência por cliente e OS</span><span class="badge b-red">{{ inadimplentes|length }}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>OS</th><th>Cliente</th><th>Vencimento mais antigo</th><th>Total atrasado</th></tr></thead><tbody>
+  {% for item in inadimplentes %}<tr data-href="{{ url_for('pages.os_detalhe', id=item.order.id) }}"><td class="td-mono">#{{ item.order.codigo_os }}</td><td class="td-strong">{{ item.customer.nome if item.customer else '-' }}</td><td>{{ item.oldest_due|fmtdata }}</td><td class="txt-red fw7">{{ item.overdue|moeda }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endif %}
+
+<div class="card mb20">
+  <div class="card-header"><span class="card-title">Resultado e pagamento por OS</span><span class="muted-sm">custos de peças registrados no consumo</span></div>
+  <div class="table-wrap"><table><thead><tr><th>OS</th><th>Cliente</th><th>Total</th><th>Recebido</th><th>Falta receber</th><th>Custo peças</th><th>Custo mão de obra</th><th>Lucro da OS</th></tr></thead><tbody>
+  {% for item in os_financeiro if item.total > 0 %}<tr data-href="{{ url_for('pages.os_detalhe', id=item.order.id) }}"><td class="td-mono">#{{ item.order.codigo_os }}</td><td>{{ item.customer.nome if item.customer else '-' }}</td><td>{{ item.total|moeda }}</td><td class="txt-green">{{ item.paid|moeda }}</td><td class="{{ 'txt-red' if item.pending + item.uncovered > 0 else '' }}">{{ (item.pending + item.uncovered)|moeda }}</td><td>{{ item.part_cost|moeda }}</td><td>{{ item.labor_cost|moeda }}</td><td class="{{ 'txt-green' if item.profit >= 0 else 'txt-red' }} fw7">{{ item.profit|moeda }}</td></tr>{% else %}<tr><td colspan="8" class="td-empty">Nenhuma OS com valor financeiro.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+
 <!-- Tabela de transações -->
 <div class="card">
   <div class="card-header">

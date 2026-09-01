@@ -9,6 +9,7 @@ Fixes:
   - datas com try/except em todos os casos
 """
 import io
+import math
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -109,9 +110,9 @@ def listar():
     cliente_id = request.args.get("cliente_id", type=int)
     atendimento = request.args.get("tipo_atendimento") or request.args.get("atendimento")
     baixadas = request.args.get("baixadas") in {"1", "true", "sim"}
-    page       = request.args.get("page", 1, type=int)
+    page       = max(1, request.args.get("page", 1, type=int) or 1)
     # FIX: limitar per_page para evitar DoS
-    per_page   = min(request.args.get("per_page", 50, type=int), 200)
+    per_page   = max(1, min(request.args.get("per_page", 50, type=int) or 50, 200))
 
     query = (OrdemServico.query
              .options(joinedload(OrdemServico.cliente))
@@ -248,12 +249,17 @@ def criar():
         valor_servico = float(data.get("valor_servico") or 0)
         valor_pecas   = float(data.get("valor_pecas")   or 0)
         desconto      = float(data.get("desconto")      or 0)
+        horas_trabalho = float(data.get("horas_trabalho") or 0)
+        custo_hora = float(data.get("custo_hora") or 0)
         garantia_dias = int(data.get("garantia_dias")   or 90)
     except (ValueError, TypeError):
         return jsonify({"erro": "Campos numéricos inválidos"}), 400
 
+    if not all(math.isfinite(value) for value in (valor_servico, valor_pecas, desconto, horas_trabalho, custo_hora)):
+        return jsonify({"erro": "Campos numéricos devem ser finitos"}), 400
+
     # FIX: valores não podem ser negativos
-    if valor_servico < 0 or valor_pecas < 0 or desconto < 0:
+    if valor_servico < 0 or valor_pecas < 0 or desconto < 0 or horas_trabalho < 0 or custo_hora < 0:
         return jsonify({"erro": "Valores financeiros não podem ser negativos"}), 400
 
     # FIX: desconto não pode ser maior que total
@@ -298,6 +304,8 @@ def criar():
         valor_servico=valor_servico,
         valor_pecas=valor_pecas,
         desconto=desconto,
+        horas_trabalho=horas_trabalho,
+        custo_hora=custo_hora,
         status=status_final,
         prio=prio,
         tipo_atendimento=tipo_atendimento,
@@ -457,12 +465,15 @@ def atualizar(id):
     for campo_num, tp in (
         ("valor_servico", float), ("desconto", float),
         ("garantia_dias", int),   ("valor_pecas", float),
+        ("horas_trabalho", float), ("custo_hora", float),
     ):
         if campo_num in data:
             try:
                 val = tp(data[campo_num])
             except (ValueError, TypeError):
                 return jsonify({"erro": f"{campo_num} deve ser numérico"}), 400
+            if isinstance(val, float) and not math.isfinite(val):
+                return jsonify({"erro": f"{campo_num} deve ser finito"}), 400
             if campo_num != "garantia_dias" and val < 0:
                 return jsonify({"erro": f"{campo_num} não pode ser negativo"}), 400
             setattr(os_obj, campo_num, val)
@@ -619,10 +630,10 @@ def adicionar_peca(id):
         )
         consume_reservation(peca.id, os_obj.id, quantidade)
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id,peca_id,quantidade,valor_unitario,link_compra) "
-                 "VALUES (:o,:p,:q,:v,:l)"),
+            text("INSERT INTO os_pecas (os_id,peca_id,quantidade,valor_unitario,custo_unitario,link_compra) "
+                 "VALUES (:o,:p,:q,:v,:c,:l)"),
             {"o": os_obj.id, "p": peca_id,
-             "q": quantidade, "v": valor_unitario, "l": link_compra or None},
+             "q": quantidade, "v": valor_unitario, "c": float(peca.custo or 0), "l": link_compra or None},
         )
 
     total_pecas = db.session.execute(

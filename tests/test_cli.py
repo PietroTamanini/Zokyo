@@ -21,6 +21,7 @@ def _production_check_env():
         "METRICS_TOKEN": "m" * 32,
         "BACKUP_ENCRYPTION_KEY": base64.urlsafe_b64encode(b"1" * 32).decode("ascii"),
         "REPORTS_UPLOAD_FOLDER": "/var/lib/zokyo/uploads/reports",
+        "REDIS_URL": "redis://redis:6379/0",
         "ALERT_EMAIL": "ops@example.com",
         "SMTP_HOST": "smtp.example.com",
         "MAIL_FROM": "no-reply@example.com",

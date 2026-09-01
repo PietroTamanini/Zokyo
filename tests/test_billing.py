@@ -5,7 +5,7 @@ import json
 from app import create_app
 from app.extensions import db
 from app.models import BillingEvent, Organization, OrganizationSubscription, Plan, Usuario
-from app.services.billing import assert_limit, assert_write_allowed
+from app.services.billing import assert_limit, assert_write_allowed, ensure_trial_subscription, process_asaas_event
 
 
 def make_app():
@@ -79,3 +79,34 @@ def test_painel_global_usa_allowlist_de_email(monkeypatch):
     assert client.get("/platform").status_code == 403
     monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
     assert client.get("/platform").status_code == 200
+
+
+def test_trial_automatico_e_webhook_asaas_idempotente(monkeypatch):
+    app, _admin_id = make_app()
+    with app.app_context():
+        current = OrganizationSubscription.query.one()
+        db.session.delete(current)
+        db.session.commit()
+        trial = ensure_trial_subscription(1)
+        trial.provider = "asaas"
+        trial.external_id = "sub_123"
+        db.session.commit()
+        assert trial.status == "trialing"
+        assert trial.trial_fim is not None
+        payload = {"id": "evt_asaas_1", "event": "PAYMENT_RECEIVED", "payment": {"subscription": "sub_123"}}
+        event, processed = process_asaas_event(payload)
+        db.session.commit()
+        assert processed is True
+        assert event.provider == "asaas"
+        assert OrganizationSubscription.query.one().status == "active"
+        _event, processed_again = process_asaas_event(payload)
+        assert processed_again is False
+
+    monkeypatch.setenv("ASAAS_WEBHOOK_TOKEN", "a" * 40)
+    client = app.test_client()
+    assert client.post("/platform/webhooks/asaas", json={}).status_code == 401
+    duplicate = client.post(
+        "/platform/webhooks/asaas", json=payload, headers={"asaas-access-token": "a" * 40},
+    )
+    assert duplicate.status_code == 200
+    assert duplicate.json["processed"] is False

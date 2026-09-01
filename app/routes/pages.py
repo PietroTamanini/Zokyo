@@ -17,6 +17,7 @@ Fixes aplicados:
 import csv
 import io
 import json
+import math
 import re as _re
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
@@ -429,6 +430,13 @@ def _validar_fotos(files):
 
 
 def _salvar_fotos_os(os_obj, coleta, fotos):
+    from app.services.billing import assert_storage_limit
+    total_incoming = 0
+    for foto in fotos:
+        foto.stream.seek(0, 2)
+        total_incoming += foto.stream.tell()
+        foto.stream.seek(0)
+    assert_storage_limit(os_obj.organization_id, total_incoming)
     base = Path(current_app.instance_path) / "uploads" / "os_fotos" / f"os_{os_obj.id:04d}"
     base.mkdir(parents=True, exist_ok=True)
     registros = []
@@ -439,6 +447,8 @@ def _salvar_fotos_os(os_obj, coleta, fotos):
         destino = base / filename
         foto.save(destino)
         rel = Path("os_fotos") / f"os_{os_obj.id:04d}" / filename
+        from app.services.object_storage import put
+        put(rel.as_posix(), destino.read_bytes(), foto.mimetype or "application/octet-stream")
         registros.append(OSFoto(
             os_id=os_obj.id,
             coleta_id=coleta.id if coleta else None,
@@ -1890,9 +1900,15 @@ def os_criar():
     try:
         valor_servico = float(data.get("valor_servico") or 0)
         desconto      = float(data.get("desconto") or 0)
+        horas_trabalho = float(data.get("horas_trabalho") or 0)
+        custo_hora = float(data.get("custo_hora") or 0)
         garantia_dias = int(data.get("garantia_dias") or 90)
     except (ValueError, TypeError):
         flash("Valores numéricos inválidos no formulário.", "error")
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data)
+
+    if not all(math.isfinite(value) for value in (valor_servico, desconto, horas_trabalho, custo_hora)):
+        flash("Valores numéricos devem ser finitos.", "error")
         return _render_os_form_error("Erro de validacao na OS.", "geral", data)
 
     prio = _valid_or_default(data.get("prio", "normal"), _configured_priority_keys(), "normal")
@@ -1901,7 +1917,7 @@ def os_criar():
         {item["key"] for item in _configured_attendance_options()},
         "balcao",
     )
-    if valor_servico < 0 or desconto < 0:
+    if valor_servico < 0 or desconto < 0 or horas_trabalho < 0 or custo_hora < 0:
         flash("Valores financeiros não podem ser negativos.", "error")
         return _render_os_form_error("Erro de validacao na OS.", "geral", data)
     if valor_servico > 999_999.99 or desconto > valor_servico:
@@ -1926,6 +1942,8 @@ def os_criar():
         valor_servico=valor_servico,
         valor_pecas=0,
         desconto=desconto,
+        horas_trabalho=horas_trabalho,
+        custo_hora=custo_hora,
         status=status_final,
         prio=prio,
         tipo_atendimento=tipo_atendimento,
@@ -1986,11 +2004,16 @@ def os_atualizar(id):
     try:
         vs = float(data.get("valor_servico") or 0)
         dc = float(data.get("desconto") or 0)
+        horas_trabalho = float(data.get("horas_trabalho") or 0)
+        custo_hora = float(data.get("custo_hora") or 0)
         gd = int(data.get("garantia_dias") or 90)
     except (ValueError, TypeError):
         flash("Valores numéricos inválidos.", "error")
         return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
-    if vs < 0 or dc < 0:
+    if not all(math.isfinite(value) for value in (vs, dc, horas_trabalho, custo_hora)):
+        flash("Valores numéricos devem ser finitos.", "error")
+        return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
+    if vs < 0 or dc < 0 or horas_trabalho < 0 or custo_hora < 0:
         flash("Valores financeiros não podem ser negativos.", "error")
         return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
     if dc > vs:
@@ -1998,6 +2021,8 @@ def os_atualizar(id):
         return _render_os_form_error("Erro de validacao na OS.", "geral", data, os_obj)
     os_obj.valor_servico = vs
     os_obj.desconto      = dc
+    os_obj.horas_trabalho = horas_trabalho
+    os_obj.custo_hora = custo_hora
     os_obj.garantia_dias = gd
 
     # Bug #6: validar status na edição também
@@ -2241,8 +2266,8 @@ def os_adicionar_produto_alias():
         )
     else:
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id, peca_id, quantidade, valor_unitario, link_compra) VALUES (:o, :p, :q, :v, :l)"),
-            {"o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario, "l": link_compra or None},
+            text("INSERT INTO os_pecas (os_id, peca_id, quantidade, valor_unitario, custo_unitario, link_compra) VALUES (:o, :p, :q, :v, :c, :l)"),
+            {"o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario, "c": float(peca.custo or 0), "l": link_compra or None},
         )
     os_obj.desconto = 0
     _recalcular_valor_pecas(os_obj)
@@ -2473,16 +2498,17 @@ def os_status(id):
                   f"OS #{os_obj.id:04d}: {antigo} → {novo_st}")
         db.session.commit()
 
+        context = {
+            "cliente": os_obj.cliente.nome if os_obj.cliente else "cliente",
+            "os_id": f"{os_obj.id:04d}",
+            "status": STATUS_OS_LABELS.get(novo_st, novo_st),
+            "equipamento": " ".join(filter(None, [os_obj.tipo_aparelho, os_obj.marca, os_obj.modelo])),
+            "total": f"R$ {os_obj.valor_total:.2f}",
+            "empresa": Configuracao.get().nome_empresa,
+        }
+        history_count = OSHistorico.query.filter_by(os_id=os_obj.id).count()
         if os_obj.cliente and os_obj.cliente.email:
             event_type = f"os_status_{novo_st}"
-            context = {
-                "cliente": os_obj.cliente.nome,
-                "os_id": f"{os_obj.id:04d}",
-                "status": STATUS_OS_LABELS.get(novo_st, novo_st),
-                "equipamento": " ".join(filter(None, [os_obj.tipo_aparelho, os_obj.marca, os_obj.modelo])),
-                "total": f"R$ {os_obj.valor_total:.2f}",
-                "empresa": Configuracao.get().nome_empresa,
-            }
             subject, body = render_message_template(
                 event_type, "email", context,
                 default_subject=f"Atualizacao da OS #{os_obj.id:04d}",
@@ -2492,26 +2518,22 @@ def os_status(id):
                     "Entre em contato com a assistencia em caso de duvidas."
                 ),
             )
-            history_count = OSHistorico.query.filter_by(os_id=os_obj.id).count()
             email_notification, _ = enqueue_email(
                 os_obj.organization_id, os_obj.cliente.email, subject, body,
                 event_type, f"os-email-{os_obj.id}-{history_count}",
             )
             process_notification(email_notification.id)
 
-        # Notificacao WhatsApp nos pontos que costumam travar a oficina.
+        # Notificação WhatsApp orientada por templates versionados.
+        whatsapp_event = f"os_status_{novo_st}"
         whatsapp_message = None
-        whatsapp_event = None
-        if novo_st == "pronto" and antigo != "pronto":
-            whatsapp_message = mensagem_os_pronta(os_obj)
-            whatsapp_event = "os_ready"
-        elif novo_st == "aguardando_aprovacao" and antigo != "aguardando_aprovacao":
-            whatsapp_message = (
-                f"Ola, {os_obj.cliente.nome if os_obj.cliente else 'cliente'}! "
-                f"Sua OS #{os_obj.codigo_os} está aguardando aprovação de orçamento. "
-                f"Valor total: {_format_moeda(os_obj.valor_total)}."
+        if novo_st in {"recepcao", "aguardando_aprovacao", "em_reparo", "pronto", "entregue"}:
+            _subject, whatsapp_message = render_message_template(
+                whatsapp_event, "whatsapp", context,
+                default_body=mensagem_os_pronta(os_obj) if novo_st == "pronto" else (
+                    f"Olá, {context['cliente']}! A OS #{context['os_id']} agora está em: {context['status']}."
+                ),
             )
-            whatsapp_event = "os_budget_waiting"
 
         if whatsapp_message and whatsapp_event:
             if os_obj.cliente and os_obj.cliente.telefone:
@@ -2520,7 +2542,7 @@ def os_status(id):
                     os_obj.cliente.telefone,
                     whatsapp_message,
                     whatsapp_event,
-                    f"{whatsapp_event}-{os_obj.id}",
+                    f"{whatsapp_event}-{os_obj.id}-{history_count}",
                 )
                 notification = process_notification(notification.id)
                 resultado = notification.payload.get("last_result", {})
@@ -2588,7 +2610,14 @@ def os_foto(foto_id):
     foto = db.get_or_404(OSFoto, foto_id)
     base = Path(current_app.instance_path) / "uploads"
     target = (base / foto.filename).resolve()
-    if not str(target).startswith(str(base.resolve())) or not target.exists():
+    if not str(target).startswith(str(base.resolve())):
+        abort(404)
+    from app.services.object_storage import hydrate
+    try:
+        hydrate(foto.filename, target)
+    except Exception:
+        abort(404)
+    if not target.exists():
         abort(404)
     return send_from_directory(base, foto.filename)
 
@@ -3400,6 +3429,7 @@ def fornecedor_deletar(id):
 @pages_bp.route("/lancamentos/")
 @page_nivel_required("admin", "financeiro")
 def financeiro():
+    from app.services.financial_analytics import monthly_summary, order_financial_rows
     hoje = _now()
 
     preset = request.args.get("preset", "")
@@ -3452,20 +3482,26 @@ def financeiro():
     periodo_label = (f"{dt_ini.strftime('%d/%m/%Y')} "
                      f"a {dt_fim.strftime('%d/%m/%Y')}")
 
+    receitas_pagas = _s("receita", "pago")
+    despesas_pagas = _s("despesa", "pago")
+    os_financeiro = order_financial_rows(hoje, dt_ini, dt_fim)
     return render_template("pages/financeiro.html", active="financeiro",
         transacoes=pag.items, paginacao=pag,
         filtros={"data_ini": data_ini, "data_fim": data_fim,
                  "tipo": tipo_filtro, "status": status_filtro},
         periodo_label=periodo_label,
-        receitas_pagas=_s("receita", "pago"),
-        despesas_pagas=_s("despesa", "pago"),
-        lucro=_s("receita", "pago") - _s("despesa", "pago"),
+        receitas_pagas=receitas_pagas,
+        despesas_pagas=despesas_pagas,
+        lucro=receitas_pagas - despesas_pagas,
         a_receber=_s("receita", "pendente"),
         a_pagar=_s("despesa", "pendente"),
         comissoes=float(db.session.query(_coalesce_sum(Transacao.comissao_valor)).filter(
             Transacao.status == "pago", Transacao.criado_em >= dt_ini, Transacao.criado_em <= dt_fim,
         ).scalar() or 0),
         usuarios_comissao=Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all(),
+        os_financeiro=os_financeiro,
+        inadimplentes=[row for row in os_financeiro if row["overdue"] > 0],
+        resumo_mensal=monthly_summary(os_financeiro, receitas_pagas, despesas_pagas),
     )
 
 

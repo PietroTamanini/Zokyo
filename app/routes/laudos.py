@@ -253,7 +253,7 @@ def criar():
         db.session.commit()
         flash("Rascunho de laudo criado.", "success")
         return redirect(url_for("laudos.editar", id=laudo.id))
-    except ValueError as exc:
+    except (ValueError, PermissionError) as exc:
         db.session.rollback()
         flash(str(exc), "error")
         return redirect(url_for("laudos.novo", os_id=os_id or ""))
@@ -382,7 +382,7 @@ def upload_foto(id):
         )
         db.session.commit()
         flash("Foto adicionada.", "success")
-    except ValueError as exc:
+    except (ValueError, PermissionError) as exc:
         db.session.rollback()
         flash(str(exc), "error")
     return redirect(url_for("laudos.editar", id=laudo.id))

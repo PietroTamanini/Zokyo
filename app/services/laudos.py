@@ -106,7 +106,8 @@ def safe_file_path(storage_key: str) -> Path:
     target = (root / storage_key).resolve()
     if not target.is_relative_to(root):
         raise ValueError("Caminho de arquivo inválido.")
-    return target
+    from app.services.object_storage import hydrate
+    return hydrate(storage_key, target)
 
 
 def registrar_evento(laudo: LaudoTecnico, tipo: str, descricao: str = "", dados: dict | None = None, usuario_id: int | None = None):
@@ -332,6 +333,8 @@ def adicionar_foto(laudo: LaudoTecnico, file_storage, tipo: str, legenda: str, o
     if LaudoFoto.query.filter_by(laudo_id=laudo.id).count() >= MAX_FOTOS:
         raise ValueError("Limite de fotos do laudo atingido.")
     data, mime, ext, largura, altura, sha = validar_imagem_upload(file_storage)
+    from app.services.billing import assert_storage_limit
+    assert_storage_limit(laudo.organization_id, len(data))
     rel_dir = Path(str(laudo.organization_id or 1)) / laudo.public_uuid / "photos"
     dest_dir = _reports_root() / rel_dir
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -347,6 +350,9 @@ def adicionar_foto(laudo: LaudoTecnico, file_storage, tipo: str, legenda: str, o
         image.thumbnail((480, 360))
         image.save(thumbnail_target, format="JPEG", quality=82, optimize=True)
     thumbnail_key = (rel_dir / thumbnail_name).as_posix()
+    from app.services.object_storage import put
+    put(storage_key, data, mime)
+    put(thumbnail_key, thumbnail_target.read_bytes(), "image/jpeg")
     foto = LaudoFoto(
         laudo_id=laudo.id,
         organization_id=laudo.organization_id,
@@ -702,6 +708,8 @@ def finalizar_laudo(laudo: LaudoTecnico, usuario: Usuario) -> LaudoTecnico:
         final_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(tmp_pdf), str(final_path))
         laudo.pdf_path = rel_path.as_posix()
+        from app.services.object_storage import put
+        put(laudo.pdf_path, pdf_bytes, "application/pdf")
         laudo.pdf_sha256 = sha
         laudo.pdf_gerado_em = now_utc()
         registrar_evento(laudo, "finalizacao", "Laudo finalizado.", usuario_id=usuario.id)

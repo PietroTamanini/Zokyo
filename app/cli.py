@@ -130,6 +130,10 @@ def register_cli(app):
         db.session.add(admin)
         db.session.flush()
         db.session.add(Configuracao(organization_id=organization.id, nome_empresa=name))
+        from app.services.message_templates import seed_default_templates
+        seed_default_templates(organization.id)
+        from app.services.billing import ensure_trial_subscription
+        ensure_trial_subscription(organization.id)
         registrar(
             "criacao", "organizations", "Organizacao provisionada por CLI.",
             usuario_id=admin.id, usuario_nome=admin.nome, organization_id=organization.id,

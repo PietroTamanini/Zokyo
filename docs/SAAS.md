@@ -1,6 +1,6 @@
 # Preparacao SaaS
 
-Estado revisado em 2026-08-27: multiempresa, planos, limites, isolamento e provider sandbox estão implementados. Cobrança recorrente real, preços, impostos, licença e contratos continuam fora do código e impedem venda SaaS ampla.
+Estado revisado em 2026-09-01: multiempresa, trial automático, planos, quotas, isolamento, sandbox e adapter de assinatura recorrente Asaas estão implementados. Preços, impostos, credenciais, licença, contratos e homologação comercial continuam externos.
 
 ## Estado atual
 
@@ -13,7 +13,12 @@ O Zokyo ja possui base SaaS operacional:
 - planos globais idempotentes via `seed-system`;
 - limites de escrita por assinatura;
 - painel global da plataforma;
-- webhook sandbox de cobranca;
+- webhooks sandbox e Asaas com autenticação e idempotência;
+- criação/reuso de cliente, assinatura recorrente e cancelamento no Asaas;
+- trial automático e bloqueio de escrita após expiração/inadimplência;
+- quotas de usuários, clientes, OS abertas e armazenamento;
+- Redis para sessões e rate limit distribuído, com fallback seguro;
+- storage S3 compatível opcional para arquivos privados;
 - convites de usuario com token em hash, uso unico e expiracao;
 - identidade visual por empresa;
 - controles LGPD de consentimento, exportacao, anonimizacao e retencao.
@@ -40,6 +45,6 @@ python -m flask --app wsgi:app seed-system
 
 ## Decisoes externas
 
-O provider real de cobranca, precos, gateway, moeda, impostos e politica juridica de assinatura dependem do proprietario e/ou assessoria juridica. O sandbox existe para validar o fluxo tecnico sem assumir contrato comercial.
+O código do provider Asaas está disponível, mas preços, credenciais, conta homologada, moeda, impostos e política jurídica dependem do proprietário e/ou assessoria jurídica. O sandbox deve ser usado antes da ativação real.
 
 Consulte `docs/DECISOES_EXTERNAS.md`.

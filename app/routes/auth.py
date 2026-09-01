@@ -297,7 +297,7 @@ def sessions_revoke_others():
 
 
 @auth_bp.route("/recuperar-senha", methods=["GET", "POST"])
-@rate_limit_route(max_hits=5, window_seconds=3600)
+@rate_limit_route(max_hits=5, window_seconds=3600, methods={"POST"})
 def recuperar_senha():
     if request.method == "POST":
         email = sanitize_email(request.form.get("email", ""))
@@ -395,6 +395,10 @@ def primeiro_acesso_post():
             organization = Organization(nome=data.get("empresa_nome") or "Organizacao padrao", slug="default")
             db.session.add(organization)
             db.session.flush()
+            from app.services.message_templates import seed_default_templates
+            seed_default_templates(organization.id)
+            from app.services.billing import ensure_trial_subscription
+            ensure_trial_subscription(organization.id)
         admin = Usuario(
             nome=nome_admin, email=email, nivel="admin",
             organization_id=organization.id, onboarding_completed=False,

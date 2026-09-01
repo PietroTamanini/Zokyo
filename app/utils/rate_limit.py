@@ -18,7 +18,7 @@ from functools import wraps
 from hashlib import sha256
 from time import sleep
 
-from flask import abort, jsonify, request
+from flask import abort, current_app, jsonify, request
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
@@ -172,6 +172,24 @@ def hit_rate_limit(ip: str, endpoint: str, max_hits: int, window_seconds: int) -
     now = _now()
     window = timedelta(seconds=window_seconds)
 
+    redis_url = current_app.config.get("REDIS_URL")
+    if redis_url:
+        try:
+            import redis
+            client = redis.Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
+            bucket = int(now.timestamp()) // window_seconds
+            key = f"zokyo:rate:{endpoint}:{sha256(ip.encode()).hexdigest()[:24]}:{bucket}"
+            hits = client.incr(key)
+            if hits == 1:
+                client.expire(key, window_seconds + 2)
+            if hits > max_hits:
+                ttl = client.ttl(key)
+                return max(1, ttl if ttl > 0 else window_seconds)
+            return 0
+        except (redis.RedisError, OSError):
+            # O banco continua sendo o backend seguro quando o Redis falha.
+            current_app.logger.warning("Redis indisponível para rate limit; usando MariaDB.")
+
     # O limitador global e executado por todos os workers antes de cada
     # requisicao. No MySQL/MariaDB, ler o registro e depois altera-lo pelo ORM
     # permite que workers concorrentes atualizem a mesma linha e pode causar o
@@ -248,7 +266,7 @@ def hit_rate_limit(ip: str, endpoint: str, max_hits: int, window_seconds: int) -
 
 
 def rate_limit_route(max_hits: int = 30, window_seconds: int = 60,
-                     abort_code: int = 429):
+                     abort_code: int = 429, methods: set[str] | None = None):
     """
     Decorator de rate limit para rotas de API.
     Ex: @rate_limit_route(max_hits=10, window_seconds=60)
@@ -258,6 +276,8 @@ def rate_limit_route(max_hits: int = 30, window_seconds: int = 60,
     def decorator(f):
         @wraps(f)
         def wrapped(*args, **kwargs):
+            if methods is not None and request.method not in methods:
+                return f(*args, **kwargs)
             ip       = request.remote_addr or "unknown"
             endpoint = request.endpoint or "unknown"
             now      = _now()

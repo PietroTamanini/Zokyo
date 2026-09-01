@@ -60,6 +60,17 @@ def create_app(config_name="default"):
     app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=8)
     app.config["SESSION_COOKIE_HTTPONLY"]    = True
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    if app.config.get("REDIS_URL"):
+        import redis
+        from flask_session import Session
+        app.config.update(
+            SESSION_TYPE="redis",
+            SESSION_REDIS=redis.Redis.from_url(app.config["REDIS_URL"]),
+            SESSION_KEY_PREFIX="zokyo:session:",
+            SESSION_PERMANENT=True,
+            SESSION_USE_SIGNER=True,
+        )
+        Session(app)
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -323,6 +334,7 @@ def create_app(config_name="default"):
                 "auth.recuperar_senha", "auth.redefinir_senha",
                 "usuarios.aceitar_convite", "portal.publico", "laudos.verificar",
                 "client_api.consulta_os_publica",
+                "platform.sandbox_webhook", "platform.asaas_webhook",
                 "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
         )

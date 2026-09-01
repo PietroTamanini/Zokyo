@@ -137,4 +137,19 @@ def check_production_readiness(
     if not any(meta_values) and not any(gateway_values):
         integration("WHATSAPP", "WhatsApp automático não configurado; o sistema ficará no fallback manual.")
 
+    if _get(env, "ASAAS_API_KEY") and len(_get(env, "ASAAS_WEBHOOK_TOKEN")) < 32:
+        add("error", "ASAAS_WEBHOOK_TOKEN", "Configure token de webhook Asaas com pelo menos 32 caracteres.")
+
+    s3_values = (
+        _get(env, "S3_BUCKET"), _get(env, "S3_ACCESS_KEY_ID"), _get(env, "S3_SECRET_ACCESS_KEY"),
+    )
+    if any(s3_values) and not all(s3_values):
+        add("error", "S3_STORAGE", "Preencha bucket, access key e secret key do storage S3 juntos.")
+
+    redis_url = _get(env, "REDIS_URL")
+    if not redis_url:
+        integration("REDIS_URL", "Configure Redis para sessões e rate limit distribuídos.")
+    elif urlparse(redis_url).scheme not in {"redis", "rediss"}:
+        add("error", "REDIS_URL", "REDIS_URL deve usar redis:// ou rediss://.")
+
     return issues

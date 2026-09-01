@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.extensions import db
 from app.models import BillingEvent, OrganizationSubscription, Plan
@@ -64,12 +64,69 @@ def process_sandbox_event(raw_body: bytes, signature: str) -> tuple[BillingEvent
     return event, True
 
 
+def process_asaas_event(payload: dict) -> tuple[BillingEvent, bool]:
+    event_id = str(payload.get("id", ""))[:160]
+    event_type = str(payload.get("event", ""))[:80]
+    payment = payload.get("payment") or {}
+    external_subscription = payment.get("subscription") or (payload.get("subscription") or {}).get("id")
+    if not event_id or not event_type or not external_subscription:
+        raise ValueError("Evento Asaas inválido.")
+    existing = BillingEvent.query.filter_by(provider="asaas", external_event_id=event_id).first()
+    if existing:
+        return existing, False
+    subscription = OrganizationSubscription.query.execution_options(include_all_tenants=True).filter_by(
+        provider="asaas", external_id=str(external_subscription),
+    ).first()
+    if not subscription:
+        raise ValueError("Assinatura Asaas não reconhecida.")
+    if event_type in {"PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"}:
+        subscription.status = "active"
+    elif event_type in {"PAYMENT_OVERDUE", "PAYMENT_DUNNING_REQUESTED"}:
+        subscription.status = "past_due"
+    elif event_type in {"SUBSCRIPTION_DELETED", "SUBSCRIPTION_INACTIVATED"}:
+        subscription.status = "cancelled"
+        subscription.cancelado_em = _now()
+    event = BillingEvent(
+        provider="asaas", external_event_id=event_id, event_type=event_type,
+        organization_id=subscription.organization_id, payload=payload,
+    )
+    db.session.add(event)
+    return event, True
+
+
 def subscription_for(organization_id: int) -> OrganizationSubscription | None:
     return OrganizationSubscription.query.filter_by(organization_id=organization_id).first()
 
 
+def ensure_trial_subscription(organization_id: int, trial_days: int = 14) -> OrganizationSubscription:
+    existing = subscription_for(organization_id)
+    if existing:
+        return existing
+    plan = Plan.query.filter_by(code="starter", ativo=True).first()
+    if not plan:
+        plan = Plan(
+            code="starter", nome="Starter",
+            limites={"max_users": 3, "max_clients": 500, "max_open_orders": 100, "max_storage_mb": 1024},
+        )
+        db.session.add(plan)
+        db.session.flush()
+    subscription = OrganizationSubscription(
+        organization_id=organization_id, plan_id=plan.id, provider="sandbox",
+        status="trialing", trial_fim=_now() + timedelta(days=max(1, min(trial_days, 90))),
+    )
+    db.session.add(subscription)
+    return subscription
+
+
 def assert_write_allowed(organization_id: int):
     subscription = subscription_for(organization_id)
+    if subscription and subscription.status == "trialing" and subscription.trial_fim:
+        trial_end = subscription.trial_fim
+        if trial_end.tzinfo is None:
+            trial_end = trial_end.replace(tzinfo=timezone.utc)
+        if trial_end <= _now():
+            subscription.status = "past_due"
+            db.session.commit()
     if subscription and subscription.status in {"past_due", "cancelled"}:
         raise PermissionError("Assinatura indisponivel para novas operacoes. Contate o administrador da plataforma.")
 
@@ -87,3 +144,18 @@ def assert_limit(organization_id: int, key: str, current_count: int):
         return
     if limit >= 0 and current_count >= limit:
         raise PermissionError(f"Limite do plano atingido: {key} ({limit}).")
+
+
+def assert_storage_limit(organization_id: int, incoming_bytes: int):
+    from sqlalchemy import func
+
+    from app.models import LaudoFoto, OSFoto
+
+    used = int(
+        (db.session.query(func.coalesce(func.sum(OSFoto.tamanho_bytes), 0)).filter_by(organization_id=organization_id).scalar() or 0)
+        + (db.session.query(func.coalesce(func.sum(LaudoFoto.tamanho_bytes), 0)).filter_by(organization_id=organization_id).scalar() or 0)
+    )
+    subscription = subscription_for(organization_id)
+    raw_limit = (subscription.plan.limites or {}).get("max_storage_mb") if subscription and subscription.plan else None
+    if raw_limit is not None and used + max(0, int(incoming_bytes)) > int(raw_limit) * 1024 * 1024:
+        raise PermissionError(f"Limite de armazenamento do plano atingido ({raw_limit} MB).")

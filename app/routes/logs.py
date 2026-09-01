@@ -76,8 +76,8 @@ def api_logs():
     usuario_id = request.args.get("usuario_id", "")
     tipo       = request.args.get("tipo", "")
     modulo     = request.args.get("modulo", "")
-    page       = request.args.get("page", 1, type=int)
-    per_page   = min(request.args.get("per_page", 50, type=int), 200)
+    page       = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page   = max(1, min(request.args.get("per_page", 50, type=int) or 50, 200))
 
     q = _build_query(data_ini, data_fim, usuario_id, tipo, modulo)
     pag = q.order_by(EventoLog.criado_em.desc()).paginate(
