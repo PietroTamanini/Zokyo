@@ -8,6 +8,7 @@
 - Atualizadas e fixadas as ferramentas de build da imagem para remover vulnerabilidades HIGH presentes nas cópias vendorizadas do `setuptools` da imagem base.
 - Removidos `pip`, `setuptools` e `wheel` da imagem final após instalar as dependências; essas ferramentas não são necessárias em runtime e mantinham cópias vendorizadas vulneráveis.
 - O job Python agora instala o lock de produção antes das ferramentas de teste e inicia Gunicorn como módulo, com verificação explícita de saúde antes do teste de carga.
+- Logs e pidfile do Gunicorn agora são configuráveis no smoke de CI, evitando dependência dos diretórios persistentes existentes apenas na imagem de produção.
 - Eliminada falha de concorrência do rate limit global no MariaDB, com incremento atômico e retry limitado para conflitos transitórios reconhecidos.
 - Tornada determinística a auditoria E2E do modal de clientes quando a tela vazia oferece mais de um link com o mesmo texto.
 - Corrigida a comparação entre vencimentos sem fuso do banco e horário UTC na inadimplência por OS, evitando erro 500 com cobrança vencida.

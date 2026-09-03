@@ -113,6 +113,9 @@ jobs:
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
           GUNICORN_BIND: 127.0.0.1:8000
+          GUNICORN_ACCESSLOG: "-"
+          GUNICORN_ERRORLOG: "-"
+          GUNICORN_PIDFILE: /tmp/zokyo-gunicorn.pid
         run: |
           python -m gunicorn -c gunicorn.conf.py wsgi:app &
           server_pid=$!

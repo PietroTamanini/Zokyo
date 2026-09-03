@@ -131,6 +131,8 @@ O scan seguinte expôs vulnerabilidades HIGH nas bibliotecas vendorizadas das fe
 
 O CI Python precisa instalar `requirements-prod.lock` e `requirements-dev.txt`: a suíte usa ferramentas de desenvolvimento, enquanto o smoke de carga valida o servidor Gunicorn real. A etapa confirma `/healthz` antes de iniciar carga e deve falhar cedo se o processo não subir.
 
+O `gunicorn.conf.py` aceita `GUNICORN_ACCESSLOG`, `GUNICORN_ERRORLOG` e `GUNICORN_PIDFILE`. A imagem usa diretórios persistentes preparados pelo Dockerfile; o CI usa stdout/stderr e `/tmp`.
+
 ## Como executar
 
 ### Docker local

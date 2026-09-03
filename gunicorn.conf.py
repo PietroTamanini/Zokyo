@@ -60,7 +60,7 @@ proxy_protocol      = False
 proxy_allow_from    = "127.0.0.1"
 
 # ── PID ───────────────────────────────────────────────────────────────────
-pidfile = "/var/run/zokyo/gunicorn.pid"
+pidfile = os.environ.get("GUNICORN_PIDFILE", "/var/run/zokyo/gunicorn.pid")
 
 # ── Preload ───────────────────────────────────────────────────────────────
 # preload_app=True melhora startup e uso de memória, mas exige post_fork()
