@@ -102,7 +102,7 @@ jobs:
           BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
-        run: python scripts/test_laudo_concurrency.py
+        run: python -m scripts.test_laudo_concurrency
       - name: Load smoke test on MariaDB
         env:
           FLASK_ENV: production
@@ -156,7 +156,7 @@ jobs:
       - name: Build production image
         run: docker build -t zokyo:${{ github.sha }} .
       - name: Scan image for known vulnerabilities
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: zokyo:${{ github.sha }}
           format: table

@@ -125,6 +125,8 @@ Em 2026-09-03, a consolidação financeira por OS foi coberta por testes dedicad
 
 Eventos de OS são enfileirados por `app/services/order_notifications.py`. Criação pelo painel/API/coleta, mudança de status, aprovação de orçamento, faturamento pendente e retorno em garantia usam chaves idempotentes. Em rotas públicas, templates e configurações devem ser buscados pelo `organization_id` explícito da OS; nunca depender de tenant de sessão inexistente.
 
+Em 2026-09-03, o CI falhava antes de testar o produto por dois erros de infraestrutura: importação do script concorrente fora da raiz e tag inexistente do Trivy. O workflow executa o script como módulo e fixa `trivy-action` por SHA. Ao atualizar Actions, confirmar a referência publicada e preferir SHA imutável para ferramentas de segurança.
+
 ## Como executar
 
 ### Docker local
