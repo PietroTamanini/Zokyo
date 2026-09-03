@@ -14,7 +14,7 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 
 - Aplicação Flask e site público executam em Docker com MariaDB.
 - Schema gerenciado por Alembic até a migration `20260731_0012`.
-- 213 testes Python aprovados na última auditoria completa.
+- 215 testes Python aprovados na última auditoria completa.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
@@ -195,6 +195,7 @@ O production check precisa passar sem erro. Consulte [CONFIGURACAO.md](docs/CONF
 - [Arquitetura](docs/ARQUITETURA.md): camadas e decisões estruturais.
 - [API](docs/API.md) e [Rotas](docs/ROTAS.md): interfaces disponíveis.
 - [Permissões](docs/PERMISSOES.md) e [Segurança](docs/SEGURANCA.md): controles de acesso.
+- [Matriz de auditoria](docs/AUDITORIA_MUTACOES.md): cobertura de mutações, trilhas especializadas e lacunas priorizadas.
 - [SaaS](docs/SAAS.md): multiempresa, planos e LGPD.
 - [Laudos](docs/LAUDOS.md): domínio técnico e storage.
 - [Backup e restore](docs/BACKUP_RESTORE.md) e [recuperação de desastre](docs/DISASTER_RECOVERY.md).

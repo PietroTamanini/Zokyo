@@ -10,7 +10,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 
 - [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
 - [x] Schema atualizado até a migration `20260731_0012` e sem divergência detectada pelo Alembic.
-- [x] 213 testes Python aprovados.
+- [x] 215 testes Python aprovados.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
@@ -101,7 +101,8 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] Administrador pode revisar usuários, sessões, eventos e configurações críticas.
 - [x] Ações centrais de clientes, OS, estoque, financeiro, usuários, privacidade e segurança geram auditoria.
 - [x] Exportação, consentimento, anonimização e retenção estão implementados.
-- [ ] Criar uma matriz formal de todas as mutações e confirmar log de auditoria rota por rota.
+- [x] Criar uma [matriz formal das mutações](docs/AUDITORIA_MUTACOES.md), distinguindo `EventoLog` e trilhas especializadas.
+- [ ] Fechar as lacunas de auditoria rota por rota listadas na matriz e confirmar tenant, tipo, módulo e ausência de dados sensíveis com testes.
 - [ ] Aprovar juridicamente os prazos de retenção antes de ativá-los.
 - [ ] Aprovar termos de uso, política de privacidade e natureza da assinatura eletrônica.
 

@@ -31,13 +31,16 @@ class EventoLog(db.Model):
         }
 
 def registrar(tipo, modulo, operacao, descricao="", usuario_id=None, usuario_nome=None, organization_id=None):
-    from flask import has_request_context
+    from flask import g, has_request_context
     from flask import session as flask_session
-    request_user_id = flask_session.get("usuario_id") if has_request_context() else None
-    request_user_name = flask_session.get("usuario_nome", "Sistema") if has_request_context() else "Sistema"
+    in_request = has_request_context()
+    request_user_id = flask_session.get("usuario_id") if in_request else None
+    request_user_name = flask_session.get("usuario_nome", "Sistema") if in_request else "Sistema"
+    request_organization_id = getattr(g, "organization_id", None) if in_request else None
     uid = usuario_id or request_user_id
     uname = usuario_nome or request_user_name
-    ev = EventoLog(usuario_id=uid, usuario_nome=uname, organization_id=organization_id or 1,
+    tenant_id = organization_id if organization_id is not None else (request_organization_id or 1)
+    ev = EventoLog(usuario_id=uid, usuario_nome=uname, organization_id=tenant_id,
                    tipo=tipo, modulo=modulo, operacao=operacao, descricao=descricao)
     db.session.add(ev)
     # Não faz commit aqui — o caller faz junto com a operação principal

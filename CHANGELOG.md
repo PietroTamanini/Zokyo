@@ -13,10 +13,11 @@
 - Eventos de OS do painel, API, coleta, orçamento, cobrança e garantia agora entram na fila persistente usando templates e chaves idempotentes.
 - Templates disparados pelo portal público agora são resolvidos pelo tenant explícito da OS, impedindo uso de mensagem ou configuração de outra empresa.
 - Mudanças de status feitas no formulário de edição agora registram histórico, notificam o cliente e preservam a devolução de estoque no cancelamento.
+- Corrigida a atribuição de tenant em `EventoLog`: mutações autenticadas agora usam a organização da requisição em vez do fallback fixo para a empresa 1.
 
 ### Verificado
 
-- 213 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-03.
+- 215 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-03.
 - Indicadores de pagamento incompleto, custo de peças, custo de mão de obra, comissão, lucro e inadimplência por OS cobertos por testes dedicados.
 - Auditoria autenticada das telas em compact, mobile, tablet, desktop e wide, incluindo runtime, HTTP 500, overflow e WCAG.
 - Teste local com 150 requisições simultâneas sem erro após a correção de concorrência.
@@ -24,6 +25,7 @@
 ### Documentação
 
 - Adicionado `IA.md` como memória técnica viva para continuidade entre agentes e desenvolvedores.
+- Adicionada matriz formal de auditoria das mutações, com mecanismos atuais e lacunas priorizadas por domínio.
 - Reescrita a lista de conclusão do produto para separar código, infraestrutura, homologação e decisões externas.
 - Adicionados checklist de go-live e política de suporte/operação.
 
