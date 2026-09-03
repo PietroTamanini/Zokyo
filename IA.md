@@ -129,6 +129,8 @@ Em 2026-09-03, o CI falhava antes de testar o produto por dois erros de infraest
 
 O scan seguinte expôs vulnerabilidades HIGH nas bibliotecas vendorizadas das ferramentas de build da imagem base. O `Dockerfile` atualiza essas ferramentas, instala o lock e remove `pip`, `setuptools` e `wheel` da imagem final, pois não são necessários em runtime. Não reduzir a severidade nem ignorar CVEs apenas para deixar o workflow verde; remover ou atualizar a camada vulnerável e confirmar no Trivy.
 
+O CI Python precisa instalar `requirements-prod.lock` e `requirements-dev.txt`: a suíte usa ferramentas de desenvolvimento, enquanto o smoke de carga valida o servidor Gunicorn real. A etapa confirma `/healthz` antes de iniciar carga e deve falhar cedo se o processo não subir.
+
 ## Como executar
 
 ### Docker local

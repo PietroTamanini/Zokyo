@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements-prod.lock -r requirements-dev.txt
       - name: Compile Python
         run: python -m compileall app tests
       - name: Lint
@@ -114,10 +114,11 @@ jobs:
           SCHEDULER_ENABLED: "false"
           GUNICORN_BIND: 127.0.0.1:8000
         run: |
-          gunicorn -c gunicorn.conf.py wsgi:app &
+          python -m gunicorn -c gunicorn.conf.py wsgi:app &
           server_pid=$!
-          trap 'kill $server_pid' EXIT
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           for i in {1..30}; do curl -fsS http://127.0.0.1:8000/healthz && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8000/healthz
           python scripts/load_test.py --requests 200 --concurrency 20 --max-p95-ms 1000
       - name: Validate templates
         run: |
