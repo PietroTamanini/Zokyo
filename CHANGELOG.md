@@ -15,6 +15,7 @@
 
 ### Documentação
 
+- Adicionado `IA.md` como memória técnica viva para continuidade entre agentes e desenvolvedores.
 - Reescrita a lista de conclusão do produto para separar código, infraestrutura, homologação e decisões externas.
 - Adicionados checklist de go-live e política de suporte/operação.
 

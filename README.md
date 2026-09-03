@@ -107,6 +107,7 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 
 ## Documentacao
 
+- [Memória técnica para IAs](IA.md)
 - [Arquitetura](docs/ARQUITETURA.md)
 - [Laudos](docs/LAUDOS.md)
 - [API](docs/API.md)
