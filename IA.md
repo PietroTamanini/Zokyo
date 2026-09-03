@@ -127,6 +127,8 @@ Eventos de OS são enfileirados por `app/services/order_notifications.py`. Cria�
 
 Em 2026-09-03, o CI falhava antes de testar o produto por dois erros de infraestrutura: importação do script concorrente fora da raiz e tag inexistente do Trivy. O workflow executa o script como módulo e fixa `trivy-action` por SHA. Ao atualizar Actions, confirmar a referência publicada e preferir SHA imutável para ferramentas de segurança.
 
+O scan seguinte expôs vulnerabilidades HIGH nas bibliotecas vendorizadas do `setuptools` da imagem base. O `Dockerfile` atualiza e fixa `setuptools` e `wheel` antes do lock da aplicação. Não reduzir a severidade nem ignorar CVEs apenas para deixar o workflow verde; atualizar a camada vulnerável e confirmar no Trivy.
+
 ## Como executar
 
 ### Docker local

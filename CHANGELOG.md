@@ -5,6 +5,7 @@
 ### Corrigido
 
 - Corrigido o CI: o teste concorrente de laudos agora carrega o projeto pela raiz e o scanner Trivy usa uma versão existente fixada por SHA imutável.
+- Atualizadas e fixadas as ferramentas de build da imagem para remover vulnerabilidades HIGH presentes nas cópias vendorizadas do `setuptools` da imagem base.
 - Eliminada falha de concorrência do rate limit global no MariaDB, com incremento atômico e retry limitado para conflitos transitórios reconhecidos.
 - Tornada determinística a auditoria E2E do modal de clientes quando a tela vazia oferece mais de um link com o mesmo texto.
 - Corrigida a comparação entre vencimentos sem fuso do banco e horário UTC na inadimplência por OS, evitando erro 500 com cobrança vencida.

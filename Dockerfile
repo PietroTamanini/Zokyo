@@ -11,7 +11,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-prod.txt requirements-prod.lock requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements-prod.lock
+RUN pip install --upgrade pip setuptools==84.0.0 wheel==0.48.0 \
+    && pip install -r requirements-prod.lock
 
 COPY . .
 
