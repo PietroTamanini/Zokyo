@@ -9,6 +9,7 @@
 - Corrigida a comparação entre vencimentos sem fuso do banco e horário UTC na inadimplência por OS, evitando erro 500 com cobrança vencida.
 - O resumo financeiro agora é identificado como resumo do período e acompanha corretamente filtros semanais, anuais e personalizados.
 - Comissões no lucro por OS agora consideram somente receitas pagas, sem incorporar comissão indevida de uma despesa vinculada.
+- Fechado o atalho do formulário de edição que permitia entregar uma OS com saldo aberto criando uma quitação implícita; todas as rotas agora exigem pagamento previamente registrado.
 
 ### Verificado
 

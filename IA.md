@@ -92,6 +92,7 @@ Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](
 3. Perfis sem permissão não podem obter dados sensíveis nem por API nem por página HTML.
 4. Técnico não recebe acesso financeiro sensível por padrão; atendente não altera configuração crítica.
 5. OS não pode ser finalizada/entregue sem pagamento integral conforme a regra atual.
+   A edição da OS também deve bloquear a entrega; nunca criar recebimento implícito apenas pela mudança de status.
 6. Arquivamento deve preservar histórico; não transformar exclusão lógica em remoção destrutiva acidental.
 7. Produto ou serviço inativo não pode entrar em nova OS.
 8. Movimentação de peça usada na OS deve manter estoque e histórico consistentes.

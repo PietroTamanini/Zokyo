@@ -2025,9 +2025,20 @@ def os_atualizar(id):
     os_obj.custo_hora = custo_hora
     os_obj.garantia_dias = gd
 
-    # Bug #6: validar status na edição também
+    # Validar o status antes de aplicá-lo; entrega nunca pode criar quitação implícita.
     novo_st_raw = data.get("status", os_obj.status)
-    os_obj.status = novo_st_raw if novo_st_raw in _configured_status_keys() else os_obj.status
+    novo_st = novo_st_raw if novo_st_raw in _configured_status_keys() else os_obj.status
+    if novo_st == "entregue" and ant != "entregue":
+        pagamentos_info = _os_pagamentos_info(os_obj)
+        if pagamentos_info["restante"] > 0.01:
+            return _render_os_form_error(
+                f"Esta OS ainda tem saldo em aberto ({_format_moeda(pagamentos_info['restante'])}). "
+                "Registre o pagamento total antes de finalizar.",
+                "status",
+                data,
+                os_obj,
+            )
+    os_obj.status = novo_st
 
     if data.get("data_entrada"):
         d = _safe_date(data["data_entrada"])
@@ -2050,15 +2061,6 @@ def os_atualizar(id):
 
     if os_obj.status == "entregue" and not os_obj.data_saida:
         os_obj.data_saida = _now()
-    if os_obj.status == "entregue" and ant != "entregue":
-        pagamentos_info = _os_pagamentos_info(os_obj)
-        if pagamentos_info["restante"] > 0:
-            _registrar_pagamento_os(
-                os_obj,
-                pagamentos_info["restante"],
-                None,
-                f"Pagamento na entrega OS #{os_obj.codigo_os}",
-            )
 
     registrar("edicao", "os", f"OS #{os_obj.id:04d} editada")
     db.session.commit()

@@ -149,6 +149,26 @@ def test_os_baixada_some_da_lista_principal_e_pode_restaurar(tmp_path):
 def test_os_so_entrega_quando_pagamento_estiver_completo(tmp_path):
     app, client, ordem_id = _make_pages_client(tmp_path)
 
+    edicao_bloqueada = _post(client, f"/os/{ordem_id}/editar", {
+        "tipo_aparelho": "Notebook",
+        "marca": "Marca",
+        "modelo": "Modelo",
+        "defeito_alegado": "Nao liga",
+        "valor_servico": "100",
+        "desconto": "0",
+        "horas_trabalho": "0",
+        "custo_hora": "0",
+        "garantia_dias": "90",
+        "status": "entregue",
+        "prio": "normal",
+        "tipo_atendimento": "balcao",
+    })
+    assert edicao_bloqueada.status_code == 400
+    assert "saldo em aberto" in edicao_bloqueada.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(OrdemServico, ordem_id).status == "recepcao"
+        assert Transacao.query.filter_by(os_id=ordem_id).count() == 0
+
     parcial = _post(client, f"/os/{ordem_id}/pagamento-parcial", {
         "valor": "40",
         "forma_pagamento": "PIX",
@@ -882,7 +902,7 @@ def test_formularios_html_principais_executam_fluxos_de_mutacao(tmp_path):
         "valor_servico": "180",
         "desconto": "10",
         "garantia_dias": "120",
-        "status": "entregue",
+        "status": "pronto",
         "prio": "normal",
     }).status_code == 302
     assert _post(client, f"/os/{nova_os_id}/status", {"status": "status-invalido"}).status_code == 302
