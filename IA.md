@@ -14,7 +14,7 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 
 - Aplicação Flask e site público executam em Docker com MariaDB.
 - Schema gerenciado por Alembic até a migration `20260731_0012`.
-- 201 testes Python aprovados na última auditoria completa.
+- 209 testes Python aprovados na última auditoria completa.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
@@ -120,6 +120,8 @@ Em 2026-08-27, a auditoria E2E concorrente revelou HTTP 500 no MariaDB: workers 
 
 Ao alterar rate limit, middleware global, pool de conexões ou configuração Gunicorn, repetir teste real concorrente; testes SQLite isolados não são suficientes para essa área.
 
+Em 2026-09-03, a consolidação financeira por OS foi coberta por testes dedicados. O lucro usa faturamento da OS menos custo histórico das peças, custo de mão de obra (`horas_trabalho * custo_hora`) e comissões pagas de receitas. Cobranças pendentes vencidas aceitam datas do banco sem fuso e horário atual UTC sem gerar erro de comparação. O resumo da tela acompanha o intervalo selecionado, não necessariamente o mês corrente.
+
 ## Como executar
 
 ### Docker local
@@ -176,13 +178,12 @@ O production check precisa passar sem erro. Consulte [CONFIGURACAO.md](docs/CONF
 1. Configurar staging/produção com segredos, domínio, HTTPS e 2FA administrativo.
 2. Configurar SMTP, alertas e WhatsApp real.
 3. Agendar backup externo criptografado e comprovar restore.
-4. Criar visão de OS com pagamento incompleto, lucro por OS e inadimplência.
-5. Homologar abertura de OS, busca de cliente e PDFs com usuários reais.
-6. Aprovar templates de mensagens para cada evento de OS.
-7. Completar matriz formal de auditoria das mutações.
-8. Revisar português, dark mode e formulários longos em aparelhos reais.
-9. Definir licença, preços, gateway, SLA, LGPD e assinatura jurídica.
-10. Executar piloto controlado antes de venda ampla.
+4. Homologar abertura de OS, busca de cliente, financeiro e PDFs com usuários reais.
+5. Aprovar templates de mensagens para cada evento de OS.
+6. Completar matriz formal de auditoria das mutações.
+7. Revisar português, dark mode e formulários longos em aparelhos reais.
+8. Definir licença, preços, gateway, SLA, LGPD e assinatura jurídica.
+9. Executar piloto controlado antes de venda ampla.
 
 ## Documentos de referência
 

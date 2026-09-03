@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import text
 
@@ -16,7 +16,9 @@ def order_financial_rows(
     end: datetime | None = None,
 ) -> list[dict]:
     """Consolida faturamento, recebimentos, custo e atraso por OS do tenant atual."""
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is not None:
+        now = now.astimezone(timezone.utc).replace(tzinfo=None)
     query = OrdemServico.query.filter(OrdemServico.deletado_em.is_(None))
     if start is not None:
         query = query.filter(OrdemServico.data_entrada >= start)
@@ -49,8 +51,15 @@ def order_financial_rows(
         paid = sum(float(item.valor or 0) for item in items if item.tipo == "receita" and item.status == "pago")
         pending_items = [item for item in items if item.tipo == "receita" and item.status == "pendente"]
         pending = sum(float(item.valor or 0) for item in pending_items)
-        commissions = sum(float(item.comissao_valor or 0) for item in items if item.status == "pago")
-        overdue_items = [item for item in pending_items if item.data_vencimento and item.data_vencimento < now]
+        commissions = sum(
+            float(item.comissao_valor or 0)
+            for item in items
+            if item.tipo == "receita" and item.status == "pago"
+        )
+        overdue_items = [
+            item for item in pending_items
+            if item.data_vencimento and _naive_utc(item.data_vencimento) < now
+        ]
         overdue = sum(float(item.valor or 0) for item in overdue_items)
         part_cost = round(costs[order.id], 2)
         labor_cost = order.custo_mao_obra
@@ -71,7 +80,15 @@ def order_financial_rows(
     return sorted(result, key=lambda row: (row["overdue"], row["pending"] + row["uncovered"]), reverse=True)
 
 
-def monthly_summary(rows: list[dict], paid_revenue: float, paid_expenses: float) -> dict:
+def _naive_utc(value: datetime) -> datetime:
+    """Normaliza datas do banco para UTC sem tzinfo, como as colunas DateTime atuais."""
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def period_summary(rows: list[dict], paid_revenue: float, paid_expenses: float) -> dict:
+    """Resume os indicadores das OS e transacoes do intervalo selecionado."""
     return {
         "orders": len(rows),
         "billed": round(sum(row["total"] for row in rows), 2),
@@ -81,3 +98,7 @@ def monthly_summary(rows: list[dict], paid_revenue: float, paid_expenses: float)
         "overdue": round(sum(row["overdue"] for row in rows), 2),
         "order_profit": round(sum(row["profit"] for row in rows), 2),
     }
+
+
+# Compatibilidade para importacoes anteriores; novos usos devem refletir o periodo filtrado.
+monthly_summary = period_summary

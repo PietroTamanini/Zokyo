@@ -6,10 +6,14 @@
 
 - Eliminada falha de concorrência do rate limit global no MariaDB, com incremento atômico e retry limitado para conflitos transitórios reconhecidos.
 - Tornada determinística a auditoria E2E do modal de clientes quando a tela vazia oferece mais de um link com o mesmo texto.
+- Corrigida a comparação entre vencimentos sem fuso do banco e horário UTC na inadimplência por OS, evitando erro 500 com cobrança vencida.
+- O resumo financeiro agora é identificado como resumo do período e acompanha corretamente filtros semanais, anuais e personalizados.
+- Comissões no lucro por OS agora consideram somente receitas pagas, sem incorporar comissão indevida de uma despesa vinculada.
 
 ### Verificado
 
-- 201 testes Python, lint, compilação e validação JavaScript aprovados em 2026-08-27.
+- 209 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-03.
+- Indicadores de pagamento incompleto, custo de peças, custo de mão de obra, comissão, lucro e inadimplência por OS cobertos por testes dedicados.
 - Auditoria autenticada das telas em compact, mobile, tablet, desktop e wide, incluindo runtime, HTTP 500, overflow e WCAG.
 - Teste local com 150 requisições simultâneas sem erro após a correção de concorrência.
 

@@ -3429,7 +3429,7 @@ def fornecedor_deletar(id):
 @pages_bp.route("/lancamentos/")
 @page_nivel_required("admin", "financeiro")
 def financeiro():
-    from app.services.financial_analytics import monthly_summary, order_financial_rows
+    from app.services.financial_analytics import order_financial_rows, period_summary
     hoje = _now()
 
     preset = request.args.get("preset", "")
@@ -3501,7 +3501,7 @@ def financeiro():
         usuarios_comissao=Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all(),
         os_financeiro=os_financeiro,
         inadimplentes=[row for row in os_financeiro if row["overdue"] > 0],
-        resumo_mensal=monthly_summary(os_financeiro, receitas_pagas, despesas_pagas),
+        resumo_periodo=period_summary(os_financeiro, receitas_pagas, despesas_pagas),
     )
 
 

@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-09-01 após nova execução da suíte, da composição de produção com MariaDB e do teste de carga.
+Atualizado em 2026-09-03 após auditoria e cobertura dedicada dos indicadores financeiros por OS.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -10,7 +10,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 
 - [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
 - [x] Schema atualizado até a migration `20260731_0012` e sem divergência detectada pelo Alembic.
-- [x] 201 testes Python aprovados.
+- [x] 209 testes Python aprovados.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
@@ -61,9 +61,9 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] Registrar pagamentos, conciliação, descontos e comissões.
 - [x] Exportar dados contábeis e gerar relatórios gerenciais.
 - [x] Criar uma lista direta de OS com pagamento incompleto.
-- [x] Calcular lucro por OS usando custo registrado das peças, comissão e desconto. A mão de obra interna continua refletida no valor do serviço, sem folha/custo-hora automático.
+- [x] Calcular lucro por OS usando custo histórico das peças, custo de mão de obra (`horas_trabalho * custo_hora`), comissão de receita e desconto.
 - [x] Exibir inadimplência por cliente e OS, com vencimento e total em atraso.
-- [x] Criar um resumo mensal simplificado para o proprietário.
+- [x] Criar um resumo simplificado para o proprietário conforme o período filtrado.
 - [ ] Homologar valores, estornos, cancelamentos e fechamento de caixa com o responsável financeiro.
 
 ## 5. WhatsApp e notificações
@@ -133,10 +133,9 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 1. Salvar e publicar as correções verificadas.
 2. Configurar staging com segredos, HTTPS, SMTP, alertas e WhatsApp.
 3. Configurar backup externo e provar o restore.
-4. Fechar as lacunas financeiras por OS.
-5. Homologar o fluxo de OS e os PDFs com usuários reais.
-6. Executar piloto controlado.
-7. Corrigir os problemas do piloto.
-8. Concluir decisões jurídicas e comerciais.
-9. Executar o checklist de go-live.
-10. Liberar produção gradualmente e monitorar.
+4. Homologar o fluxo de OS, financeiro e PDFs com usuários reais.
+5. Executar piloto controlado.
+6. Corrigir os problemas do piloto.
+7. Concluir decisões jurídicas e comerciais.
+8. Executar o checklist de go-live.
+9. Liberar produção gradualmente e monitorar.

@@ -96,11 +96,11 @@
   </div>
 </div>
 
-<div class="stats-grid mb20" aria-label="Resumo mensal do proprietário">
-  <div class="stat-card c-blue"><div class="stat-label">OS no mês</div><div class="stat-value">{{ resumo_mensal.orders }}</div></div>
-  <div class="stat-card c-green"><div class="stat-label">Faturado em OS</div><div class="stat-value stat-money">{{ resumo_mensal.billed|moeda }}</div></div>
-  <div class="stat-card c-amber"><div class="stat-label">Falta receber</div><div class="stat-value stat-money">{{ resumo_mensal.outstanding|moeda }}</div></div>
-  <div class="stat-card c-red"><div class="stat-label">Em atraso</div><div class="stat-value stat-money">{{ resumo_mensal.overdue|moeda }}</div></div>
+<div class="stats-grid mb20" aria-label="Resumo do período selecionado">
+  <div class="stat-card c-blue"><div class="stat-label">OS no período</div><div class="stat-value">{{ resumo_periodo.orders }}</div></div>
+  <div class="stat-card c-green"><div class="stat-label">Faturado em OS</div><div class="stat-value stat-money">{{ resumo_periodo.billed|moeda }}</div></div>
+  <div class="stat-card c-amber"><div class="stat-label">Falta receber</div><div class="stat-value stat-money">{{ resumo_periodo.outstanding|moeda }}</div></div>
+  <div class="stat-card c-red"><div class="stat-label">Em atraso</div><div class="stat-value stat-money">{{ resumo_periodo.overdue|moeda }}</div></div>
 </div>
 
 {% if inadimplentes %}
