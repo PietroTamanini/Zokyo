@@ -12,7 +12,8 @@ RUN apt-get update \
 
 COPY requirements-prod.txt requirements-prod.lock requirements.txt ./
 RUN pip install --upgrade pip setuptools==84.0.0 wheel==0.48.0 \
-    && pip install -r requirements-prod.lock
+    && pip install -r requirements-prod.lock \
+    && pip uninstall -y pip setuptools wheel
 
 COPY . .
 
