@@ -23,6 +23,7 @@ from app.models import (
     OrdemServico,
     Organization,
     OSFoto,
+    OSHistorico,
     Peca,
     Transacao,
     Usuario,
@@ -905,6 +906,16 @@ def test_formularios_html_principais_executam_fluxos_de_mutacao(tmp_path):
         "status": "pronto",
         "prio": "normal",
     }).status_code == 302
+    with app.app_context():
+        assert OSHistorico.query.filter_by(
+            os_id=nova_os_id,
+            status_anterior="recepcao",
+            status_novo="pronto",
+        ).count() == 1
+        assert Notification.query.filter_by(
+            event_type="os_status_pronto",
+            organization_id=1,
+        ).count() >= 1
     assert _post(client, f"/os/{nova_os_id}/status", {"status": "status-invalido"}).status_code == 302
     assert _post(client, f"/os/{ordem_id}/deletar", {}).status_code == 302
 

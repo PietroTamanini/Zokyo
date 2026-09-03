@@ -1012,6 +1012,8 @@ def os_retorno_garantia(id):
     ))
     registrar("criacao", "garantia", f"Retorno de garantia OS #{os_obj.codigo_os} criado a partir da OS #{origem.codigo_os}")
     db.session.commit()
+    from app.services.order_notifications import queue_order_event
+    queue_order_event(os_obj, "warranty_return", f"warranty-return-{os_obj.id}")
     flash("Retorno de garantia criado e vinculado a OS original.", "success")
     return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
@@ -1867,6 +1869,8 @@ def coleta_concluir_post(id):
     ))
     registrar("criacao", "os", f"OS #{os_obj.id:04d} criada a partir da coleta #{coleta_obj.id}")
     db.session.commit()
+    from app.services.order_notifications import queue_order_event
+    queue_order_event(os_obj, "os_status_recepcao", f"os-created-{os_obj.id}")
     flash("Coleta concluida e OS criada com fotos.", "success")
     return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
@@ -1963,6 +1967,8 @@ def os_criar():
     registrar("criacao", "os", f"OS #{os_obj.id:04d} criada",
               f"Cliente: {os_obj.cliente.nome}")
     db.session.commit()
+    from app.services.order_notifications import queue_order_event
+    queue_order_event(os_obj, f"os_status_{os_obj.status}", f"os-created-{os_obj.id}")
     flash("OS criada!", "success")
     return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
@@ -2062,8 +2068,34 @@ def os_atualizar(id):
     if os_obj.status == "entregue" and not os_obj.data_saida:
         os_obj.data_saida = _now()
 
+    status_changed = os_obj.status != ant
+    if status_changed:
+        db.session.add(OSHistorico(
+            os_id=os_obj.id,
+            usuario_id=session["usuario_id"],
+            status_anterior=ant,
+            status_novo=os_obj.status,
+        ))
+        if os_obj.status == "cancelado":
+            rows = db.session.execute(
+                text("SELECT peca_id, quantidade FROM os_pecas WHERE os_id=:id"),
+                {"id": os_obj.id},
+            ).fetchall()
+            for row in rows:
+                part = db.session.get(Peca, row.peca_id)
+                if part:
+                    part.quantidade += row.quantidade
+
     registrar("edicao", "os", f"OS #{os_obj.id:04d} editada")
     db.session.commit()
+    if status_changed:
+        from app.services.order_notifications import queue_order_event
+        history_count = OSHistorico.query.filter_by(os_id=os_obj.id).count()
+        queue_order_event(
+            os_obj,
+            f"os_status_{os_obj.status}",
+            f"os-edit-status-{os_obj.id}-{history_count}",
+        )
     flash("OS atualizada!", "success")
     return redirect(url_for("pages.os_detalhe", id=id))
 
@@ -2390,6 +2422,10 @@ def os_faturar_alias():
     transacao.status = status
     transacao.data_vencimento = _safe_date(request.form.get("vencimento") or request.form.get("data_vencimento")) or _now()
     transacao.data_pagamento = _safe_date(request.form.get("recebimento") or request.form.get("data_pagamento")) if status == "pago" else None
+    if status == "pendente":
+        db.session.flush()
+        from app.services.order_notifications import queue_order_event
+        queue_order_event(os_obj, "payment_due", f"payment-due-{transacao.id}")
     registrar("financeiro", "os", f"OS #{os_obj.id:04d} faturada")
     return _json_or_redirect(os_obj, "OS faturada.")
 

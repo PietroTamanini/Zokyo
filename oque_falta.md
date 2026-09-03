@@ -10,7 +10,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 
 - [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
 - [x] Schema atualizado até a migration `20260731_0012` e sem divergência detectada pelo Alembic.
-- [x] 209 testes Python aprovados.
+- [x] 213 testes Python aprovados.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
@@ -73,7 +73,7 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] Suportar templates versionados e variáveis restritas.
 - [x] Permitir retry administrativo de notificações.
 - [x] Criar templates padrão editáveis para OS aberta, orçamento enviado, aprovado, pronto para retirada, cobrança e garantia. A aprovação final do texto ainda depende do proprietário/Meta.
-- [ ] Ligar cada evento de negócio ao template correspondente e cobrir o fluxo com testes.
+- [x] Ligar abertura de OS, orçamento enviado/aprovado, mudança de status, cobrança pendente e retorno em garantia aos templates correspondentes, com fila idempotente e testes.
 - [ ] Homologar templates e credenciais na Meta.
 - [ ] Decidir se o gateway local continuará permitido e em quais ambientes.
 

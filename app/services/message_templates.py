@@ -42,14 +42,17 @@ def render_text(text: str, context: dict) -> str:
     return VARIABLE_RE.sub(replace, text or "")
 
 
-def active_template(event_type, channel):
-    return MessageTemplate.query.filter_by(event_type=event_type, channel=channel, active=True).order_by(
+def active_template(event_type, channel, organization_id=None):
+    query = MessageTemplate.query
+    if organization_id is not None:
+        query = query.execution_options(include_all_tenants=True).filter_by(organization_id=organization_id)
+    return query.filter_by(event_type=event_type, channel=channel, active=True).order_by(
         MessageTemplate.version.desc(),
     ).first()
 
 
-def render_template(event_type, channel, context, default_subject="", default_body=""):
-    template = active_template(event_type, channel)
+def render_template(event_type, channel, context, default_subject="", default_body="", organization_id=None):
+    template = active_template(event_type, channel, organization_id=organization_id)
     if not template:
         return default_subject, default_body
     return render_text(template.subject or "", context), render_text(template.body, context)

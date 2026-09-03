@@ -323,6 +323,9 @@ def criar():
     db.session.flush()
     _registrar_historico(os_obj.id, None, os_obj.status, session["usuario_id"])
     db.session.commit()
+    from app.services.order_notifications import queue_order_event
+    event_type = "warranty_return" if warranty_origin else f"os_status_{os_obj.status}"
+    queue_order_event(os_obj, event_type, f"api-os-created-{os_obj.id}")
     return jsonify(os_obj.to_dict()), 201
 
 
@@ -512,6 +515,13 @@ def atualizar(id):
                 os_obj.id, status_anterior, novo_status, session["usuario_id"])
 
     db.session.commit()
+    if novo_status_raw and os_obj.status != status_anterior:
+        from app.services.order_notifications import queue_order_event
+        queue_order_event(
+            os_obj,
+            f"os_status_{os_obj.status}",
+            f"api-os-status-{os_obj.id}-{status_anterior}-{os_obj.status}",
+        )
     return jsonify(os_obj.to_dict())
 
 

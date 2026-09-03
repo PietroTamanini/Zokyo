@@ -97,14 +97,22 @@ def publico(token):
     if not portal_token:
         abort(404)
     if request.method == "POST":
+        decision = request.form.get("decisao", "")
         try:
-            decidir_orcamento(portal_token, request.form.get("decisao", ""))
+            decidir_orcamento(portal_token, decision)
             db.session.commit()
         except ValueError as exc:
             db.session.rollback()
             response = _public_response("pages/portal_os.html", **_portal_context(portal_token, erro=str(exc)))
             response.status_code = 409
             return response
+        if decision == "approved":
+            from app.services.order_notifications import queue_order_event
+            queue_order_event(
+                portal_token.os,
+                "os_status_em_reparo",
+                f"budget-approved-{portal_token.id}",
+            )
         return redirect(url_for("portal.publico", token=token))
     return _public_response("pages/portal_os.html", **_portal_context(portal_token))
 

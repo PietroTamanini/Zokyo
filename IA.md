@@ -14,7 +14,7 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 
 - Aplicação Flask e site público executam em Docker com MariaDB.
 - Schema gerenciado por Alembic até a migration `20260731_0012`.
-- 209 testes Python aprovados na última auditoria completa.
+- 213 testes Python aprovados na última auditoria completa.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
@@ -122,6 +122,8 @@ Em 2026-08-27, a auditoria E2E concorrente revelou HTTP 500 no MariaDB: workers 
 Ao alterar rate limit, middleware global, pool de conexões ou configuração Gunicorn, repetir teste real concorrente; testes SQLite isolados não são suficientes para essa área.
 
 Em 2026-09-03, a consolidação financeira por OS foi coberta por testes dedicados. O lucro usa faturamento da OS menos custo histórico das peças, custo de mão de obra (`horas_trabalho * custo_hora`) e comissões pagas de receitas. Cobranças pendentes vencidas aceitam datas do banco sem fuso e horário atual UTC sem gerar erro de comparação. O resumo da tela acompanha o intervalo selecionado, não necessariamente o mês corrente.
+
+Eventos de OS são enfileirados por `app/services/order_notifications.py`. Criação pelo painel/API/coleta, mudança de status, aprovação de orçamento, faturamento pendente e retorno em garantia usam chaves idempotentes. Em rotas públicas, templates e configurações devem ser buscados pelo `organization_id` explícito da OS; nunca depender de tenant de sessão inexistente.
 
 ## Como executar
 
