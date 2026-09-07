@@ -8,6 +8,23 @@
     return String(value || '').replace(/\D/g, '');
   }
 
+  function formatDocument(value) {
+    const digits = onlyDigits(value).slice(0, 14);
+
+    if (digits.length <= 11) {
+      return digits
+        .replace(/^(\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+    }
+
+    return digits
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+  }
+
   function formatDate(value) {
     if (!value) return 'Ainda não definido';
     const date = new Date(value);
@@ -30,6 +47,16 @@
     result.innerHTML = html;
     result.hidden = false;
   }
+
+  const documentoInput = form?.elements.documento;
+  documentoInput?.addEventListener('input', () => {
+    documentoInput.value = formatDocument(documentoInput.value);
+  });
+  documentoInput?.addEventListener('paste', () => {
+    window.setTimeout(() => {
+      documentoInput.value = formatDocument(documentoInput.value);
+    }, 0);
+  });
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
