@@ -86,7 +86,7 @@ Os testes nunca devem usar credenciais ou mensagens reais.
 
 ## Producao
 
-O Compose de producao possui MariaDB, migracao controlada, Gunicorn, scheduler dedicado e Nginx. O WhatsApp usa link manual seguro ou um gateway HTTPS externo autenticado.
+O Compose de producao possui MariaDB, migracao controlada, Gunicorn, scheduler dedicado e Nginx. O WhatsApp usa link manual seguro ou a Meta WhatsApp Cloud API oficial.
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build

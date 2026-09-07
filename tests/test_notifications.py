@@ -67,7 +67,7 @@ def test_enqueue_notification_cobre_colisao_de_idempotencia(monkeypatch):
 
 def test_process_notification_registra_sucesso(monkeypatch):
     app = _app()
-    monkeypatch.setattr(notifications, "enviar_whatsapp", lambda *_: {"sucesso": True, "modo": "gateway"})
+    monkeypatch.setattr(notifications, "enviar_whatsapp", lambda *_: {"sucesso": True, "modo": "whatsapp_cloud"})
     with app.app_context():
         item, _ = notifications.enqueue_whatsapp(1, "47999999999", "Oi", "test", "success")
         result = notifications.process_notification(item.id)

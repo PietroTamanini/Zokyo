@@ -1,4 +1,4 @@
-"""Checks executaveis de prontidao para producao."""
+﻿"""Checks executaveis de prontidao para producao."""
 from __future__ import annotations
 
 import base64
@@ -66,7 +66,7 @@ def check_production_readiness(
     if _is_placeholder(database_url):
         add("error", "DATABASE_URL", "Defina DATABASE_URL real.")
     elif parsed_db.scheme not in MYSQL_SCHEMES:
-        add("error", "DATABASE_URL", "Use MySQL/MariaDB em produção, não SQLite ou outro backend.")
+        add("error", "DATABASE_URL", "Use MySQL/MariaDB em produÃ§Ã£o, nÃ£o SQLite ou outro backend.")
     elif not parsed_db.username or not parsed_db.password or not parsed_db.hostname or not parsed_db.path.lstrip("/"):
         add("error", "DATABASE_URL", "DATABASE_URL deve conter usuario, senha, host e banco.")
 
@@ -101,7 +101,7 @@ def check_production_readiness(
     else:
         normalized = Path(upload_folder).as_posix().lower()
         if "/static" in normalized or normalized.endswith("/static"):
-            add("error", "REPORTS_UPLOAD_FOLDER", "Uploads sensíveis não podem ficar dentro de static.")
+            add("error", "REPORTS_UPLOAD_FOLDER", "Uploads sensÃ­veis nÃ£o podem ficar dentro de static.")
 
     alert_email = _get(env, "ALERT_EMAIL")
     alert_webhook = _get(env, "ALERT_WEBHOOK_URL")
@@ -122,20 +122,17 @@ def check_production_readiness(
     smtp_host = _get(env, "SMTP_HOST")
     mail_from = _get(env, "MAIL_FROM")
     if not smtp_host or not mail_from:
-        integration("SMTP", "Configure SMTP_HOST e MAIL_FROM para recuperação de senha por e-mail.")
+        integration("SMTP", "Configure SMTP_HOST e MAIL_FROM para recuperaÃ§Ã£o de senha por e-mail.")
 
     meta_values = (
         _get(env, "WHATSAPP_CLOUD_API_TOKEN"),
         _get(env, "WHATSAPP_CLOUD_PHONE_NUMBER_ID"),
         _get(env, "WHATSAPP_CLOUD_API_VERSION"),
     )
-    gateway_values = (_get(env, "WPP_SERVER_URL"), _get(env, "WPP_SECRET"), _get(env, "WPP_ALLOWED_HOSTS"))
     if any(meta_values) and not all(meta_values):
         add("error", "WHATSAPP_CLOUD", "Preencha token, phone number id e versao da Meta Cloud API juntos.")
-    if any(gateway_values) and not all(gateway_values):
-        add("error", "WPP_GATEWAY", "Preencha URL, segredo e allowlist do gateway WhatsApp juntos.")
-    if not any(meta_values) and not any(gateway_values):
-        integration("WHATSAPP", "WhatsApp automático não configurado; o sistema ficará no fallback manual.")
+    if not any(meta_values):
+        integration("WHATSAPP", "WhatsApp automatico nao configurado; o sistema ficara no fallback manual.")
 
     if _get(env, "ASAAS_API_KEY") and len(_get(env, "ASAAS_WEBHOOK_TOKEN")) < 32:
         add("error", "ASAAS_WEBHOOK_TOKEN", "Configure token de webhook Asaas com pelo menos 32 caracteres.")
@@ -148,7 +145,7 @@ def check_production_readiness(
 
     redis_url = _get(env, "REDIS_URL")
     if not redis_url:
-        integration("REDIS_URL", "Configure Redis para sessões e rate limit distribuídos.")
+        integration("REDIS_URL", "Configure Redis para sessÃµes e rate limit distribuÃ­dos.")
     elif urlparse(redis_url).scheme not in {"redis", "rediss"}:
         add("error", "REDIS_URL", "REDIS_URL deve usar redis:// ou rediss://.")
 

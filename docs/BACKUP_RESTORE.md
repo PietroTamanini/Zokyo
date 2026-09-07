@@ -8,6 +8,12 @@ Estado revisado em 2026-08-27: scripts, criptografia, manifestos e validações 
 python scripts/backup_database.py --output-dir backups --keep-days 14
 ```
 
+No Windows local com XAMPP e usuario sem permissao para `SHOW EVENTS`, use:
+
+```powershell
+.\venv\Scripts\python.exe scripts\backup_database.py --env-file .env --output-dir backups --mysqldump C:\xampp\mysql\bin\mysqldump.exe --extra-mysqldump-arg=--no-tablespaces --extra-mysqldump-arg=--skip-events
+```
+
 ## Criptografia
 
 Gere uma chave fora do servidor e guarde-a em um cofre de segredos:

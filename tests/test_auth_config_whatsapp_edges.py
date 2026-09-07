@@ -203,7 +203,6 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
     app, admin_id, _user_id = _app_with_users()
     client = app.test_client()
     _admin_session(client, admin_id)
-    original_safe_wpp_url = whatsapp._is_safe_wpp_url
     original_enviar_whatsapp = whatsapp.enviar_whatsapp
     original_status_wpp = whatsapp.status_wpp
 
@@ -291,11 +290,6 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
         "alerta_vencimento_dias": "3",
     }).status_code == 302
 
-    monkeypatch.setattr("app.utils.whatsapp._is_safe_wpp_url", lambda url: False)
-    assert _form(client, "/configuracoes/whatsapp", {"wpp_server_url": "https://blocked.example.test"}).status_code == 302
-    monkeypatch.setattr("app.utils.whatsapp._is_safe_wpp_url", lambda url: True)
-    assert _form(client, "/configuracoes/whatsapp", {"wpp_server_url": "https://wpp.example.test"}).status_code == 302
-    assert _form(client, "/configuracoes/whatsapp", {"wpp_server_url": ""}).status_code == 302
     monkeypatch.setattr("app.utils.whatsapp.status_wpp", lambda: {"status": "ok"})
     assert client.get("/api/whatsapp/status").get_json() == {"status": "ok"}
     assert _json(client, "/api/whatsapp/teste", {}).status_code == 400
@@ -303,18 +297,8 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
     assert _json(client, "/api/whatsapp/teste", {"numero": "47999999999"}).get_json()["ok"] is True
     assert _json(client, "/api/message-templates", {"event_type": "", "channel": "sms", "body": ""}).status_code == 400
 
-    monkeypatch.setattr(whatsapp, "_is_safe_wpp_url", original_safe_wpp_url)
     monkeypatch.setattr(whatsapp, "enviar_whatsapp", original_enviar_whatsapp)
     monkeypatch.setattr(whatsapp, "status_wpp", original_status_wpp)
-    monkeypatch.setenv("WPP_ALLOWED_HOSTS", "wpp.example.test")
-    monkeypatch.setattr(whatsapp.socket, "getaddrinfo", lambda host, port: [(None, None, None, None, ("8.8.8.8", port or 443))])
-    assert whatsapp._allowed_hosts() >= {"localhost", "127.0.0.1", "wpp.example.test"}
-    assert whatsapp._is_safe_wpp_url("ftp://wpp.example.test") is False
-    assert whatsapp._is_safe_wpp_url("https://user:pass@wpp.example.test") is False
-    assert whatsapp._is_safe_wpp_url("https://wpp.example.test/send?x=1") is False
-    assert whatsapp._is_safe_wpp_url("https://wpp.example.test") is True
-    monkeypatch.setattr(whatsapp.socket, "getaddrinfo", lambda host, port: [(None, None, None, None, ("127.0.0.1", port or 443))])
-    assert whatsapp._is_safe_wpp_url("https://wpp.example.test") is False
 
     monkeypatch.delenv("WHATSAPP_CLOUD_API_TOKEN", raising=False)
     assert whatsapp._cloud_config() is None
@@ -341,49 +325,8 @@ def test_configuracoes_rotas_e_whatsapp_utils(monkeypatch):
     assert whatsapp.enviar_whatsapp("47999999999", "Oi")["modo"] == "fallback"
 
     monkeypatch.delenv("WHATSAPP_CLOUD_API_TOKEN", raising=False)
-    monkeypatch.setenv("WPP_SECRET", "secret")
-    monkeypatch.setenv("WPP_SERVER_URL", "http://localhost:3000")
-    monkeypatch.setattr(whatsapp.socket, "getaddrinfo", lambda host, port: [(None, None, None, None, ("127.0.0.1", port or 3000))])
-    monkeypatch.setattr(whatsapp.requests, "post", lambda *args, **kwargs: FakeResponse(200, {"ok": True}))
-    with app.app_context():
-        Configuracao.get().wpp_server_url = None
-        db.session.commit()
-        assert whatsapp.enviar_whatsapp("47999999999", "Oi")["modo"] == "gateway"
-        monkeypatch.setattr(whatsapp.requests, "post", lambda *args, **kwargs: FakeResponse(400, {"erro": "bad"}))
-        assert whatsapp.enviar_whatsapp("47999999999", "Oi")["erro"] == "bad"
-        monkeypatch.setattr(whatsapp.requests, "get", lambda *args, **kwargs: FakeResponse(200, {"status": "online"}))
-        assert whatsapp.status_wpp()["status"] == "online"
-        monkeypatch.setattr(whatsapp.requests, "get", lambda *args, **kwargs: (_ for _ in ()).throw(whatsapp.RequestException("offline")))
-        assert whatsapp.status_wpp()["status"] == "offline"
-        monkeypatch.setattr(whatsapp.requests, "get", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
-        assert whatsapp.status_wpp()["status"] == "erro"
-
-    monkeypatch.delenv("WPP_SECRET", raising=False)
     assert whatsapp.enviar_whatsapp("47999999999", "Oi")["modo"] == "simulacao"
     assert whatsapp.status_wpp()["modo"] == "simulacao"
-
-    monkeypatch.setattr(whatsapp.urllib.parse, "urlparse", lambda _url: (_ for _ in ()).throw(ValueError("url ruim")))
-    assert whatsapp._is_safe_wpp_url("https://wpp.example.test") is False
-    monkeypatch.undo()
-
-    monkeypatch.setenv("WPP_ALLOWED_HOSTS", "wpp.example.test")
-    monkeypatch.setattr(whatsapp.socket, "getaddrinfo", lambda *_args: (_ for _ in ()).throw(whatsapp.socket.gaierror()))
-    assert whatsapp._is_safe_wpp_url("https://wpp.example.test") is False
-
-    with app.app_context():
-        Configuracao.get().wpp_server_url = "http://localhost:3000/"
-        db.session.commit()
-        assert whatsapp._wpp_url() == "http://localhost:3000"
-
-    monkeypatch.setenv("WPP_SECRET", "secret")
-    monkeypatch.setattr(whatsapp, "_wpp_url", lambda: "https://wpp.example.test")
-    monkeypatch.setattr(whatsapp, "_is_safe_wpp_url", lambda _url: False)
-    assert "bloqueada" in whatsapp.enviar_whatsapp("47999999999", "Oi")["erro"]
-    assert whatsapp.status_wpp()["status"] == "erro"
-
-    monkeypatch.setattr(whatsapp, "_is_safe_wpp_url", lambda _url: True)
-    monkeypatch.setattr(whatsapp.requests, "post", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
-    assert whatsapp.enviar_whatsapp("47999999999", "Oi")["erro"] == "boom"
 
     monkeypatch.setenv("WHATSAPP_CLOUD_API_TOKEN", "token")
     monkeypatch.setenv("WHATSAPP_CLOUD_PHONE_NUMBER_ID", "12345")

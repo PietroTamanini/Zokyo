@@ -231,30 +231,10 @@ def salvar_os_opcoes():
     return redirect(url_for("configuracoes.index"))
 
 
-@cfg_bp.route("/configuracoes/whatsapp", methods=["POST"])
-@page_nivel_required("admin")
-def salvar_whatsapp():
-    """Salva a URL de um gateway externo explicitamente permitido."""
-    cfg = Configuracao.get()
-    wpp_url = (request.form.get("wpp_server_url") or "").strip()
-    if wpp_url:
-        from app.utils.whatsapp import _is_safe_wpp_url
-        if not _is_safe_wpp_url(wpp_url):
-            flash("URL do servidor WhatsApp inválida ou não permitida.", "error")
-            return redirect(url_for("configuracoes.index"))
-        cfg.wpp_server_url = wpp_url[:300]
-    else:
-        cfg.wpp_server_url = None
-    registrar("edicao", "configuracoes", "Configurações WhatsApp salvas")
-    db.session.commit()
-    flash("Configurações WhatsApp salvas!", "success")
-    return redirect(url_for("configuracoes.index"))
-
-
 @cfg_bp.route("/api/whatsapp/status")
 @nivel_required("admin")
 def whatsapp_status():
-    """Verifica se o gateway externo esta online."""
+    """Verifica se a Meta Cloud API esta configurada."""
     from app.utils.whatsapp import status_wpp
     return jsonify(status_wpp())
 

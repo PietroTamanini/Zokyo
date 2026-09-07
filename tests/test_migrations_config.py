@@ -105,4 +105,4 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert {"link_compra", "custo_unitario"} <= order_part_columns
     assert {"ativo", "deletado_em"} <= part_columns
     assert {"ativo", "deletado_em"} <= service_columns
-    assert revision == "20260901_0015"
+    assert revision == "20260907_0016"

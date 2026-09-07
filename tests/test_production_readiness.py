@@ -70,9 +70,6 @@ def test_production_readiness_cobre_configuracoes_inseguras_especificas():
             "WHATSAPP_CLOUD_API_TOKEN": "token",
             "WHATSAPP_CLOUD_PHONE_NUMBER_ID": "",
             "WHATSAPP_CLOUD_API_VERSION": "v23.0",
-            "WPP_SERVER_URL": "https://whatsapp.example.com",
-            "WPP_SECRET": "",
-            "WPP_ALLOWED_HOSTS": "whatsapp.example.com",
         }
     )
 
@@ -87,7 +84,6 @@ def test_production_readiness_cobre_configuracoes_inseguras_especificas():
         "REPORTS_UPLOAD_FOLDER",
         "ALERT_WEBHOOK_URL",
         "WHATSAPP_CLOUD",
-        "WPP_GATEWAY",
     }.issubset(codes)
 
 

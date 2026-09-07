@@ -17,6 +17,17 @@
   overflow: visible;
 }
 
+.os-parts-header {
+  align-items: flex-start;
+}
+
+.parts-subtitle {
+  margin-top: 4px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .os-parts-card .parts-body {
   position: relative;
   overflow: visible;
@@ -24,6 +35,133 @@
 
 .os-part-add-row .form-group:first-child {
   position: relative;
+}
+
+.parts-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 76px;
+  margin-bottom: 14px;
+  padding: 16px;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+  border: 1px dashed var(--border2);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface2) 74%, transparent);
+}
+
+.parts-empty-state .ui-icon {
+  color: var(--blue-lt);
+  flex: 0 0 auto;
+}
+
+.parts-add-panel {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface2) 88%, var(--blue-glow)), var(--surface));
+}
+
+.parts-add-title {
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.parts-add-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.45fr) minmax(86px, 0.55fr) minmax(120px, 0.75fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.parts-search-field {
+  min-width: 0;
+}
+
+.parts-link-field {
+  grid-column: 1 / span 2;
+}
+
+.parts-link-field label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.parts-link-optional {
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.parts-link-control {
+  position: relative;
+}
+
+.parts-link-control input {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 13px 9px 40px;
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--border2) 78%, var(--blue));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface2) 92%, var(--blue-glow));
+  font: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.parts-link-control:focus-within input {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-ring);
+}
+
+.parts-link-icon {
+  position: absolute;
+  z-index: 1;
+  left: 13px;
+  top: 50%;
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--blue-lt);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.parts-link-icon .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+[data-theme="dark"] .parts-link-control input {
+  color: #f8fafc;
+  border-color: #3f4c5f;
+  background: #111827;
+}
+
+[data-theme="dark"] .parts-link-control input::placeholder {
+  color: #7f8b9c;
+}
+
+[data-theme="dark"] .parts-link-control:focus-within input {
+  border-color: var(--blue-lt);
+  background: #151d2a;
+}
+
+[data-theme="light"] .parts-link-control input {
+  background: #ffffff;
+}
+
+.parts-add-button {
+  width: 100%;
+  min-height: 40px;
 }
 
 .other-field.is-hidden {
@@ -429,6 +567,14 @@
 @media (max-width: 900px) {
   .defect-grid {
     grid-template-columns: 1fr;
+  }
+
+  .parts-add-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parts-link-field {
+    grid-column: auto;
   }
 }
 .signature-canvas {

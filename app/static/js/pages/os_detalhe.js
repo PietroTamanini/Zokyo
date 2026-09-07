@@ -1,6 +1,6 @@
 /**
  * pages/os_detalhe.js
- * Lógica do detalhe da OS: envio de WhatsApp via Evolution API ou simulação.
+ * Lógica do detalhe da OS: envio de WhatsApp pela Meta Cloud API ou link manual.
  */
 
 async function enviarWhatsApp() {
@@ -39,20 +39,17 @@ async function enviarWhatsApp() {
       return;
     }
 
-    // ── Modo real: Evolution API enviou com sucesso ──
-    if (data.modo === 'evolution' && data.sucesso) {
-      showToast('✅ Mensagem enviada via WhatsApp!', 'green');
+    if (data.modo === 'whatsapp_cloud' && data.sucesso) {
+      showToast('Mensagem enviada via WhatsApp.', 'green');
       return;
     }
 
-    // ── Modo simulação ou falha na Evolution API ──
-    // Abre wa.me com mensagem pré-preenchida
     if (data.link) {
       window.open(data.link, '_blank');
       if (data.modo === 'simulacao') {
-        showToast('💬 WhatsApp aberto. Clique em Enviar no app.', 'blue');
+        showToast('WhatsApp aberto. Clique em Enviar no app.', 'blue');
       } else {
-        showToast('⚠ Evolution API offline. Abrindo wa.me.', 'amber');
+        showToast('Envio automatico indisponivel. Abrindo wa.me.', 'amber');
       }
     }
 
@@ -61,7 +58,7 @@ async function enviarWhatsApp() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = '💬 WhatsApp';
+      btn.textContent = 'WhatsApp';
     }
   }
 }

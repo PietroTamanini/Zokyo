@@ -230,7 +230,12 @@
 
     <!-- Peças vinculadas -->
     <div class="card os-parts-card">
-      <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Peças</div></div>
+      <div class="card-header os-parts-header">
+        <div>
+          <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Peças</div>
+          <div class="parts-subtitle">Itens, custos e links de compra usados nesta OS</div>
+        </div>
+      </div>
       <div class="card-body parts-body">
 
         {% if os and pecas_usadas %}
@@ -257,35 +262,45 @@
           </table>
         </div>
         {% else %}
-        <div class="empty-inline">
-          {% if os %}Nenhuma peça vinculada{% else %}Salve a OS primeiro para adicionar peças.{% endif %}
+        <div class="parts-empty-state">
+          <svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg>
+          <span>{% if os %}Nenhuma peça vinculada{% else %}Salve a OS primeiro para adicionar peças.{% endif %}</span>
         </div>
         {% endif %}
 
         {% if os and nivel_usuario in ('admin', 'operacional') %}
-        <div class="form-row fr3 items-end os-part-add-row">
-          <div class="form-group form-group-compact">
-            <label>Peça</label>
-            <input type="search" id="os-peca-busca" autocomplete="off" placeholder="Buscar peça por nome ou código">
-            <input type="hidden" id="os-peca-id">
-            <div id="peca-dropdown" class="part-dropdown"></div>
-          </div>
-          <div class="form-group form-group-compact">
-            <label>Quantidade</label>
-            <input type="number" id="os-peca-qtd" min="1" value="1">
-          </div>
-          <div class="form-group form-group-compact">
-            <label>Valor (R$)</label>
-            <input type="number" id="os-peca-vlr" step="0.01" min="0" value="0.00">
+        <div class="parts-add-panel">
+          <div class="parts-add-title">Adicionar peça</div>
+          <div class="parts-add-grid os-part-add-row">
+            <div class="form-group form-group-compact parts-search-field">
+              <label>Peça</label>
+              <input type="search" id="os-peca-busca" autocomplete="off" placeholder="Buscar por nome ou código">
+              <input type="hidden" id="os-peca-id">
+              <div id="peca-dropdown" class="part-dropdown"></div>
+            </div>
+            <div class="form-group form-group-compact">
+              <label>Qtd.</label>
+              <input type="number" id="os-peca-qtd" min="1" value="1">
+            </div>
+            <div class="form-group form-group-compact">
+              <label>Valor unit.</label>
+              <input type="number" id="os-peca-vlr" step="0.01" min="0" value="0.00">
+            </div>
+            <div class="form-group form-group-compact parts-link-field">
+              <label>Link de compra <span class="parts-link-optional">opcional</span></label>
+              <div class="parts-link-control">
+                <span class="parts-link-icon" aria-hidden="true">
+                  <svg class="ui-icon"><use href="#i-cart"></use></svg>
+                </span>
+                <input type="url" id="os-peca-link" maxlength="1000" placeholder="Cole o link da peça ou fornecedor">
+              </div>
+              <div class="input-hint">Esse link fica salvo na OS para compra ou conferência depois.</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm parts-add-button" data-action="os-peca-adicionar" data-os-id="{{ os.id }}">
+              Adicionar peça
+            </button>
           </div>
         </div>
-        <div class="form-group form-group-compact">
-          <label>Link de compra da peça</label>
-          <input type="url" id="os-peca-link" maxlength="1000" placeholder="https://...">
-        </div>
-        <button type="button" class="btn btn-primary btn-sm" data-action="os-peca-adicionar" data-os-id="{{ os.id }}">
-          Adicionar peça
-        </button>
         {% endif %}
 
       </div>

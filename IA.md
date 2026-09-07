@@ -110,7 +110,7 @@ Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](
 - O Compose de desenvolvimento usa credenciais deliberadamente locais e não reutilizáveis em produção.
 - O site público chama a API do painel; origens permitidas precisam ser explícitas.
 - PDFs de OS e laudos usam ReportLab; não reintroduzir wkhtmltopdf/pdfkit sem necessidade comprovada.
-- O WhatsApp automático deve usar Cloud API oficial ou gateway HTTPS autenticado; fallback manual permanece seguro.
+- O WhatsApp automático deve usar apenas a Meta WhatsApp Cloud API oficial; fallback manual por `wa.me` permanece seguro.
 - Backups devem sair do host, ser criptografados e ter restore comprovado.
 - Imagens de produção devem ser imutáveis e identificadas pelo commit/tag.
 - Aliases de rotas legadas permanecem por compatibilidade; remover apenas com plano de migração e testes.

@@ -1,11 +1,11 @@
-{% extends "base.html" %}
-{% block title %}Configurações — Zokyo{% endblock %}
-{% block breadcrumb %}Configurações{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}ConfiguraÃ§Ãµes â€” Zokyo{% endblock %}
+{% block breadcrumb %}ConfiguraÃ§Ãµes{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">Configurações</div><div class="page-sub">Empresa, indicadores e comunicação</div></div>
-  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Segurança da conta</a>
+  <div><div class="page-title">ConfiguraÃ§Ãµes</div><div class="page-sub">Empresa, indicadores e comunicaÃ§Ã£o</div></div>
+  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">SeguranÃ§a da conta</a>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -37,7 +37,7 @@
         </div>
         <div class="form-row fr2">
           <div class="form-group"><label>Texto abaixo do nome</label>
-            <input type="text" name="subtitulo_empresa" value="{{ cfg.subtitulo_empresa or '' }}" placeholder="Assistência técnica e manutenção"></div>
+            <input type="text" name="subtitulo_empresa" value="{{ cfg.subtitulo_empresa or '' }}" placeholder="AssistÃªncia tÃ©cnica e manutenÃ§Ã£o"></div>
           <div class="form-group"><label>Logo</label>
             <input type="url" name="logo_url" value="{{ cfg.logo_url or '' }}" placeholder="https://site.com/logo.png ou /static/img/logo.png"></div>
         </div>
@@ -48,7 +48,7 @@
             <input type="email" name="email" value="{{ cfg.email or '' }}"></div>
         </div>
         <div class="form-row fr3">
-          <div class="form-group"><label>WhatsApp público</label>
+          <div class="form-group"><label>WhatsApp pÃºblico</label>
             <input type="text" name="whatsapp_publico" value="{{ cfg.whatsapp_publico or '' }}" class="mask-phone"></div>
           <div class="form-group"><label>Site</label>
             <input type="url" name="site_url" value="{{ cfg.site_url or '' }}" placeholder="https://suaempresa.com.br"></div>
@@ -56,7 +56,7 @@
             <input type="url" name="instagram_url" value="{{ cfg.instagram_url or '' }}" placeholder="https://instagram.com/suaempresa"></div>
         </div>
         <div class="form-row fr3">
-          <div class="form-group form-span-2"><label>Endereço</label>
+          <div class="form-group form-span-2"><label>EndereÃ§o</label>
             <input type="text" name="endereco" value="{{ cfg.endereco or '' }}"></div>
           <div class="form-group"><label>Cidade</label>
             <input type="text" name="cidade" value="{{ cfg.cidade or '' }}"></div>
@@ -64,16 +64,16 @@
         <div class="form-row fr3">
           <div class="form-group"><label>UF</label>
             <input type="text" name="uf" value="{{ cfg.uf or '' }}" maxlength="2"></div>
-          <div class="form-group"><label>Dias de Vencimento Padrão</label>
+          <div class="form-group"><label>Dias de Vencimento PadrÃ£o</label>
             <input type="number" name="dias_vencimento" value="{{ cfg.dias_vencimento or 30 }}" min="1"></div>
           <div class="form-group"><label>Chave PIX</label>
             <input type="text" name="pix_chave" value="{{ cfg.pix_chave or '' }}"></div>
         </div>
-        <div class="form-group"><label>Dados de Pagamento / Observações</label>
+        <div class="form-group"><label>Dados de Pagamento / ObservaÃ§Ãµes</label>
           <textarea name="dados_pagamento" rows="3">{{ cfg.dados_pagamento or '' }}</textarea></div>
         <div class="form-row fr2"><div class="form-group"><label>Cor principal</label><input type="color" name="primary_color" value="{{ cfg.primary_color or '#2563eb' }}"></div><div class="form-group"><label>Cor de destaque</label><input type="color" name="accent_color" value="{{ cfg.accent_color or '#6366f1' }}"></div></div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar alterações</button>
+          <button type="submit" class="btn btn-primary">Salvar alteraÃ§Ãµes</button>
         </div>
       </form>
     </div>
@@ -83,7 +83,7 @@
 <!-- TAB: OS -->
 <div id="tab-os" class="tab-content hidden">
   <div class="card">
-    <div class="card-header"><span class="card-title">Opções das ordens de serviço</span></div>
+    <div class="card-header"><span class="card-title">OpÃ§Ãµes das ordens de serviÃ§o</span></div>
     <div class="card-body">
       <form method="POST" action="{{ url_for('configuracoes.salvar_os_opcoes') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -142,7 +142,7 @@
           </div>
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar opções</button>
+          <button type="submit" class="btn btn-primary">Salvar opÃ§Ãµes</button>
         </div>
       </form>
     </div>
@@ -160,20 +160,20 @@
           <div class="form-group"><label>Meta de Receita Mensal (R$)</label>
             <input type="number" name="meta_receita_mensal" step="0.01" value="{{ cfg.meta_receita_mensal or 0 }}">
             <div class="input-hint">Exibe barra de progresso no dashboard</div></div>
-          <div class="form-group"><label>Alerta: Caixa Mínimo (R$)</label>
+          <div class="form-group"><label>Alerta: Caixa MÃ­nimo (R$)</label>
             <input type="number" name="alerta_caixa_minimo" step="0.01" value="{{ cfg.alerta_caixa_minimo or 0 }}">
             <div class="input-hint">Alerta quando caixa ficar abaixo deste valor</div></div>
         </div>
         <div class="form-row fr2">
-          <div class="form-group"><label>Alerta: Estoque Mínimo (unidades)</label>
+          <div class="form-group"><label>Alerta: Estoque MÃ­nimo (unidades)</label>
             <input type="number" name="alerta_estoque_minimo" value="{{ cfg.alerta_estoque_minimo or 5 }}">
-            <div class="input-hint">Destaca peças com estoque abaixo deste nível</div></div>
+            <div class="input-hint">Destaca peÃ§as com estoque abaixo deste nÃ­vel</div></div>
           <div class="form-group"><label>Alerta: Vencimentos (dias)</label>
             <input type="number" name="alerta_vencimento_dias" value="{{ cfg.alerta_vencimento_dias or 5 }}">
-            <div class="input-hint">Avisa com X dias de antecedência</div></div>
+            <div class="input-hint">Avisa com X dias de antecedÃªncia</div></div>
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar alterações</button>
+          <button type="submit" class="btn btn-primary">Salvar alteraÃ§Ãµes</button>
         </div>
       </form>
     </div>
@@ -184,50 +184,25 @@
 <div id="tab-whatsapp" class="tab-content hidden">
 
   <div class="alert a-blue mb20">
-    <div><strong>Envio protegido.</strong><br>Sem gateway configurado, o sistema abre uma conversa no WhatsApp com a mensagem pronta. O envio automático exige um gateway HTTPS autenticado e autorizado no ambiente.</div>
+    <div><strong>Envio protegido.</strong><br>O envio automatico usa somente a Meta WhatsApp Cloud API configurada no ambiente. Sem credenciais oficiais, o sistema abre uma conversa no WhatsApp com a mensagem pronta.</div>
   </div>
 
-  <div class="g2 mb20">
-    <!-- Status -->
+  <div class="mb20">
     <div class="card">
       <div class="card-header">
-        <span class="card-title">📡 Status da Conexão</span>
+        <span class="card-title">Status da conexao</span>
         <div id="wpp-badge" class="badge b-gray"><span class="dot"></span> Verificando...</div>
       </div>
       <div class="card-body txt-c wpp-panel">
         <div id="wpp-status-msg" class="wpp-status">Verificando...</div>
         <div class="wpp-actions">
-          <button type="button" class="btn btn-ghost btn-sm" data-action="wpp-status">🔍 Verificar Status</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="wpp-status">Verificar status</button>
         </div>
-      </div>
-    </div>
-
-    <!-- Configuração -->
-    <div class="card">
-      <div class="card-header"><span class="card-title">Configuração</span></div>
-      <div class="card-body">
-        <form method="POST" action="{{ url_for('configuracoes.salvar_whatsapp') }}">
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-          <div class="form-group mb16">
-            <label>URL do gateway</label>
-            <input type="url" name="wpp_server_url"
-                   value="{{ cfg.wpp_server_url or '' }}"
-                   placeholder="https://gateway.exemplo.com">
-            <div class="input-hint">O host deve estar em WPP_ALLOWED_HOSTS e usar HTTPS. Deixe vazio para envio manual.</div>
-          </div>
-          <div class="alert a-amber mb16 muted-sm">
-            <div>
-              O token de autenticação fica somente em WPP_SECRET no ambiente e nunca é salvo no banco.
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary">Salvar alterações</button>
-        </form>
       </div>
     </div>
   </div>
 
 </div>
-
 
 <script nonce="{{ csp_nonce }}">
 function showTab(id, btn) {
@@ -259,11 +234,10 @@ async function verificarWpp() {
   try {
     const r = await fetch('/api/whatsapp/status', {credentials:'include'});
     const d = await r.json();
-    if (d.status === 'conectado') {
+    if (d.status === 'configurado') {
       badge.className = 'badge b-green';
       badge.innerHTML = '<span class="dot"></span> Conectado';
-      msg.textContent = '✅ WhatsApp conectado! Mensagens automáticas ativas.';
-      msg.textContent = 'Gateway conectado. Mensagens automáticas ativas.';
+      msg.textContent = 'Meta WhatsApp Cloud API configurada. Mensagens automaticas ativas.';
     } else if (d.status === 'desconectado') {
       badge.className = 'badge b-gray';
       badge.innerHTML = '<span class="dot"></span> Manual';
@@ -271,12 +245,11 @@ async function verificarWpp() {
     } else {
       badge.className = 'badge b-red';
       badge.innerHTML = '<span class="dot"></span> Desconectado';
-      msg.textContent = 'Gateway indisponível. O envio manual continua ativo.';
     }
   } catch {
     badge.className = 'badge b-gray';
     badge.innerHTML = '<span class="dot"></span> Offline';
-    msg.textContent = 'Não foi possível consultar o gateway.';
+    msg.textContent = 'Nao foi possivel consultar o status.';
   }
 }
 

@@ -19,3 +19,9 @@ Instalacoes atuais usam exclusivamente:
 flask --app wsgi:app db upgrade
 flask --app wsgi:app db check
 ```
+
+No Windows local com XAMPP, o backup do banco pode precisar ignorar eventos:
+
+```powershell
+.\venv\Scripts\python.exe scripts\backup_database.py --env-file .env --output-dir backups --mysqldump C:\xampp\mysql\bin\mysqldump.exe --extra-mysqldump-arg=--no-tablespaces --extra-mysqldump-arg=--skip-events
+```
