@@ -36,6 +36,11 @@ def _escape_like(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _request_limit(default=50, maximum=200):
+    value = request.args.get("limit", default, type=int)
+    return max(1, min(value or default, maximum))
+
+
 def _documento_from_data(data: dict) -> tuple[str | None, str | None, str | None]:
     raw = data.get("cpf_cnpj", data.get("documento", data.get("cpf") or data.get("cnpj") or ""))
     doc = sanitize_cpf_cnpj(raw)
@@ -137,6 +142,7 @@ def _erro_json(erros: dict[str, str], status=400):
 @login_required
 def listar():
     q = sanitize_search_query(request.args.get("q", ""), max_length=100)
+    limit = _request_limit()
     query = Cliente.query
     if q:
         qe = _escape_like(q)
@@ -152,7 +158,8 @@ def listar():
                 Cliente.telefone.ilike(f"%{digitos}%"),
             ])
         query = query.filter(db.or_(*filtros))
-    return jsonify([c.to_dict() for c in query.order_by(Cliente.nome).all()])
+    clientes = query.order_by(Cliente.nome).limit(limit).all()
+    return jsonify([c.to_dict() for c in clientes])
 
 
 @clientes_bp.route("/api/clientes/<int:id>", methods=["GET"])

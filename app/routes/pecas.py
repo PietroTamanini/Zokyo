@@ -9,9 +9,10 @@ Segurança:
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request, session
+from sqlalchemy import func
 
 from app.extensions import db
-from app.models import Fornecedor, InventoryLot, InventoryMovement, Peca, registrar
+from app.models import Fornecedor, InventoryLot, InventoryMovement, Peca, StockReservation, registrar
 from app.services.inventory import receive_lot, record_movement
 from app.utils.auth import api_login_required as login_required
 from app.utils.auth import nivel_required
@@ -27,6 +28,27 @@ def _escape_like(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _request_limit(default=50, maximum=200):
+    value = request.args.get("limit", default, type=int)
+    return max(1, min(value or default, maximum))
+
+
+def _attach_reserved_quantities(parts):
+    ids = [part.id for part in parts]
+    if not ids:
+        return parts
+    rows = (
+        db.session.query(StockReservation.part_id, func.coalesce(func.sum(StockReservation.quantity), 0))
+        .filter(StockReservation.part_id.in_(ids), StockReservation.status == "active")
+        .group_by(StockReservation.part_id)
+        .all()
+    )
+    reserved = {part_id: total for part_id, total in rows}
+    for part in parts:
+        part._quantidade_reservada = reserved.get(part.id, 0)
+    return parts
+
+
 @pecas_bp.route("/api/pecas", methods=["GET"])
 @pecas_bp.route("/api/v1/produtos", methods=["GET"])
 @pecas_bp.route("/api/v1/pecas", methods=["GET"])
@@ -34,13 +56,15 @@ def _escape_like(q: str) -> str:
 def listar():
     q             = sanitize_search_query(request.args.get("q", ""), max_length=100)
     baixo_estoque = request.args.get("baixo_estoque", type=int)
+    limit         = _request_limit()
     query         = Peca.query.filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None))
     if q:
         qe = _escape_like(q)
-        query = query.filter(Peca.nome.ilike(f"%{qe}%"))
+        query = query.filter(db.or_(Peca.nome.ilike(f"%{qe}%"), Peca.codigo.ilike(f"%{qe}%")))
     if baixo_estoque is not None:
         query = query.filter(Peca.quantidade <= baixo_estoque)
-    return jsonify([p.to_dict() for p in query.order_by(Peca.nome).all()])
+    parts = _attach_reserved_quantities(query.order_by(Peca.nome).limit(limit).all())
+    return jsonify([p.to_dict() for p in parts])
 
 
 @pecas_bp.route("/api/pecas/<int:id>", methods=["GET"])

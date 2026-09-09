@@ -9,7 +9,7 @@ Segurança:
 """
 from datetime import datetime, timezone
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, flash, g, jsonify, redirect, render_template, request, session, url_for
 
 from app.extensions import db
 from app.models import Organization, Usuario, registrar
@@ -26,6 +26,11 @@ usuarios_bp = Blueprint("usuarios", __name__)
 
 
 def _organization_id():
+    if getattr(g, "organization_id", None):
+        return g.organization_id
+    usuario = getattr(g, "current_user", None)
+    if usuario:
+        return usuario.organization_id
     usuario = db.session.get(Usuario, session.get("usuario_id"))
     return usuario.organization_id if usuario else -1
 

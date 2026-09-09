@@ -59,6 +59,10 @@ class OrdemServico(db.Model):
     __table_args__ = (
         db.Index("uq_ordens_servico_org_numero", "organization_id", "numero", unique=True),
         db.Index("ix_ordens_servico_numero_serie", "numero_serie"),
+        db.Index("ix_os_org_open_status_data", "organization_id", "deletado_em", "baixada_em", "status", "data_entrada"),
+        db.Index("ix_os_org_open_prev", "organization_id", "deletado_em", "baixada_em", "data_prev"),
+        db.Index("ix_os_org_cliente_deleted", "organization_id", "cliente_id", "deletado_em"),
+        db.Index("ix_os_org_baixada_saida", "organization_id", "baixada_em", "data_saida"),
     )
 
     id         = db.Column(db.Integer, primary_key=True)
@@ -229,4 +233,32 @@ class OrdemServico(db.Model):
                 }
                 for p in (self.pecas or [])
             ],
+        }
+
+    def to_summary_dict(self):
+        return {
+            "id": self.id,
+            "numero": self.numero_display,
+            "codigo_os": self.codigo_os,
+            "baixada": self.baixada,
+            "baixada_em": self.baixada_em.isoformat() if self.baixada_em else None,
+            "cliente_id": self.cliente_id,
+            "cliente_nome": self.cliente.nome if self.cliente else None,
+            "tecnico_nome": self.tecnico_nome or "",
+            "usuario_id": self.usuario_id,
+            "tipo_aparelho": self.tipo_aparelho,
+            "marca": self.marca,
+            "modelo": self.modelo,
+            "numero_serie": self.numero_serie,
+            "valor_servico": float(self.valor_servico or 0),
+            "valor_pecas": float(self.valor_pecas or 0),
+            "desconto": float(self.desconto or 0),
+            "valor_total": self.valor_total,
+            "status": self.status,
+            "prio": self.prio or "normal",
+            "tipo_atendimento": self.tipo_atendimento or "balcao",
+            "garantia_dias": self.garantia_dias or 90,
+            "data_entrada": self.data_entrada.isoformat() if self.data_entrada else None,
+            "data_saida": self.data_saida.isoformat() if self.data_saida else None,
+            "data_prev": self.data_prev.isoformat() if self.data_prev else None,
         }

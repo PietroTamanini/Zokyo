@@ -13,6 +13,7 @@ class Fornecedor(db.Model):
     __table_args__ = (
         db.Index("ix_fornecedores_nome", "nome"),
         db.Index("ix_fornecedores_telefone", "telefone"),
+        db.Index("ix_fornecedores_org_active_nome", "organization_id", "ativo", "nome"),
     )
 
     id        = db.Column(db.Integer, primary_key=True)

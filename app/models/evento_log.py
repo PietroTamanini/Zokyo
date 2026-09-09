@@ -9,6 +9,12 @@ TIPOS_EVENTO = ("criacao","edicao","exclusao","login","logout","status","pagamen
 
 class EventoLog(db.Model):
     __tablename__ = "eventos_log"
+    __table_args__ = (
+        db.Index("ix_eventos_org_criado", "organization_id", "criado_em"),
+        db.Index("ix_eventos_org_tipo_criado", "organization_id", "tipo", "criado_em"),
+        db.Index("ix_eventos_org_modulo_criado", "organization_id", "modulo", "criado_em"),
+    )
+
     id          = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     usuario_id  = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)

@@ -16,8 +16,6 @@
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
   <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo-extensions.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pwa-install.css') }}">
   <style nonce="{{ csp_nonce }}">[data-theme="dark"],[data-theme="light"]{--blue:{{ PRIMARY_COLOR }};--indigo:{{ ACCENT_COLOR }};}</style>
   {% block extra_css %}{% endblock %}
 </head>

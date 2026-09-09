@@ -8,6 +8,8 @@ class Peca(db.Model):
     __table_args__ = (
         db.Index("ix_pecas_nome", "nome"),
         db.Index("ix_pecas_codigo", "codigo"),
+        db.Index("ix_pecas_org_active_nome", "organization_id", "ativo", "deletado_em", "nome"),
+        db.Index("ix_pecas_org_active_categoria", "organization_id", "ativo", "deletado_em", "categoria"),
     )
     id             = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
@@ -28,6 +30,8 @@ class Peca(db.Model):
         return round(float(self.custo or 0)*(1+float(self.margem or 0)/100),2)
     @property
     def quantidade_reservada(self):
+        if hasattr(self, "_quantidade_reservada"):
+            return int(self._quantidade_reservada or 0)
         return sum(
             item.quantity for item in self.reservations
             if item.status == "active"

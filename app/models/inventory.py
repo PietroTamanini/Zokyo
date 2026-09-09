@@ -9,6 +9,11 @@ def _now():
 
 class InventoryMovement(db.Model):
     __tablename__ = "inventory_movements"
+    __table_args__ = (
+        db.Index("ix_inventory_movements_org_created", "organization_id", "created_at"),
+        db.Index("ix_inventory_movements_org_part_created", "organization_id", "part_id", "created_at"),
+        db.Index("ix_inventory_movements_org_type_created", "organization_id", "movement_type", "created_at"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
@@ -34,6 +39,8 @@ class InventoryLot(db.Model):
     __table_args__ = (
         db.UniqueConstraint("organization_id", "part_id", "code", name="uq_inventory_lot_part_code"),
         db.CheckConstraint("quantity >= 0", name="ck_inventory_lot_quantity_nonnegative"),
+        db.Index("ix_inventory_lots_org_part_active", "organization_id", "part_id", "active"),
+        db.Index("ix_inventory_lots_org_expires", "organization_id", "expires_at"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -68,6 +75,7 @@ class StockReservation(db.Model):
     __tablename__ = "stock_reservations"
     __table_args__ = (
         db.Index("ix_stock_reservation_active", "part_id", "status"),
+        db.Index("ix_stock_reservation_org_part_status", "organization_id", "part_id", "status"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

@@ -4,7 +4,8 @@ import io
 from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, Response, flash, redirect, render_template, request, send_file, session, url_for
-from sqlalchemy import func
+from sqlalchemy import case, func, text
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import Cliente, OrdemServico, SavedReport, Transacao
@@ -38,12 +39,20 @@ def _dados():
     orders = (
         OrdemServico.query
         .filter(OrdemServico.deletado_em.is_(None), OrdemServico.data_entrada >= start_dt, OrdemServico.data_entrada < end_dt)
+        .options(joinedload(OrdemServico.cliente))
         .order_by(OrdemServico.data_entrada.desc())
         .all()
     )
-    transactions = Transacao.query.filter(Transacao.criado_em >= start_dt, Transacao.criado_em < end_dt).all()
-    revenues = sum(float(item.valor or 0) for item in transactions if item.tipo == "receita" and item.status != "cancelado")
-    expenses = sum(float(item.valor or 0) for item in transactions if item.tipo == "despesa" and item.status != "cancelado")
+    totals = db.session.query(
+        func.coalesce(func.sum(case((Transacao.tipo == "receita", Transacao.valor), else_=0)), 0),
+        func.coalesce(func.sum(case((Transacao.tipo == "despesa", Transacao.valor), else_=0)), 0),
+    ).filter(
+        Transacao.criado_em >= start_dt,
+        Transacao.criado_em < end_dt,
+        Transacao.status != "cancelado",
+    ).one()
+    revenues = float(totals[0] or 0)
+    expenses = float(totals[1] or 0)
     status_counts = dict(
         db.session.query(OrdemServico.status, func.count(OrdemServico.id))
         .filter(OrdemServico.deletado_em.is_(None), OrdemServico.data_entrada >= start_dt, OrdemServico.data_entrada < end_dt)
@@ -58,31 +67,41 @@ def _dados():
     )
     decided_quotes = [item for item in orders if item.orcamento_status in {"aprovado", "rejeitado"}]
     approved_quotes = sum(item.orcamento_status == "aprovado" for item in decided_quotes)
-    customer_counts = {}
-    for item in orders:
-        customer_counts[item.cliente_id] = customer_counts.get(item.cliente_id, 0) + 1
+    recurring_clients = db.session.query(func.count()).select_from(
+        db.session.query(OrdemServico.cliente_id)
+        .filter(
+            OrdemServico.deletado_em.is_(None),
+            OrdemServico.data_entrada >= start_dt,
+            OrdemServico.data_entrada < end_dt,
+        )
+        .group_by(OrdemServico.cliente_id)
+        .having(func.count(OrdemServico.id) > 1)
+        .subquery()
+    ).scalar() or 0
     inactive_since = datetime.combine(date.today() - timedelta(days=90), time.min)
-    active_customer_ids = {
-        row[0] for row in db.session.query(OrdemServico.cliente_id)
-        .filter(OrdemServico.deletado_em.is_(None), OrdemServico.data_entrada >= inactive_since)
-        .distinct().all()
-    }
-    active_clients = Cliente.query.filter_by(ativo=True).all()
-    parts_cost = sum(
-        float(part.custo or 0) * association["quantidade"]
-        for item in orders for association in item.to_dict()["pecas"]
-        for part in item.pecas if part.id == association["id"]
-    )
+    active_client_count = Cliente.query.filter_by(ativo=True).count()
+    recently_active_clients = db.session.query(func.count(func.distinct(OrdemServico.cliente_id))).filter(
+        OrdemServico.deletado_em.is_(None),
+        OrdemServico.data_entrada >= inactive_since,
+    ).scalar() or 0
+    order_ids = [item.id for item in orders]
+    parts_cost = 0
+    if order_ids:
+        parts_cost = float(db.session.execute(text(
+            "SELECT COALESCE(SUM(op.quantidade * COALESCE(op.custo_unitario, p.custo, 0)), 0) AS custo "
+            "FROM os_pecas op JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id IN :ids"
+        ).bindparams(db.bindparam("ids", expanding=True)), {"ids": order_ids}).scalar() or 0)
     return {
-        "inicio": start, "fim": end, "ordens": orders, "transacoes": transactions,
+        "inicio": start, "fim": end, "ordens": orders,
         "receitas": revenues, "despesas": expenses, "saldo": revenues - expenses,
         "status_counts": status_counts,
         "margem_estimada": sum(item.valor_total for item in orders) - parts_cost,
         "tempo_medio_horas": average_hours,
         "conversao_orcamento": (approved_quotes / len(decided_quotes) * 100) if decided_quotes else 0,
         "os_em_garantia": sum(item.em_garantia for item in orders),
-        "clientes_recorrentes": sum(count > 1 for count in customer_counts.values()),
-        "clientes_inativos": sum(item.id not in active_customer_ids for item in active_clients),
+        "clientes_recorrentes": int(recurring_clients),
+        "clientes_inativos": max(0, int(active_client_count or 0) - int(recently_active_clients or 0)),
     }
 
 

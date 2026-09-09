@@ -2,7 +2,7 @@
 import os
 from functools import wraps
 
-from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 
 from app.extensions import db
@@ -26,7 +26,9 @@ platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
 def global_admin_required(function):
     @wraps(function)
     def wrapped(*args, **kwargs):
-        user = db.session.get(Usuario, session.get("usuario_id")) if session.get("usuario_id") else None
+        user = getattr(g, "current_user", None)
+        if user is None and session.get("usuario_id"):
+            user = db.session.get(Usuario, session.get("usuario_id"))
         allowed = {item.strip().lower() for item in os.environ.get("PLATFORM_ADMIN_EMAILS", "").split(",") if item.strip()}
         if not user:
             return redirect(url_for("auth.login_page"))
@@ -42,18 +44,45 @@ def index():
     organizations = db.session.execute(
         db.select(Organization).order_by(Organization.nome).execution_options(include_all_tenants=True)
     ).scalars().all()
+    options = {"include_all_tenants": True}
+    user_counts = dict(db.session.execute(
+        db.select(Usuario.organization_id, func.count(Usuario.id))
+        .group_by(Usuario.organization_id)
+        .execution_options(**options)
+    ).all())
+    client_counts = dict(db.session.execute(
+        db.select(Cliente.organization_id, func.count(Cliente.id))
+        .group_by(Cliente.organization_id)
+        .execution_options(**options)
+    ).all())
+    order_counts = dict(db.session.execute(
+        db.select(OrdemServico.organization_id, func.count(OrdemServico.id))
+        .group_by(OrdemServico.organization_id)
+        .execution_options(**options)
+    ).all())
+    last_activity = dict(db.session.execute(
+        db.select(EventoLog.organization_id, func.max(EventoLog.criado_em))
+        .group_by(EventoLog.organization_id)
+        .execution_options(**options)
+    ).all())
+    os_storage = dict(db.session.execute(
+        db.select(OSFoto.organization_id, func.coalesce(func.sum(OSFoto.tamanho_bytes), 0))
+        .group_by(OSFoto.organization_id)
+        .execution_options(**options)
+    ).all())
+    report_storage = dict(db.session.execute(
+        db.select(LaudoFoto.organization_id, func.coalesce(func.sum(LaudoFoto.tamanho_bytes), 0))
+        .group_by(LaudoFoto.organization_id)
+        .execution_options(**options)
+    ).all())
     usage = {}
     for organization in organizations:
-        options = {"include_all_tenants": True}
         usage[organization.id] = {
-            "users": db.session.execute(db.select(func.count(Usuario.id)).where(Usuario.organization_id == organization.id).execution_options(**options)).scalar_one(),
-            "clients": db.session.execute(db.select(func.count(Cliente.id)).where(Cliente.organization_id == organization.id).execution_options(**options)).scalar_one(),
-            "orders": db.session.execute(db.select(func.count(OrdemServico.id)).where(OrdemServico.organization_id == organization.id).execution_options(**options)).scalar_one(),
-            "last_activity": db.session.execute(db.select(func.max(EventoLog.criado_em)).where(EventoLog.organization_id == organization.id).execution_options(**options)).scalar_one_or_none(),
-            "storage_bytes": int(
-                (db.session.execute(db.select(func.coalesce(func.sum(OSFoto.tamanho_bytes), 0)).where(OSFoto.organization_id == organization.id).execution_options(**options)).scalar_one() or 0)
-                + (db.session.execute(db.select(func.coalesce(func.sum(LaudoFoto.tamanho_bytes), 0)).where(LaudoFoto.organization_id == organization.id).execution_options(**options)).scalar_one() or 0)
-            ),
+            "users": int(user_counts.get(organization.id, 0) or 0),
+            "clients": int(client_counts.get(organization.id, 0) or 0),
+            "orders": int(order_counts.get(organization.id, 0) or 0),
+            "last_activity": last_activity.get(organization.id),
+            "storage_bytes": int(os_storage.get(organization.id, 0) or 0) + int(report_storage.get(organization.id, 0) or 0),
         }
     return render_template(
         "pages/platform.html", organizations=organizations,

@@ -132,7 +132,7 @@ def listar():
         page=page, per_page=per_page, error_out=False)
 
     return jsonify({
-        "items":    [o.to_dict() for o in pag.items],
+        "items":    [o.to_summary_dict() for o in pag.items],
         "total":    pag.total,
         "page":     pag.page,
         "pages":    pag.pages,

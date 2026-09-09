@@ -12,6 +12,10 @@ from app.extensions import db
 
 class OSHistorico(db.Model):
     __tablename__ = "os_historico"
+    __table_args__ = (
+        db.Index("ix_os_historico_os_criado", "os_id", "criado_em"),
+        db.Index("ix_os_historico_org_criado", "organization_id", "criado_em"),
+    )
 
     id              = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)

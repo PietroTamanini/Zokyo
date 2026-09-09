@@ -18,12 +18,18 @@ def _escape_like(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+def _request_limit(default=100, maximum=500):
+    value = request.args.get("limit", default, type=int)
+    return max(1, min(value or default, maximum))
+
+
 @defeitos_bp.route("/api/defeitos", methods=["GET"])
 @defeitos_bp.route("/api/v1/servicos", methods=["GET"])
 @api_login_required
 def listar():
     q    = request.args.get("q", "").strip()
     tipo = request.args.get("tipo_aparelho", "").strip()
+    limit = _request_limit()
     query = DefeitoPadrao.query.filter(DefeitoPadrao.ativo.is_(True), DefeitoPadrao.deletado_em.is_(None))
     if q:
         qe = _escape_like(q)
@@ -33,7 +39,7 @@ def listar():
         query = query.filter(DefeitoPadrao.tipo_aparelho.ilike(f"%{te}%"))
     return jsonify([d.to_dict() for d in
                     query.order_by(DefeitoPadrao.tipo_aparelho,
-                                   DefeitoPadrao.sintoma).all()])
+                                   DefeitoPadrao.sintoma).limit(limit).all()])
 
 
 @defeitos_bp.route("/api/defeitos", methods=["POST"])

@@ -1,5 +1,5 @@
 """routes/fornecedores.py — CRUD de fornecedores (API JSON)."""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from app.extensions import db
 from app.models import Fornecedor, registrar
@@ -10,6 +10,11 @@ from app.utils.sanitizers import sanitize_cep, sanitize_cnpj, sanitize_email, sa
 from app.utils.validators import validar_cep, validar_cnpj, validar_email, validar_telefone
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
+
+
+def _request_limit(default=100, maximum=500):
+    value = request.args.get("limit", default, type=int)
+    return max(1, min(value or default, maximum))
 
 
 def _validar_e_sanitizar(data: dict) -> tuple[dict, list[str]]:
@@ -62,8 +67,9 @@ def _validar_e_sanitizar(data: dict) -> tuple[dict, list[str]]:
 @fornecedores_bp.route("/api/fornecedores", methods=["GET"])
 @login_required
 def listar():
+    limit = _request_limit()
     return jsonify([f.to_dict() for f in
-                    Fornecedor.query.order_by(Fornecedor.nome).all()])
+                    Fornecedor.query.order_by(Fornecedor.nome).limit(limit).all()])
 
 
 @fornecedores_bp.route("/api/fornecedores/<int:id>", methods=["GET"])

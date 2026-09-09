@@ -86,7 +86,10 @@ def create_app(config_name="default"):
         from app.config.branding import get_branding
         try:
             from app.models import Configuracao
-            cfg = Configuracao.get()
+            cfg = getattr(g, "cfg", None)
+            if cfg is None:
+                cfg = Configuracao.get()
+                g.cfg = cfg
         except Exception:
             cfg = None
         return get_branding(cfg)
@@ -99,11 +102,17 @@ def create_app(config_name="default"):
         usuario = None
         if "usuario_id" in _s:
             try:
-                usuario = db.session.get(Usuario, _s["usuario_id"])
+                usuario = getattr(g, "current_user", None)
+                if usuario is None:
+                    usuario = db.session.get(Usuario, _s["usuario_id"])
+                    g.current_user = usuario
             except Exception:
                 app.logger.debug("Não foi possível carregar usuário do contexto.", exc_info=True)
         try:
-            cfg = Configuracao.get()
+            cfg = getattr(g, "cfg", None)
+            if cfg is None:
+                cfg = Configuracao.get()
+                g.cfg = cfg
         except Exception:
             cfg = None
         nivel = _s.get("nivel", "")
@@ -294,6 +303,7 @@ def create_app(config_name="default"):
             return redirect(url_for("auth.login_page"))
 
         g.organization_id = u.organization_id
+        g.current_user = u
 
         # Sincroniza papel na sessão se foi alterado (promoção/rebaixamento)
         if session.get("nivel") != u.nivel:
@@ -388,7 +398,9 @@ def create_app(config_name="default"):
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
-        if session.get("usuario_id") and endpoint != "static" and "Cache-Control" not in response.headers:
+        if endpoint == "static":
+            response.headers["Cache-Control"] = "public, max-age=86400"
+        elif session.get("usuario_id") and "Cache-Control" not in response.headers:
             response.headers["Cache-Control"] = "no-store, private, max-age=0"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"

@@ -43,9 +43,16 @@ def current_session_record(user_id: int) -> UserSession | None:
 
 def validate_session_record(user) -> bool:
     record = current_session_record(user.id)
-    if not record or not record.is_active:
-        return False
     now = _now()
+    expires = record.expires_at.replace(tzinfo=timezone.utc) if record else None
+    if (
+        not record
+        or record.revoked_at is not None
+        or not expires
+        or expires <= now
+        or record.security_version != user.security_version
+    ):
+        return False
     last_seen = record.last_seen_at.replace(tzinfo=timezone.utc)
     if now - last_seen >= timedelta(minutes=5):
         record.last_seen_at = now

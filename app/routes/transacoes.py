@@ -13,7 +13,7 @@ import math
 from datetime import datetime, timezone
 
 from flask import Blueprint, Response, jsonify, request, session
-from sqlalchemy import extract, func
+from sqlalchemy import case, func
 
 from app.extensions import db
 from app.models import OrdemServico, Transacao, Usuario, registrar
@@ -40,6 +40,13 @@ def _parse_date_safe(valor) -> datetime | None:
         return datetime.fromisoformat(str(valor)[:19])
     except (ValueError, TypeError):
         return None
+
+
+def _month_range(mes: int, ano: int) -> tuple[datetime, datetime]:
+    start = datetime(ano, mes, 1)
+    if mes == 12:
+        return start, datetime(ano + 1, 1, 1)
+    return start, datetime(ano, mes + 1, 1)
 
 
 def _validar_valor(valor) -> tuple[float | None, str | None]:
@@ -93,10 +100,8 @@ def listar():
             return jsonify({"success": False, "erro": "mês inválido (1-12)"}), 400
         if not (2000 <= ano <= 2100):
             return jsonify({"success": False, "erro": "ano inválido"}), 400
-        query = query.filter(
-            extract("month", Transacao.criado_em) == mes,
-            extract("year", Transacao.criado_em) == ano,
-        )
+        start, end = _month_range(mes, ano)
+        query = query.filter(Transacao.criado_em >= start, Transacao.criado_em < end)
     return jsonify([t.to_dict() for t in
                     query.order_by(Transacao.criado_em.desc()).all()])
 
@@ -225,19 +230,17 @@ def resumo():
     if not (2000 <= ano <= 2100):
         return jsonify({"success": False, "erro": "ano inválido"}), 400
 
-    def total_tipo(tipo):
-        return float(
-            db.session.query(func.coalesce(func.sum(Transacao.valor), 0))
-            .filter(
-                Transacao.tipo   == tipo,
-                Transacao.status != "cancelado",
-                extract("month", Transacao.criado_em) == mes,
-                extract("year", Transacao.criado_em) == ano,
-            ).scalar() or 0
-        )
-
-    receitas = total_tipo("receita")
-    despesas = total_tipo("despesa")
+    start, end = _month_range(mes, ano)
+    totals = db.session.query(
+        func.coalesce(func.sum(case((Transacao.tipo == "receita", Transacao.valor), else_=0)), 0),
+        func.coalesce(func.sum(case((Transacao.tipo == "despesa", Transacao.valor), else_=0)), 0),
+    ).filter(
+        Transacao.status != "cancelado",
+        Transacao.criado_em >= start,
+        Transacao.criado_em < end,
+    ).one()
+    receitas = float(totals[0] or 0)
+    despesas = float(totals[1] or 0)
     return jsonify({
         "mes": mes, "ano": ano,
         "receitas": receitas, "despesas": despesas,
@@ -283,15 +286,27 @@ def dre():
         query = query.filter(Transacao.data_pagamento >= start)
     if end:
         query = query.filter(Transacao.data_pagamento < end)
-    rows = query.all()
-    revenues = sum(float(item.valor or 0) for item in rows if item.tipo == "receita")
-    expenses_by_category = {}
-    for item in rows:
-        if item.tipo == "despesa":
-            category = item.categoria or "outros"
-            expenses_by_category[category] = expenses_by_category.get(category, 0) + float(item.valor or 0)
+    revenues = float(
+        query.with_entities(func.coalesce(func.sum(Transacao.valor), 0))
+        .filter(Transacao.tipo == "receita")
+        .scalar() or 0
+    )
+    expense_rows = (
+        query.with_entities(Transacao.categoria, func.coalesce(func.sum(Transacao.valor), 0))
+        .filter(Transacao.tipo == "despesa")
+        .group_by(Transacao.categoria)
+        .all()
+    )
+    expenses_by_category = {
+        category or "outros": float(total or 0)
+        for category, total in expense_rows
+    }
     expenses = sum(expenses_by_category.values())
-    commissions = sum(float(item.comissao_valor or 0) for item in rows if item.tipo == "receita")
+    commissions = float(
+        query.with_entities(func.coalesce(func.sum(Transacao.comissao_valor), 0))
+        .filter(Transacao.tipo == "receita")
+        .scalar() or 0
+    )
     return jsonify({
         "receita_bruta": revenues,
         "despesas_por_categoria": expenses_by_category,

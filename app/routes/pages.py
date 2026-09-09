@@ -40,7 +40,7 @@ from flask import (
     session,
     url_for,
 )
-from sqlalchemy import func, text
+from sqlalchemy import case, func, text
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -63,6 +63,7 @@ from app.models import (
     OSHistorico,
     Peca,
     ServiceChecklistTemplate,
+    StockReservation,
     Transacao,
     Usuario,
     proximo_numero_os,
@@ -482,10 +483,16 @@ def _clientes_json_payload(clientes):
 
 
 def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os", coleta=False):
-    clientes = Cliente.query.filter_by(ativo=True).order_by(Cliente.nome).all()
+    form_data = form_data or {}
+    cliente_id = form_data.get("cliente_id") or (os_obj.cliente_id if os_obj else None)
+    clientes = []
+    if cliente_id:
+        cliente = Cliente.query.filter_by(id=cliente_id, ativo=True).first()
+        if cliente:
+            clientes.append(cliente)
     tecnicos = (Usuario.query.filter_by(ativo=True)
                 .filter(Usuario.nivel.in_(["admin", "operacional"])).all())
-    pecas = _pecas_ativas_query().order_by(Peca.nome).all()
+    pecas = []
     status_map = _configured_status_map()
     priority_options = _configured_priority_options()
     attendance_options = _configured_attendance_options()
@@ -504,7 +511,7 @@ def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os",
         hoje_iso=_today(),
         pecas_usadas=os_obj.to_dict().get("pecas", []) if os_obj else [],
         nivel_usuario=session.get("nivel", "operacional"),
-        form_data=form_data or {},
+        form_data=form_data,
         form_errors=form_errors or {},
         coleta=coleta,
     )
@@ -563,6 +570,22 @@ def _coalesce_sum(col):
     """sum(...) com fallback 0 quando não há linhas."""
     return func.coalesce(func.sum(col), 0)
 
+
+def _attach_reserved_quantities(parts):
+    ids = [part.id for part in parts]
+    if not ids:
+        return parts
+    rows = (
+        db.session.query(StockReservation.part_id, func.coalesce(func.sum(StockReservation.quantity), 0))
+        .filter(StockReservation.part_id.in_(ids), StockReservation.status == "active")
+        .group_by(StockReservation.part_id)
+        .all()
+    )
+    reserved = {part_id: total for part_id, total in rows}
+    for part in parts:
+        part._quantidade_reservada = reserved.get(part.id, 0)
+    return parts
+
 def _caixa_expression():
     """
     Saldo de caixa: sum(receitas pagas) - sum(despesas pagas).
@@ -586,26 +609,33 @@ def _caixa_expression():
 def dashboard():
     cfg  = Configuracao.get()
     hoje = _now()
-    mes  = hoje.strftime("%Y-%m")
-    dia  = hoje.strftime("%Y-%m-%d")
 
-    # Bug #4: .is_(None) em vez de ==None
-    os_abertas = OrdemServico.query.filter(
+    agora_db = hoje.replace(tzinfo=None)
+    mes_inicio = agora_db.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if mes_inicio.month == 12:
+        mes_fim = mes_inicio.replace(year=mes_inicio.year + 1, month=1)
+    else:
+        mes_fim = mes_inicio.replace(month=mes_inicio.month + 1)
+    dia_inicio = agora_db.replace(hour=0, minute=0, second=0, microsecond=0)
+    dia_fim = dia_inicio + timedelta(days=1)
+
+    open_order_filter = (
         OrdemServico.deletado_em.is_(None),
         OrdemServico.baixada_em.is_(None),
-        ~OrdemServico.status.in_(["entregue", "cancelado"])
-    ).count()
-    os_prontas = OrdemServico.query.filter_by(status="pronto").filter(
-        OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None)).count()
-    os_atrasadas = OrdemServico.query.filter(
-        OrdemServico.data_prev < hoje.replace(tzinfo=None),
-        OrdemServico.deletado_em.is_(None),
-        OrdemServico.baixada_em.is_(None),
-        ~OrdemServico.status.in_(["entregue", "cancelado", "pronto"])
-    ).count()
-    os_aprovacao = OrdemServico.query.filter_by(
-        status="aguardando_aprovacao").filter(
-        OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None)).count()
+    )
+    order_counts = db.session.query(
+        func.count(case((~OrdemServico.status.in_(["entregue", "cancelado"]), 1))).label("abertas"),
+        func.count(case((OrdemServico.status == "pronto", 1))).label("prontas"),
+        func.count(case((
+            OrdemServico.data_prev < agora_db,
+            ~OrdemServico.status.in_(["entregue", "cancelado", "pronto"]),
+        ), 1)).label("atrasadas"),
+        func.count(case((OrdemServico.status == "aguardando_aprovacao", 1))).label("aprovacao"),
+    ).filter(*open_order_filter).one()
+    os_abertas = int(order_counts.abertas or 0)
+    os_prontas = int(order_counts.prontas or 0)
+    os_atrasadas = int(order_counts.atrasadas or 0)
+    os_aprovacao = int(order_counts.aprovacao or 0)
     coletas_abertas = ColetaAgendada.query.filter(
         ColetaAgendada.status.in_(["agendada", "em_coleta"])
     ).count()
@@ -617,24 +647,58 @@ def dashboard():
         "AND (op.link_compra IS NOT NULL OR op.quantidade > 0)"
     )).scalar() or 0
 
-    def soma(tipo, st, periodo="mes"):
-        q = db.session.query(_coalesce_sum(Transacao.valor)).filter(
-            Transacao.tipo == tipo, Transacao.status == st)
-        if periodo == "mes":
-            q = q.filter(_date_trunc_month(Transacao.criado_em) == mes)
-        elif periodo == "dia":
-            q = q.filter(_date_trunc_day(Transacao.criado_em) == dia)
-        return float(q.scalar() or 0)
-
-    receitas_mes = soma("receita", "pago",     "mes")
-    despesas_mes = soma("despesa", "pago",     "mes")
-    vendas_dia   = soma("receita", "pago",     "dia")
+    transaction_totals = db.session.query(
+        _coalesce_sum(case((
+            (Transacao.tipo == "receita")
+            & (Transacao.status == "pago")
+            & (Transacao.criado_em >= mes_inicio)
+            & (Transacao.criado_em < mes_fim),
+            Transacao.valor,
+        ), else_=0)).label("receitas_mes"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "despesa")
+            & (Transacao.status == "pago")
+            & (Transacao.criado_em >= mes_inicio)
+            & (Transacao.criado_em < mes_fim),
+            Transacao.valor,
+        ), else_=0)).label("despesas_mes"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "receita")
+            & (Transacao.status == "pago")
+            & (Transacao.criado_em >= dia_inicio)
+            & (Transacao.criado_em < dia_fim),
+            Transacao.valor,
+        ), else_=0)).label("vendas_dia"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "receita")
+            & (Transacao.status == "pendente")
+            & (Transacao.criado_em >= mes_inicio)
+            & (Transacao.criado_em < mes_fim),
+            Transacao.valor,
+        ), else_=0)).label("a_receber"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "despesa")
+            & (Transacao.status == "pendente")
+            & (Transacao.criado_em >= mes_inicio)
+            & (Transacao.criado_em < mes_fim),
+            Transacao.valor,
+        ), else_=0)).label("a_pagar"),
+        _coalesce_sum(case((
+            (Transacao.status == "pago") & (Transacao.tipo == "receita"),
+            Transacao.valor,
+        ), (
+            (Transacao.status == "pago") & (Transacao.tipo == "despesa"),
+            -Transacao.valor,
+        ), else_=0)).label("caixa"),
+        func.count(Transacao.id).label("total_transacoes"),
+    ).one()
+    receitas_mes = float(transaction_totals.receitas_mes or 0)
+    despesas_mes = float(transaction_totals.despesas_mes or 0)
+    vendas_dia = float(transaction_totals.vendas_dia or 0)
     saldo_mes    = receitas_mes - despesas_mes
-    a_receber    = soma("receita", "pendente", "mes")
-    a_pagar      = soma("despesa", "pendente", "mes")
-
-    caixa = float(db.session.query(_caixa_expression()).filter(
-        Transacao.status == "pago").scalar() or 0)
+    a_receber = float(transaction_totals.a_receber or 0)
+    a_pagar = float(transaction_totals.a_pagar or 0)
+    caixa = float(transaction_totals.caixa or 0)
 
     total_clientes     = Cliente.query.filter_by(ativo=True).count()
     total_fornecedores = Fornecedor.query.filter_by(ativo=True).count()
@@ -642,7 +706,7 @@ def dashboard():
     total_pecas        = _pecas_ativas_query().count()
     estoque_critico    = _pecas_ativas_query().filter(
         Peca.quantidade <= Peca.estoque_minimo).count()
-    total_transacoes   = Transacao.query.count()
+    total_transacoes = int(transaction_totals.total_transacoes or 0)
 
     valor_estoque = float(db.session.query(
         _coalesce_sum(Peca.custo * Peca.quantidade)
@@ -676,10 +740,14 @@ def dashboard():
         pct_meta = min(100, round(
             (receitas_mes / cfg.meta_receita_mensal) * 100, 1))
 
-    pipeline_counts = {}
-    for st in STATUS_OS:
-        pipeline_counts[st] = OrdemServico.query.filter_by(
-            status=st).filter(OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None)).count()
+    pipeline_counts = {st: 0 for st in STATUS_OS}
+    pipeline_counts.update({
+        status: int(total or 0)
+        for status, total in db.session.query(OrdemServico.status, func.count(OrdemServico.id))
+        .filter(*open_order_filter)
+        .group_by(OrdemServico.status)
+        .all()
+    })
 
     ultimas_os = (OrdemServico.query
                   .filter(OrdemServico.deletado_em.is_(None))
@@ -1390,9 +1458,14 @@ def os_lista():
         OrdemServico.data_entrada.desc()).paginate(
         page=page, per_page=25, error_out=False)
 
-    pipeline_os = {st: OrdemServico.query.filter_by(
-        status=st).filter(OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None)).count()
-        for st in status_map}
+    pipeline_os = {st: 0 for st in status_map}
+    pipeline_os.update({
+        status: int(total or 0)
+        for status, total in db.session.query(OrdemServico.status, func.count(OrdemServico.id))
+        .filter(OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.is_(None))
+        .group_by(OrdemServico.status)
+        .all()
+    })
 
     return render_template("pages/os_lista.html",
         active="os", os_list=pag.items, paginacao=pag,
@@ -1445,9 +1518,14 @@ def os_baixadas():
         query = query.join(Cliente).filter(db.or_(*filtros))
     pag = query.order_by(OrdemServico.baixada_em.desc(), OrdemServico.data_entrada.desc()).paginate(
         page=page, per_page=25, error_out=False)
-    pipeline_os = {st: OrdemServico.query.filter_by(
-        status=st).filter(OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.isnot(None)).count()
-        for st in status_map}
+    pipeline_os = {st: 0 for st in status_map}
+    pipeline_os.update({
+        status: int(total or 0)
+        for status, total in db.session.query(OrdemServico.status, func.count(OrdemServico.id))
+        .filter(OrdemServico.deletado_em.is_(None), OrdemServico.baixada_em.isnot(None))
+        .group_by(OrdemServico.status)
+        .all()
+    })
     return render_template("pages/os_lista.html",
         active="os", os_list=pag.items, paginacao=pag,
         q=q, status_filtro=status_filtro, prio_filtro=prio_filtro,
@@ -2761,10 +2839,21 @@ def _render_clientes_page(cliente_form_state=None, status=200):
     pag  = query.order_by(Cliente.nome).paginate(
         page=page, per_page=25, error_out=False)
     lista = pag.items
+    os_counts = {}
+    cliente_ids = [cli.id for cli in lista]
+    if cliente_ids:
+        os_counts = {
+            cliente_id: int(total or 0)
+            for cliente_id, total in db.session.query(OrdemServico.cliente_id, func.count(OrdemServico.id))
+            .filter(
+                OrdemServico.cliente_id.in_(cliente_ids),
+                OrdemServico.deletado_em.is_(None),
+            )
+            .group_by(OrdemServico.cliente_id)
+            .all()
+        }
     for cli in lista:
-        cli.os_count = OrdemServico.query.filter_by(
-            cliente_id=cli.id).filter(
-            OrdemServico.deletado_em.is_(None)).count()
+        cli.os_count = os_counts.get(cli.id, 0)
     clientes_payload = []
     for c in lista:
         item = c.to_dict()
@@ -2893,12 +2982,15 @@ def estoque():
         query = query.filter(Peca.quantidade <= Peca.estoque_minimo)
     pag = query.order_by(Peca.nome).paginate(
         page=page, per_page=30, error_out=False)
+    _attach_reserved_quantities(pag.items)
     categorias  = [r[0] for r in db.session.query(
         Peca.categoria).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).distinct().all() if r[0]]
-    valor_total = sum(
-        float(p.custo or 0) * p.quantidade for p in _pecas_ativas_query().all())
-    criticos    = _pecas_ativas_query().filter(
+    valor_total = float(db.session.query(
+        _coalesce_sum(Peca.custo * Peca.quantidade)
+    ).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).scalar() or 0)
+    criticos = _attach_reserved_quantities(_pecas_ativas_query().filter(
         Peca.quantidade <= Peca.estoque_minimo).all()
+    )
     pecas_json  = _safe_json([
         {"id": p.id, "nome": p.nome, "quantidade": p.quantidade,
          "estoque_minimo": p.estoque_minimo,
@@ -3509,19 +3601,36 @@ def financeiro():
     pag = query.order_by(Transacao.criado_em.desc()).paginate(
         page=page, per_page=25, error_out=False)
 
-    def _s(tipo, st):
-        return float(db.session.query(
-            _coalesce_sum(Transacao.valor)).filter(
-            Transacao.tipo == tipo, Transacao.status == st,
-            Transacao.criado_em >= dt_ini,
-            Transacao.criado_em <= dt_fim,
-        ).scalar() or 0)
-
     periodo_label = (f"{dt_ini.strftime('%d/%m/%Y')} "
                      f"a {dt_fim.strftime('%d/%m/%Y')}")
 
-    receitas_pagas = _s("receita", "pago")
-    despesas_pagas = _s("despesa", "pago")
+    finance_totals = db.session.query(
+        _coalesce_sum(case((
+            (Transacao.tipo == "receita") & (Transacao.status == "pago"),
+            Transacao.valor,
+        ), else_=0)).label("receitas_pagas"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "despesa") & (Transacao.status == "pago"),
+            Transacao.valor,
+        ), else_=0)).label("despesas_pagas"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "receita") & (Transacao.status == "pendente"),
+            Transacao.valor,
+        ), else_=0)).label("a_receber"),
+        _coalesce_sum(case((
+            (Transacao.tipo == "despesa") & (Transacao.status == "pendente"),
+            Transacao.valor,
+        ), else_=0)).label("a_pagar"),
+        _coalesce_sum(case((
+            Transacao.status == "pago",
+            Transacao.comissao_valor,
+        ), else_=0)).label("comissoes"),
+    ).filter(
+        Transacao.criado_em >= dt_ini,
+        Transacao.criado_em <= dt_fim,
+    ).one()
+    receitas_pagas = float(finance_totals.receitas_pagas or 0)
+    despesas_pagas = float(finance_totals.despesas_pagas or 0)
     os_financeiro = order_financial_rows(hoje, dt_ini, dt_fim)
     return render_template("pages/financeiro.html", active="financeiro",
         transacoes=pag.items, paginacao=pag,
@@ -3531,11 +3640,9 @@ def financeiro():
         receitas_pagas=receitas_pagas,
         despesas_pagas=despesas_pagas,
         lucro=receitas_pagas - despesas_pagas,
-        a_receber=_s("receita", "pendente"),
-        a_pagar=_s("despesa", "pendente"),
-        comissoes=float(db.session.query(_coalesce_sum(Transacao.comissao_valor)).filter(
-            Transacao.status == "pago", Transacao.criado_em >= dt_ini, Transacao.criado_em <= dt_fim,
-        ).scalar() or 0),
+        a_receber=float(finance_totals.a_receber or 0),
+        a_pagar=float(finance_totals.a_pagar or 0),
+        comissoes=float(finance_totals.comissoes or 0),
         usuarios_comissao=Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all(),
         os_financeiro=os_financeiro,
         inadimplentes=[row for row in os_financeiro if row["overdue"] > 0],

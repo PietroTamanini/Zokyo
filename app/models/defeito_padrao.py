@@ -8,6 +8,7 @@ class DefeitoPadrao(db.Model):
     __table_args__ = (
         db.Index("ix_defeitos_padrao_sintoma", "sintoma"),
         db.Index("ix_defeitos_padrao_tipo_aparelho", "tipo_aparelho"),
+        db.Index("ix_defeitos_org_active_tipo_sintoma", "organization_id", "ativo", "deletado_em", "tipo_aparelho", "sintoma"),
     )
     id            = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)

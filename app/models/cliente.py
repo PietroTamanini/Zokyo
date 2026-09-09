@@ -13,6 +13,7 @@ class Cliente(db.Model):
     __table_args__ = (
         db.Index("ix_clientes_nome", "nome"),
         db.Index("ix_clientes_telefone", "telefone"),
+        db.Index("ix_clientes_org_active_nome", "organization_id", "ativo", "nome"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

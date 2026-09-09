@@ -10,6 +10,9 @@ class Transacao(db.Model):
     __table_args__ = (
         db.Index("ix_transacoes_status_tipo_criado", "status", "tipo", "criado_em"),
         db.Index("ix_transacoes_descricao", "descricao"),
+        db.Index("ix_transacoes_org_status_tipo_criado", "organization_id", "status", "tipo", "criado_em"),
+        db.Index("ix_transacoes_org_status_venc", "organization_id", "status", "data_vencimento"),
+        db.Index("ix_transacoes_org_os_status_tipo_venc", "organization_id", "os_id", "status", "tipo", "data_vencimento"),
     )
     id              = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)

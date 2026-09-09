@@ -4,6 +4,10 @@ const hiddenId = document.getElementById('cliente_id');
 const partDropdown = document.getElementById('peca-dropdown');
 const partInput = document.getElementById('os-peca-busca');
 const partHiddenId = document.getElementById('os-peca-id');
+const clienteCache = new Map();
+const pecaCache = new Map();
+let clienteTimer = null;
+let pecaTimer = null;
 
 function _soDigitos(v) { return (v || '').replace(/\D/g, ''); }
 function _formatDoc(c) {
@@ -38,7 +42,30 @@ function selecionarPeca(p) {
   partInput.value = `${p.nome || ''}${p.codigo ?' - ' + p.codigo : ''}`;
   if (partDropdown) partDropdown.classList.remove('show');
   const price = document.getElementById('os-peca-vlr');
-  if (price) price.value = parseFloat(p.preco || 0).toFixed(2);
+  if (price) price.value = parseFloat(p.preco ?? p.preco_venda ?? 0).toFixed(2);
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!response.ok) return [];
+  return await response.json();
+}
+
+async function buscarClientes(q, qDigits) {
+  const key = `${q}|${qDigits}`;
+  if (clienteCache.has(key)) return clienteCache.get(key);
+  const params = new URLSearchParams({ q: q || qDigits, limit: '8' });
+  const items = await fetchJson(`/api/clientes?${params.toString()}`);
+  clienteCache.set(key, items);
+  return items;
+}
+
+async function buscarPecas(q) {
+  if (pecaCache.has(q)) return pecaCache.get(q);
+  const params = new URLSearchParams({ q, limit: '10' });
+  const items = await fetchJson(`/api/pecas?${params.toString()}`);
+  pecaCache.set(q, items);
+  return items;
 }
 
 document.querySelectorAll('[data-other-select]').forEach((select) => {
@@ -58,32 +85,37 @@ if (input) {
   input.addEventListener('input', function () {
     const q = this.value.trim().toLowerCase();
     const qDigits = _soDigitos(q);
+    clearTimeout(clienteTimer);
     if (q.length < 2 && qDigits.length < 2) {
       dropdown.classList.remove('show');
       return;
     }
 
-    const matches = (CLIENTES_DATA || []).filter(c => clienteMatches(c, q, qDigits));
-    if (!matches.length) {
-      dropdown.classList.remove('show');
-      return;
-    }
+    clienteTimer = setTimeout(async () => {
+      const remote = await buscarClientes(q, qDigits);
+      const base = remote.length ?remote : (CLIENTES_DATA || []);
+      const matches = base.filter(c => clienteMatches(c, q, qDigits));
+      if (!matches.length) {
+        dropdown.classList.remove('show');
+        return;
+      }
 
-    dropdown.innerHTML = matches.slice(0, 8).map(c => {
-      const docFmt = _formatDoc(c);
-      return `
-      <div data-action="os-cliente-select" data-id="${c.id}"
-           data-nome="${encodeURIComponent(c.nome || '')}"
-           data-tel="${encodeURIComponent(c.telefone || '')}"
-           data-doc="${encodeURIComponent(docFmt)}"
-           class="dropdown-result">
-        <strong>${_safe(c.nome)}</strong>
-        <span class="dropdown-meta">
-          ${_safe(c.telefone)} ${docFmt ?' - ' + _safe(docFmt) : ''}
-        </span>
-      </div>`;
-    }).join('');
-    dropdown.classList.add('show');
+      dropdown.innerHTML = matches.slice(0, 8).map(c => {
+        const docFmt = _formatDoc(c);
+        return `
+        <div data-action="os-cliente-select" data-id="${c.id}"
+             data-nome="${encodeURIComponent(c.nome || '')}"
+             data-tel="${encodeURIComponent(c.telefone || '')}"
+             data-doc="${encodeURIComponent(docFmt)}"
+             class="dropdown-result">
+          <strong>${_safe(c.nome)}</strong>
+          <span class="dropdown-meta">
+            ${_safe(c.telefone)} ${docFmt ?' - ' + _safe(docFmt) : ''}
+          </span>
+        </div>`;
+      }).join('');
+      dropdown.classList.add('show');
+    }, 180);
   });
 
   document.addEventListener('click', e => {
@@ -96,11 +128,33 @@ if (input) {
 if (partInput && partDropdown) {
   partInput.addEventListener('input', function () {
     const q = this.value.trim().toLowerCase();
+    clearTimeout(pecaTimer);
     if (partHiddenId) partHiddenId.value = '';
     if (q.length < 2) {
       partDropdown.classList.remove('show');
       return;
     }
+
+    pecaTimer = setTimeout(async () => {
+      const remote = await buscarPecas(q);
+      const base = remote.length ?remote : (PECAS_DATA || []);
+      const matches = base.filter(p => pecaMatches(p, q));
+      if (!matches.length) {
+        partDropdown.innerHTML = '<div class="dropdown-result dropdown-empty">Nenhuma peca encontrada</div>';
+        partDropdown.classList.add('show');
+        return;
+      }
+
+      partDropdown.innerHTML = matches.slice(0, 10).map(p => `
+      <div data-action="os-peca-select" data-id="${p.id}" class="dropdown-result">
+        <strong>${_safe(p.nome)}</strong>
+        <span class="dropdown-meta">
+          ${p.codigo ?_safe(p.codigo) + ' - ' : ''}Estoque: ${_safe(p.quantidade)} - R$ ${parseFloat(p.preco ?? p.preco_venda ?? 0).toFixed(2).replace('.', ',')}
+        </span>
+      </div>`).join('');
+      partDropdown.classList.add('show');
+    }, 180);
+    return;
 
     const matches = (PECAS_DATA || []).filter(p => pecaMatches(p, q));
     if (!matches.length) {
