@@ -6,8 +6,8 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 import statistics
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,9 +16,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from app import create_app
-from app.extensions import db
-from app.models import Cliente, Configuracao, OrdemServico, Organization, Peca, Transacao, Usuario
+from app import create_app  # noqa: E402
+from app.extensions import db  # noqa: E402
+from app.models import (  # noqa: E402
+    Cliente,
+    Configuracao,
+    OrdemServico,
+    Organization,
+    Peca,
+    Transacao,
+    Usuario,
+)
 
 
 def _now():

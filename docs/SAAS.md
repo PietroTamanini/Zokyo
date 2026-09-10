@@ -25,6 +25,8 @@ O Zokyo ja possui base SaaS operacional:
 
 Operacoes globais devem usar `execution_options(include_all_tenants=True)` somente em comandos administrativos ou servicos internos auditados. O navegador nunca escolhe `organization_id`.
 
+O MariaDB nao oferece o RLS nativo do PostgreSQL. O equivalente adotado pelo Zokyo combina escopo ORM automatico por `organization_id`, atribuicao do tenant em novos registros, bloqueio de alteracao/exclusao entre tenants, filtros explicitos em SQL manual, chaves estrangeiras e testes de isolamento. Novas consultas com `text()` devem sempre receber o tenant como parametro quando acessarem dados empresariais.
+
 ## Provisionamento
 
 Crie organizacoes pelo CLI:

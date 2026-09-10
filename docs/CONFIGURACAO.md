@@ -8,6 +8,13 @@ Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 
 - `SECRET_KEY`: chave forte para sessoes e criptografia derivada.
 - `DATABASE_URL`: URL SQLAlchemy do MySQL/MariaDB.
+- `DB_POOL_SIZE`: conexoes persistentes por processo (padrao `10`).
+- `DB_MAX_OVERFLOW`: conexoes temporarias extras por processo (padrao `20`).
+- `DB_POOL_TIMEOUT`: espera maxima por uma conexao, em segundos (padrao `20`).
+- `DB_POOL_RECYCLE`: reciclagem de conexoes, em segundos (padrao `900`).
+- `DB_ISOLATION_LEVEL`: isolamento transacional (padrao `READ COMMITTED`).
+
+O total potencial de conexoes e `(DB_POOL_SIZE + DB_MAX_OVERFLOW) * processos`. Dimensione esses valores abaixo do limite do MariaDB, reservando capacidade para migracoes, backup e administracao. O pool valida conexoes antes do uso e reaproveita primeiro as mais recentes.
 - `ENCRYPTION_SALT`: salt Base64 aleatorio de 32 bytes para segredos persistidos em `Configuracao`.
 - `BLIND_INDEX_KEY`: chave Base64 URL-safe de 32 bytes para buscas exatas em dados sensiveis criptografados.
 

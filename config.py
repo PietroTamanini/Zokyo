@@ -48,11 +48,13 @@ class Config:
         SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
     else:
         SQLALCHEMY_ENGINE_OPTIONS = {
-            "pool_recycle":  1800,
+            "pool_recycle":  int(os.environ.get("DB_POOL_RECYCLE", "900")),
             "pool_pre_ping": True,
-            "pool_timeout":  20,
-            "pool_size":     10,
-            "max_overflow":  20,
+            "pool_use_lifo": True,
+            "pool_timeout":  int(os.environ.get("DB_POOL_TIMEOUT", "20")),
+            "pool_size":     int(os.environ.get("DB_POOL_SIZE", "10")),
+            "max_overflow":  int(os.environ.get("DB_MAX_OVERFLOW", "20")),
+            "isolation_level": os.environ.get("DB_ISOLATION_LEVEL", "READ COMMITTED"),
         }
 
     # ── PDF ────────────────────────────────────────────────────────────────

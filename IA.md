@@ -2,7 +2,7 @@
 
 Este é o documento de continuidade do projeto. Toda IA que trabalhar neste repositório deve lê-lo antes de alterar código, banco, infraestrutura ou documentação. Ele não substitui os documentos especializados em `docs/`; serve como mapa, histórico curto e conjunto de invariantes para evitar retrabalho e regressões.
 
-Última atualização: 2026-09-03.
+Última atualização: 2026-09-10.
 
 ## Objetivo do produto
 
@@ -13,8 +13,8 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 ## Estado resumido
 
 - Aplicação Flask e site público executam em Docker com MariaDB.
-- Schema gerenciado por Alembic até a migration `20260731_0012`.
-- 215 testes Python aprovados na última auditoria completa.
+- Schema gerenciado por Alembic até a migration `20260910_0020`.
+- O isolamento multiempresa usa escopo ORM, bloqueio de mutacoes cruzadas, filtros explicitos em SQL manual e integridade referencial; MariaDB nao possui RLS nativo.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
@@ -89,20 +89,21 @@ Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](
 
 1. Nunca usar `db.create_all()` em instalação ou produção. O schema real evolui somente por Alembic.
 2. Toda consulta e mutação de dado empresarial deve respeitar `organization_id` e o tenant da sessão.
-3. Perfis sem permissão não podem obter dados sensíveis nem por API nem por página HTML.
-4. Técnico não recebe acesso financeiro sensível por padrão; atendente não altera configuração crítica.
-5. OS não pode ser finalizada/entregue sem pagamento integral conforme a regra atual.
+3. SQL manual (`text()`) nao recebe o escopo automatico do ORM e deve filtrar `organization_id` explicitamente.
+4. Perfis sem permissão não podem obter dados sensíveis nem por API nem por página HTML.
+5. Técnico não recebe acesso financeiro sensível por padrão; atendente não altera configuração crítica.
+6. OS não pode ser finalizada/entregue sem pagamento integral conforme a regra atual.
    A edição da OS também deve bloquear a entrega; nunca criar recebimento implícito apenas pela mudança de status.
-6. Arquivamento deve preservar histórico; não transformar exclusão lógica em remoção destrutiva acidental.
-7. Produto ou serviço inativo não pode entrar em nova OS.
-8. Movimentação de peça usada na OS deve manter estoque e histórico consistentes.
-9. Observação interna não pode vazar para o portal do cliente.
-10. PDFs, uploads, fotos, assinaturas e laudos privados exigem autorização e isolamento do tenant.
-11. Tokens, documentos, e-mails e segredos não devem aparecer integralmente em logs.
-12. A assinatura atual é simples e não deve ser apresentada como certificação ICP-Brasil.
-13. Rate limits persistentes precisam continuar seguros com múltiplos workers. No MariaDB, o contador global usa upsert atômico e retry limitado para erros transitórios 1020, 1205 e 1213.
-14. O scheduler deve rodar em processo dedicado, nunca duplicado em cada worker Gunicorn.
-15. Segredos reais, bancos, uploads, dumps e arquivos `.env` não entram no Git.
+7. Arquivamento deve preservar histórico; não transformar exclusão lógica em remoção destrutiva acidental.
+8. Produto ou serviço inativo não pode entrar em nova OS.
+9. Movimentação de peça usada na OS deve manter estoque e histórico consistentes.
+10. Observação interna não pode vazar para o portal do cliente.
+11. PDFs, uploads, fotos, assinaturas e laudos privados exigem autorização e isolamento do tenant.
+12. Tokens, documentos, e-mails e segredos não devem aparecer integralmente em logs.
+13. A assinatura atual é simples e não deve ser apresentada como certificação ICP-Brasil.
+14. Rate limits persistentes precisam continuar seguros com múltiplos workers. No MariaDB, o contador global usa upsert atômico e retry limitado para erros transitórios 1020, 1205 e 1213.
+15. O scheduler deve rodar em processo dedicado, nunca duplicado em cada worker Gunicorn.
+16. Segredos reais, bancos, uploads, dumps e arquivos `.env` não entram no Git.
 
 ## Decisões técnicas importantes
 

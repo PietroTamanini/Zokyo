@@ -79,14 +79,15 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         "DISABLE_CREATE_ALL": "true",
         "SCHEDULER_ENABLED": "false",
     })
-    subprocess.run(
+    result = subprocess.run(
         [sys.executable, "-m", "flask", "--app", "wsgi:app", "db", "upgrade"],
         cwd=repo,
         env=env,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
+    assert result.returncode == 0, result.stderr
     with sqlite3.connect(database) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         photo_columns = {row[1] for row in connection.execute("PRAGMA table_info(laudo_fotos)")}
@@ -95,6 +96,7 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         order_part_columns = {row[1] for row in connection.execute("PRAGMA table_info(os_pecas)")}
         part_columns = {row[1] for row in connection.execute("PRAGMA table_info(pecas)")}
         service_columns = {row[1] for row in connection.execute("PRAGMA table_info(defeitos_padrao)")}
+        counter_foreign_keys = list(connection.execute("PRAGMA foreign_key_list(laudo_counters)"))
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
         assert {"organizations", "usuarios", "clientes", "ordens_servico", "laudos_tecnicos", "laudo_fotos", "laudo_templates", "notifications", "retention_policies"} <= tables
     assert "thumbnail_key" in photo_columns
@@ -105,4 +107,5 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert {"link_compra", "custo_unitario"} <= order_part_columns
     assert {"ativo", "deletado_em"} <= part_columns
     assert {"ativo", "deletado_em"} <= service_columns
-    assert revision == "20260907_0016"
+    assert any(row[2] == "organizations" and row[3] == "organization_id" for row in counter_foreign_keys)
+    assert revision == "20260910_0020"

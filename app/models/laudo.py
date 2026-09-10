@@ -77,7 +77,7 @@ class LaudoCounter(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, default=1, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), default=1, nullable=False)
     ano = db.Column(db.Integer, nullable=False)
     proximo_numero = db.Column(db.Integer, default=1, nullable=False)
     atualizado_em = db.Column(db.DateTime, default=_now, onupdate=_now, nullable=False)

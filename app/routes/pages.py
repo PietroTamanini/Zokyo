@@ -627,9 +627,10 @@ def dashboard():
         func.count(case((~OrdemServico.status.in_(["entregue", "cancelado"]), 1))).label("abertas"),
         func.count(case((OrdemServico.status == "pronto", 1))).label("prontas"),
         func.count(case((
-            OrdemServico.data_prev < agora_db,
-            ~OrdemServico.status.in_(["entregue", "cancelado", "pronto"]),
-        ), 1)).label("atrasadas"),
+            (OrdemServico.data_prev < agora_db)
+            & ~OrdemServico.status.in_(["entregue", "cancelado", "pronto"]),
+            1,
+        ))).label("atrasadas"),
         func.count(case((OrdemServico.status == "aguardando_aprovacao", 1))).label("aprovacao"),
     ).filter(*open_order_filter).one()
     os_abertas = int(order_counts.abertas or 0)
@@ -639,13 +640,17 @@ def dashboard():
     coletas_abertas = ColetaAgendada.query.filter(
         ColetaAgendada.status.in_(["agendada", "em_coleta"])
     ).count()
-    pecas_compra_pendentes = db.session.execute(text(
-        "SELECT COUNT(*) FROM os_pecas op "
-        "JOIN ordens_servico os ON os.id = op.os_id "
-        "WHERE os.deletado_em IS NULL AND os.baixada_em IS NULL "
-        "AND os.status NOT IN ('entregue', 'cancelado') "
-        "AND (op.link_compra IS NOT NULL OR op.quantidade > 0)"
-    )).scalar() or 0
+    pecas_compra_pendentes = db.session.execute(
+        text(
+            "SELECT COUNT(*) FROM os_pecas op "
+            "JOIN ordens_servico os ON os.id = op.os_id "
+            "WHERE os.organization_id = :organization_id "
+            "AND os.deletado_em IS NULL AND os.baixada_em IS NULL "
+            "AND os.status NOT IN ('entregue', 'cancelado') "
+            "AND (op.link_compra IS NOT NULL OR op.quantidade > 0)"
+        ),
+        {"organization_id": g.organization_id},
+    ).scalar() or 0
 
     transaction_totals = db.session.query(
         _coalesce_sum(case((

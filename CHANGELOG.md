@@ -4,6 +4,12 @@
 
 ### Corrigido
 
+- Corrigida a regressao do CI no benchmark, mantendo o lint estrito sem ignorar o arquivo inteiro.
+- Corrigida a agregacao de ordens atrasadas que causava erro 500 no dashboard.
+- A contagem de pecas pendentes do dashboard agora filtra explicitamente a organizacao no SQL manual.
+- Mutacoes ORM de objetos pertencentes a outro tenant agora sao bloqueadas antes do flush.
+- O contador sequencial de laudos passou a integrar o escopo central e ganhou chave estrangeira para a organizacao.
+- O pool MariaDB agora usa LIFO, `READ COMMITTED` e limites configuraveis por ambiente.
 - Corrigido o CI: o teste concorrente de laudos agora carrega o projeto pela raiz e o scanner Trivy usa uma versão existente fixada por SHA imutável.
 - Atualizadas e fixadas as ferramentas de build da imagem para remover vulnerabilidades HIGH presentes nas cópias vendorizadas do `setuptools` da imagem base.
 - Removidos `pip`, `setuptools` e `wheel` da imagem final após instalar as dependências; essas ferramentas não são necessárias em runtime e mantinham cópias vendorizadas vulneráveis.

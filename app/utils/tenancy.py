@@ -23,6 +23,7 @@ def register_tenant_scope():
         Fornecedor,
         InventoryLot,
         InventoryMovement,
+        LaudoCounter,
         LaudoEvento,
         LaudoFoto,
         LaudoTecnico,
@@ -44,7 +45,7 @@ def register_tenant_scope():
     )
     tenant_models = (
         Cliente, ColetaAgendada, Configuracao, ConsentRecord, DataSubjectRequest, DefeitoPadrao, EventoLog,
-        Fornecedor, LaudoEvento, LaudoFoto, LaudoTemplate, LaudoTecnico, Notification, OrdemServico,
+        Fornecedor, LaudoCounter, LaudoEvento, LaudoFoto, LaudoTemplate, LaudoTecnico, Notification, OrdemServico,
         OSFoto, OSHistorico, OrderSignature, Peca, PortalToken, RetentionPolicy, StockReservation, Transacao,
         InventoryLot, InventoryMovement, MessageTemplate, SavedReport, ServiceChecklistTemplate, UserInvite,
     )
@@ -69,3 +70,9 @@ def register_tenant_scope():
         for obj in session.new:
             if isinstance(obj, tenant_models):
                 obj.organization_id = organization_id
+        for obj in session.dirty.union(session.deleted):
+            if isinstance(obj, tenant_models) and obj.organization_id != organization_id:
+                raise ValueError(
+                    f"Operacao entre tenants bloqueada para {type(obj).__name__}: "
+                    f"tenant {obj.organization_id}, contexto {organization_id}."
+                )
