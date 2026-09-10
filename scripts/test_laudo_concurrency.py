@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from app import create_app
 from app.extensions import db
+from app.models import Organization
 from app.models.laudo import LaudoCounter
 from app.services.laudos import gerar_numero_laudo
 
@@ -15,6 +16,8 @@ RESERVATIONS = int(os.environ.get("LAUDO_CONCURRENCY_RESERVATIONS", "24"))
 def main():
     app = create_app(os.environ.get("FLASK_ENV", "development"))
     with app.app_context():
+        if db.session.get(Organization, 1) is None:
+            db.session.add(Organization(id=1, nome="CI Laudos", slug="ci-laudos"))
         LaudoCounter.query.filter_by(organization_id=1, ano=TEST_YEAR).delete()
         db.session.commit()
 
