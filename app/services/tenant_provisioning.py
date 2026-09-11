@@ -14,7 +14,7 @@ from app.utils.auth import validar_senha_forte
 from app.utils.sanitizers import sanitize_email, sanitize_text
 from app.utils.validators import validar_email
 
-SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]{1,78}[a-z0-9]")
+SLUG_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,78}[a-z0-9])?")
 
 
 class TenantProvisioningError(ValueError):
@@ -26,7 +26,7 @@ def normalize_slug(value: str) -> str:
     text = re.sub(r"[^a-z0-9-]+", "-", text)
     text = re.sub(r"-{2,}", "-", text).strip("-")
     if not SLUG_RE.fullmatch(text):
-        raise TenantProvisioningError("Slug invalido. Use 3-80 caracteres: letras minusculas, numeros e hifen.")
+        raise TenantProvisioningError("Slug invalido. Use 1-80 caracteres: letras minusculas, numeros e hifen.")
     return text
 
 

@@ -61,8 +61,12 @@ def test_cli_provisiona_organizacao_admin_e_configuracao():
         "--password", "Senha!Forte123", "--password", "Senha!Forte123",
     ])
     assert result.exit_code == 0, result.output
+    assert "empresa-nova.tamanini.dev.br" in result.output
     with app.app_context():
         organization = Organization.query.filter_by(slug="empresa-nova").one()
+        assert organization.subdomain == "empresa-nova"
+        assert organization.custom_domain == "empresa-nova.tamanini.dev.br"
+        assert organization.dns_status == "manual"
         assert Usuario.query.filter_by(organization_id=organization.id, nivel="admin").count() == 1
         assert Configuracao.query.filter_by(organization_id=organization.id).count() == 1
 
@@ -83,7 +87,7 @@ def test_cli_create_organization_rejeita_entradas_invalidas():
         "--password", "Senha!Forte123", "--password", "Senha!Forte123",
     ]
     cases = (
-        [*base, "--slug", "Slug Ruim", "--admin-email", "novo@example.com"],
+        [*base, "--slug", "!!!", "--admin-email", "novo@example.com"],
         [*base, "--slug", "nova-empresa", "--admin-email", "email-ruim"],
         [*base[:-4], "--password", "fraca", "--password", "fraca", "--slug", "nova-empresa", "--admin-email", "novo@example.com"],
         [*base, "--slug", "existente", "--admin-email", "novo@example.com"],
@@ -91,6 +95,21 @@ def test_cli_create_organization_rejeita_entradas_invalidas():
     )
     for args in cases:
         assert runner.invoke(args=args).exit_code != 0
+
+
+def test_cli_create_organization_aceita_subdominio_curto():
+    app = create_app("development")
+    app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+    result = app.test_cli_runner().invoke(args=[
+        "create-organization", "--name", "A", "--slug", "a",
+        "--admin-name", "Administrador", "--admin-email", "admin@a.example",
+        "--password", "Senha!Forte123", "--password", "Senha!Forte123",
+    ])
+    assert result.exit_code == 0, result.output
+    with app.app_context():
+        assert Organization.query.filter_by(custom_domain="a.tamanini.dev.br").count() == 1
 
 
 def test_seed_system_e_idempotente():
