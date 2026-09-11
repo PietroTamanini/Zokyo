@@ -2,7 +2,7 @@
 import os
 from functools import wraps
 
-from flask import Blueprint, abort, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import func
 
 from app.extensions import db
@@ -18,6 +18,7 @@ from app.models import (
     Usuario,
 )
 from app.services.billing import process_asaas_event, process_sandbox_event
+from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant, sync_tenant_dns, tenant_hostname
 from app.utils.sanitizers import sanitize_text
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
@@ -87,7 +88,65 @@ def index():
     return render_template(
         "pages/platform.html", organizations=organizations,
         plans=Plan.query.order_by(Plan.nome).all(), subscriptions=OrganizationSubscription.query.all(), usage=usage,
+        base_domain=current_app.config.get("TENANT_BASE_DOMAIN", "tamanini.dev.br"),
     )
+
+
+@platform_bp.route("/organizations", methods=["POST"])
+@global_admin_required
+def create_organization():
+    plan_id = request.form.get("plan_id", type=int)
+    if plan_id and not db.session.get(Plan, plan_id):
+        abort(400)
+    try:
+        organization, _owner = provision_tenant(
+            name=request.form.get("name", ""),
+            slug=request.form.get("slug", ""),
+            owner_name=request.form.get("owner_name", ""),
+            owner_email=request.form.get("owner_email", ""),
+            owner_password=request.form.get("owner_password", ""),
+            plan_id=plan_id,
+            trial_days=request.form.get("trial_days", 14, type=int) or 14,
+            active=request.form.get("active") == "on",
+            provision_dns=bool(request.form.get("provision_dns")),
+        )
+        db.session.commit()
+        flash(f"Empresa criada: {organization.custom_domain}", "success")
+    except TenantProvisioningError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    return redirect(url_for("platform.index"))
+
+
+@platform_bp.route("/organizations/<int:organization_id>", methods=["POST"])
+@global_admin_required
+def update_organization(organization_id):
+    organization = db.session.execute(
+        db.select(Organization).where(Organization.id == organization_id).execution_options(include_all_tenants=True)
+    ).scalar_one_or_none()
+    if not organization:
+        abort(404)
+    name = sanitize_text(request.form.get("name", ""), max_length=200)
+    if name:
+        organization.nome = name
+    organization.ativo = request.form.get("active") == "on"
+    db.session.commit()
+    return redirect(url_for("platform.index"))
+
+
+@platform_bp.route("/organizations/<int:organization_id>/dns", methods=["POST"])
+@global_admin_required
+def sync_dns(organization_id):
+    organization = db.session.execute(
+        db.select(Organization).where(Organization.id == organization_id).execution_options(include_all_tenants=True)
+    ).scalar_one_or_none()
+    if not organization:
+        abort(404)
+    if not organization.custom_domain and organization.subdomain:
+        organization.custom_domain = tenant_hostname(organization.subdomain)
+    sync_tenant_dns(organization)
+    db.session.commit()
+    return redirect(url_for("platform.index"))
 
 
 @platform_bp.route("/plans", methods=["POST"])
@@ -115,6 +174,9 @@ def create_plan():
 def assign_subscription():
     organization_id = request.form.get("organization_id", type=int)
     plan_id = request.form.get("plan_id", type=int)
+    status = sanitize_text(request.form.get("status") or "trialing", max_length=30)
+    if status not in {"trialing", "active", "past_due", "suspended", "cancelled"}:
+        abort(400)
     organization = db.session.execute(
         db.select(Organization).where(Organization.id == organization_id).execution_options(include_all_tenants=True)
     ).scalar_one_or_none()
@@ -124,11 +186,11 @@ def assign_subscription():
     subscription = OrganizationSubscription.query.filter_by(organization_id=organization.id).first()
     if subscription:
         subscription.plan_id = plan.id
-        subscription.status = "trialing"
+        subscription.status = status
         subscription.provider = "sandbox"
     else:
         db.session.add(OrganizationSubscription(
-            organization_id=organization.id, plan_id=plan.id, provider="sandbox", status="trialing",
+            organization_id=organization.id, plan_id=plan.id, provider="sandbox", status=status,
         ))
     db.session.commit()
     return redirect(url_for("platform.index"))

@@ -6,6 +6,7 @@ from app import create_app
 from app.extensions import db
 from app.models import BillingEvent, Organization, OrganizationSubscription, Plan, Usuario
 from app.services.billing import assert_limit, assert_write_allowed, ensure_trial_subscription, process_asaas_event
+from app.services.tenant_provisioning import provision_tenant
 
 
 def make_app():
@@ -79,6 +80,70 @@ def test_painel_global_usa_allowlist_de_email(monkeypatch):
     assert client.get("/platform").status_code == 403
     monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
     assert client.get("/platform").status_code == 200
+
+
+def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):
+    app, admin_id = make_app()
+    monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+    response = client.post("/platform/organizations", data={
+        "_csrf_token": "csrf",
+        "name": "Loja A",
+        "slug": "loja-a",
+        "owner_name": "Dono Loja",
+        "owner_email": "dono@loja.test",
+        "owner_password": "Senha!123",
+        "trial_days": "10",
+        "active": "on",
+    })
+    assert response.status_code == 302
+    with app.app_context():
+        organization = Organization.query.execution_options(include_all_tenants=True).filter_by(slug="loja-a").one()
+        owner = Usuario.query.execution_options(include_all_tenants=True).filter_by(email="dono@loja.test").one()
+        subscription = OrganizationSubscription.query.filter_by(organization_id=organization.id).one()
+        assert organization.custom_domain == "loja-a.tamanini.dev.br"
+        assert organization.dns_status == "manual"
+        assert owner.organization_id == organization.id
+        assert owner.nivel == "admin"
+        assert subscription.status == "trialing"
+
+
+def test_resolve_tenant_por_subdominio_e_bloqueio_central():
+    app, _admin_id = make_app()
+    with app.app_context():
+        organization, owner = provision_tenant(
+            name="Tenant Host",
+            slug="tenant-host",
+            owner_name="Dono Host",
+            owner_email="host-owner@test.local",
+            owner_password="Senha!123",
+            provision_dns=False,
+        )
+        subscription = OrganizationSubscription.query.filter_by(organization_id=organization.id).one()
+        subscription.status = "suspended"
+        db.session.commit()
+        owner_id = owner.id
+
+    client = app.test_client()
+    response = client.get("/", headers={"Host": "tenant-host.tamanini.dev.br"})
+    assert response.status_code in {200, 302}
+    with client.session_transaction() as session:
+        session["usuario_id"] = owner_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+    blocked = client.post(
+        "/api/usuarios",
+        json={"nome": "Bloqueado", "email": "blocked@test.local", "senha": "Senha!123", "nivel": "consulta"},
+        headers={"X-CSRFToken": "csrf"},
+    )
+    assert blocked.status_code == 403
+    assert "Assinatura" in blocked.get_json()["erro"]
 
 
 def test_trial_automatico_e_webhook_asaas_idempotente(monkeypatch):

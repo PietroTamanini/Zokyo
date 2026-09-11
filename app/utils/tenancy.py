@@ -6,6 +6,23 @@ from sqlalchemy.orm import Session, with_loader_criteria
 _registered = False
 
 
+def resolve_tenant_from_host(host: str, base_domain: str):
+    hostname = (host or "").split(":", 1)[0].strip().lower().rstrip(".")
+    base = (base_domain or "").strip().lower().rstrip(".")
+    if not hostname or not base or hostname == base or not hostname.endswith("." + base):
+        return None
+    subdomain = hostname[: -(len(base) + 1)]
+    if not subdomain or "." in subdomain:
+        return None
+    from app.models import Organization
+
+    return (
+        Organization.query.execution_options(include_all_tenants=True)
+        .filter_by(subdomain=subdomain, ativo=True)
+        .first()
+    )
+
+
 def register_tenant_scope():
     global _registered
     if _registered:

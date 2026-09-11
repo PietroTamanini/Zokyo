@@ -233,6 +233,22 @@ def create_app(config_name="default"):
             session["perfil"] = session["nivel"]
 
     @app.before_request
+    def resolver_tenant_por_host():
+        """Resolve empresa por subdominio antes de consultas tenant-aware."""
+        if getattr(g, "organization_id", None):
+            return
+        try:
+            from app.utils.tenancy import resolve_tenant_from_host
+
+            organization = resolve_tenant_from_host(request.host, app.config.get("TENANT_BASE_DOMAIN", ""))
+        except Exception:
+            app.logger.debug("Resolucao de tenant por host ignorada.", exc_info=True)
+            return
+        if organization:
+            g.organization_id = organization.id
+            g.current_organization = organization
+
+    @app.before_request
     def verificar_inatividade():
         """M06: invalida sessão após 30 minutos de inatividade."""
         INACTIVITY_SECONDS = 30 * 60
@@ -359,6 +375,34 @@ def create_app(config_name="default"):
             _tem_usuarios = True
         except Exception:
             app.logger.debug("Verificacao de primeiro acesso ignorada por indisponibilidade do banco.", exc_info=True)
+
+    @app.before_request
+    def bloquear_escrita_sem_assinatura():
+        """Bloqueia mutacoes de tenants inadimplentes ou suspensos."""
+        if request.method in {"GET", "HEAD", "OPTIONS"}:
+            return
+        endpoint = request.endpoint or ""
+        if endpoint.startswith(("static", "platform.")) or endpoint in {
+            "auth.login_page",
+            "auth.login_post",
+            "auth.logout",
+            "auth.two_factor_challenge",
+            "auth.two_factor_setup",
+            "auth.primeiro_acesso_post",
+            "usuarios.aceitar_convite",
+        }:
+            return
+        user = getattr(g, "current_user", None)
+        if not user or not getattr(user, "organization_id", None):
+            return
+        try:
+            from app.services.billing import assert_write_allowed
+
+            assert_write_allowed(user.organization_id)
+        except PermissionError as exc:
+            if (request.path or "").startswith("/api/"):
+                return jsonify({"success": False, "erro": str(exc)}), 403
+            abort(403, description=str(exc))
 
     @app.before_request
     def aplicar_rbac_abac():

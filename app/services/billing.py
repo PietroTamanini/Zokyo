@@ -127,7 +127,7 @@ def assert_write_allowed(organization_id: int):
         if trial_end <= _now():
             subscription.status = "past_due"
             db.session.commit()
-    if subscription and subscription.status in {"past_due", "cancelled"}:
+    if subscription and subscription.status in {"past_due", "cancelled", "suspended"}:
         raise PermissionError("Assinatura indisponivel para novas operacoes. Contate o administrador da plataforma.")
 
 
