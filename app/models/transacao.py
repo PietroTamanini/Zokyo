@@ -13,6 +13,9 @@ class Transacao(db.Model):
         db.Index("ix_transacoes_org_status_tipo_criado", "organization_id", "status", "tipo", "criado_em"),
         db.Index("ix_transacoes_org_status_venc", "organization_id", "status", "data_vencimento"),
         db.Index("ix_transacoes_org_os_status_tipo_venc", "organization_id", "os_id", "status", "tipo", "data_vencimento"),
+        db.Index("ix_transacoes_org_tipo_criado", "organization_id", "tipo", "criado_em"),
+        db.Index("ix_transacoes_org_tipo_status_venc", "organization_id", "tipo", "status", "data_vencimento"),
+        db.Index("ix_transacoes_org_pago_data", "organization_id", "status", "data_pagamento"),
     )
     id              = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)

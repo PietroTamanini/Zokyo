@@ -5,6 +5,10 @@ from app.extensions import db
 
 class SavedReport(db.Model):
     __tablename__ = "saved_reports"
+    __table_args__ = (
+        db.Index("ix_saved_reports_org_user_name", "organization_id", "user_id", "name"),
+        db.Index("ix_saved_reports_org_active_next", "organization_id", "active", "next_run_at"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)

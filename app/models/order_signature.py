@@ -5,6 +5,10 @@ from app.extensions import db
 
 class OrderSignature(db.Model):
     __tablename__ = "order_signatures"
+    __table_args__ = (
+        db.Index("ix_order_signatures_order_revoked_created", "order_id", "revoked_at", "created_at"),
+        db.Index("ix_order_signatures_org_created", "organization_id", "created_at"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)

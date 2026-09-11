@@ -11,6 +11,8 @@ class UserSession(db.Model):
     __tablename__ = "user_sessions"
     __table_args__ = (
         db.Index("ix_user_sessions_user_active", "user_id", "revoked_at", "expires_at"),
+        db.Index("ix_user_sessions_user_last_seen", "user_id", "last_seen_at"),
+        db.Index("ix_user_sessions_org_user_active", "organization_id", "user_id", "revoked_at", "expires_at"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

@@ -19,6 +19,11 @@ NIVEIS = PERFIS
 
 class Usuario(db.Model):
     __tablename__ = "usuarios"
+    __table_args__ = (
+        db.Index("ix_usuarios_org_active_nome", "organization_id", "ativo", "nome"),
+        db.Index("ix_usuarios_org_nivel_active", "organization_id", "nivel", "ativo"),
+    )
+
     id         = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
     nome       = db.Column(db.String(120), nullable=False)

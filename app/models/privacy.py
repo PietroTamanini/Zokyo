@@ -10,6 +10,9 @@ def _now():
 
 class ConsentRecord(db.Model):
     __tablename__ = "consent_records"
+    __table_args__ = (
+        db.Index("ix_consent_records_org_cliente_registrado", "organization_id", "cliente_id", "registrado_em"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
@@ -23,6 +26,10 @@ class ConsentRecord(db.Model):
 
 class DataSubjectRequest(db.Model):
     __tablename__ = "data_subject_requests"
+    __table_args__ = (
+        db.Index("ix_data_subject_requests_org_cliente_solicitado", "organization_id", "cliente_id", "solicitado_em"),
+        db.Index("ix_data_subject_requests_org_status_solicitado", "organization_id", "status", "solicitado_em"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)

@@ -129,6 +129,10 @@ class LaudoTecnico(db.Model):
         db.Index("ix_laudos_emitido_em", "emitido_em"),
         db.Index("ix_laudos_public_uuid", "public_uuid"),
         db.Index("ix_laudos_verification_token", "verification_token"),
+        db.Index("ix_laudos_org_status_tipo_criado", "organization_id", "status", "tipo", "criado_em"),
+        db.Index("ix_laudos_org_cliente_criado", "organization_id", "cliente_id", "criado_em"),
+        db.Index("ix_laudos_org_os_criado", "organization_id", "os_id", "criado_em"),
+        db.Index("ix_laudos_org_pdf_gerado", "organization_id", "pdf_gerado_em"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -219,6 +223,8 @@ class LaudoFoto(db.Model):
     __tablename__ = "laudo_fotos"
     __table_args__ = (
         db.Index("ix_laudo_fotos_laudo_tipo", "laudo_id", "tipo"),
+        db.Index("ix_laudo_fotos_org_criado", "organization_id", "criado_em"),
+        db.Index("ix_laudo_fotos_org_laudo_ordem", "organization_id", "laudo_id", "ordem"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -246,6 +252,7 @@ class LaudoEvento(db.Model):
     __tablename__ = "laudo_eventos"
     __table_args__ = (
         db.Index("ix_laudo_eventos_laudo", "laudo_id", "criado_em"),
+        db.Index("ix_laudo_eventos_org_laudo_criado", "organization_id", "laudo_id", "criado_em"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

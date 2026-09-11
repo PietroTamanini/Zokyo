@@ -15,6 +15,10 @@ STATUS_COLETA_LABELS = {
 
 class ColetaAgendada(db.Model):
     __tablename__ = "coletas_agendadas"
+    __table_args__ = (
+        db.Index("ix_coletas_org_status_agendada_criado", "organization_id", "status", "data_agendada", "criado_em"),
+        db.Index("ix_coletas_org_cliente_criado", "organization_id", "cliente_id", "criado_em"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)

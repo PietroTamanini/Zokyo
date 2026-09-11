@@ -12,6 +12,9 @@ class Notification(db.Model):
     __tablename__ = "notifications"
     __table_args__ = (
         db.UniqueConstraint("organization_id", "idempotency_key", name="uq_notification_org_key"),
+        db.Index("ix_notifications_org_status_next", "organization_id", "status", "next_attempt_at", "id"),
+        db.Index("ix_notifications_org_status_created", "organization_id", "status", "created_at"),
+        db.Index("ix_notifications_org_event_created", "organization_id", "event_type", "created_at"),
     )
 
     id = db.Column(db.Integer, primary_key=True)

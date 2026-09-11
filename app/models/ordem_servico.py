@@ -63,6 +63,10 @@ class OrdemServico(db.Model):
         db.Index("ix_os_org_open_prev", "organization_id", "deletado_em", "baixada_em", "data_prev"),
         db.Index("ix_os_org_cliente_deleted", "organization_id", "cliente_id", "deletado_em"),
         db.Index("ix_os_org_baixada_saida", "organization_id", "baixada_em", "data_saida"),
+        db.Index("ix_os_org_open_prio_data", "organization_id", "deletado_em", "baixada_em", "prio", "data_entrada"),
+        db.Index("ix_os_org_open_atendimento_data", "organization_id", "deletado_em", "baixada_em", "tipo_atendimento", "data_entrada"),
+        db.Index("ix_os_org_open_tecnico_prev", "organization_id", "deletado_em", "baixada_em", "tecnico_nome", "data_prev"),
+        db.Index("ix_os_org_deleted_atualizado", "organization_id", "deletado_em", "atualizado_em"),
     )
 
     id         = db.Column(db.Integer, primary_key=True)

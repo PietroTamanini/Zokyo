@@ -5,6 +5,11 @@ from app.extensions import db
 
 class OSFoto(db.Model):
     __tablename__ = "os_fotos"
+    __table_args__ = (
+        db.Index("ix_os_fotos_org_criado", "organization_id", "criado_em"),
+        db.Index("ix_os_fotos_org_os_criado", "organization_id", "os_id", "criado_em"),
+        db.Index("ix_os_fotos_org_coleta_criado", "organization_id", "coleta_id", "criado_em"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
