@@ -87,6 +87,7 @@ def test_painel_global_aceita_platform_admin_sem_allowlist(monkeypatch):
     with app.app_context():
         admin = db.session.get(Usuario, admin_id)
         admin.is_platform_admin = True
+        admin.organization_id = None
         db.session.commit()
     client = app.test_client()
     with client.session_transaction() as session:
@@ -95,6 +96,7 @@ def test_painel_global_aceita_platform_admin_sem_allowlist(monkeypatch):
         session["_last_active"] = 9999999999
     monkeypatch.delenv("PLATFORM_ADMIN_EMAILS", raising=False)
     assert client.get("/platform").status_code == 200
+    assert client.get("/platform/subscription").status_code == 404
 
 
 def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):

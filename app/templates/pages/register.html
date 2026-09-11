@@ -24,17 +24,17 @@
     <div class="login-brand-mark"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
     <div class="login-brand-copy">
       <p class="login-eyebrow">Configuração inicial</p>
-      <h2>Prepare o ambiente da assistência</h2>
-      <p>Crie a empresa e o primeiro administrador para liberar o painel operacional.</p>
+      <h2>Prepare o painel global</h2>
+      <p>Crie o administrador da plataforma antes de cadastrar qualquer empresa.</p>
     </div>
     <div class="login-feature-list" aria-label="Etapas do primeiro acesso">
       <div>
-        <strong>Empresa</strong>
-        <span>Identidade usada em telas e documentos</span>
+        <strong>Plataforma</strong>
+        <span>Conta separada das empresas cadastradas</span>
       </div>
       <div>
         <strong>Admin</strong>
-        <span>Conta com permissão total</span>
+        <span>Conta para gerenciar empresas e assinaturas</span>
       </div>
       <div>
         <strong>Segurança</strong>
@@ -49,7 +49,7 @@
       <div class="auth-brand-lockup login-mobile-brand"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
       <p class="login-eyebrow">Primeiro acesso</p>
       <h1 id="register-title">Criar administrador</h1>
-      <p class="auth-subtitle-lg">Preencha os dados básicos para começar.</p>
+      <p class="auth-subtitle-lg">Preencha os dados do administrador global.</p>
     </div>
 
     {% include 'partials/_flash.html' %}
@@ -58,15 +58,9 @@
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group mb16">
-        <label>Nome da empresa <span class="req">*</span></label>
-        <input type="text" name="empresa_nome" placeholder="Ex: Minha Assistência Técnica"
-               value="{{ empresa_nome or '' }}" required autofocus>
-      </div>
-
-      <div class="form-group mb16">
         <label>Nome do administrador <span class="req">*</span></label>
         <input type="text" name="nome" placeholder="Seu nome completo"
-               value="{{ nome or '' }}" required>
+               value="{{ nome or '' }}" required autofocus>
       </div>
 
       <div class="form-group mb16">

@@ -3,9 +3,12 @@ Registro de eventos/auditoria do sistema.
 """
 from datetime import datetime, timezone
 
+from sqlalchemy import null
+
 from app.extensions import db
 
 TIPOS_EVENTO = ("criacao","edicao","exclusao","login","logout","status","pagamento","sistema")
+_MISSING = object()
 
 class EventoLog(db.Model):
     __tablename__ = "eventos_log"
@@ -16,7 +19,7 @@ class EventoLog(db.Model):
     )
 
     id          = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, default=1, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=True, default=1, index=True)
     usuario_id  = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=True)
     usuario_nome= db.Column(db.String(120))           # desnormalizado para histórico
     tipo        = db.Column(db.String(30), nullable=False)
@@ -36,7 +39,7 @@ class EventoLog(db.Model):
             "criado_em": self.criado_em.isoformat(),
         }
 
-def registrar(tipo, modulo, operacao, descricao="", usuario_id=None, usuario_nome=None, organization_id=None):
+def registrar(tipo, modulo, operacao, descricao="", usuario_id=None, usuario_nome=None, organization_id=_MISSING):
     from flask import g, has_request_context
     from flask import session as flask_session
     in_request = has_request_context()
@@ -45,7 +48,9 @@ def registrar(tipo, modulo, operacao, descricao="", usuario_id=None, usuario_nom
     request_organization_id = getattr(g, "organization_id", None) if in_request else None
     uid = usuario_id or request_user_id
     uname = usuario_nome or request_user_name
-    tenant_id = organization_id if organization_id is not None else (request_organization_id or 1)
+    tenant_id = organization_id if organization_id is not _MISSING else (request_organization_id or 1)
+    if organization_id is None:
+        tenant_id = null()
     ev = EventoLog(usuario_id=uid, usuario_nome=uname, organization_id=tenant_id,
                    tipo=tipo, modulo=modulo, operacao=operacao, descricao=descricao)
     db.session.add(ev)

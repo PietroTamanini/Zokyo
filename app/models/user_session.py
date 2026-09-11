@@ -16,7 +16,7 @@ class UserSession(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=True, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     token_hash = db.Column(db.String(64), nullable=False, unique=True)
     security_version = db.Column(db.Integer, nullable=False)

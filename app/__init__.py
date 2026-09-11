@@ -299,7 +299,10 @@ def create_app(config_name="default"):
             session.clear()
             return redirect(url_for("auth.login_page"))
 
-        if not u.organization or not u.organization.ativo:
+        if u.organization_id and (not u.organization or not u.organization.ativo):
+            session.clear()
+            return redirect(url_for("auth.login_page"))
+        if not u.organization_id and not u.is_platform_admin:
             session.clear()
             return redirect(url_for("auth.login_page"))
 
@@ -318,8 +321,10 @@ def create_app(config_name="default"):
             session.clear()
             return redirect(url_for("auth.login_page"))
 
-        g.organization_id = u.organization_id
         g.current_user = u
+        if u.organization_id:
+            g.organization_id = u.organization_id
+            g.current_organization = u.organization
 
         # Sincroniza papel na sessão se foi alterado (promoção/rebaixamento)
         if session.get("nivel") != u.nivel:

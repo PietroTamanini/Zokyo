@@ -103,7 +103,9 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     with sqlite3.connect(database) as connection:
         tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         organization_columns = {row[1] for row in connection.execute("PRAGMA table_info(organizations)")}
-        user_columns = {row[1] for row in connection.execute("PRAGMA table_info(usuarios)")}
+        user_columns_info = {row[1]: row for row in connection.execute("PRAGMA table_info(usuarios)")}
+        session_columns_info = {row[1]: row for row in connection.execute("PRAGMA table_info(user_sessions)")}
+        log_columns_info = {row[1]: row for row in connection.execute("PRAGMA table_info(eventos_log)")}
         photo_columns = {row[1] for row in connection.execute("PRAGMA table_info(laudo_fotos)")}
         config_columns = {row[1] for row in connection.execute("PRAGMA table_info(configuracoes)")}
         order_columns = {row[1] for row in connection.execute("PRAGMA table_info(ordens_servico)")}
@@ -119,7 +121,10 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         assert {"organizations", "usuarios", "clientes", "ordens_servico", "laudos_tecnicos", "laudo_fotos", "laudo_templates", "notifications", "retention_policies"} <= tables
     assert "thumbnail_key" in photo_columns
     assert {"subdomain", "custom_domain", "dns_status", "dns_last_error"} <= organization_columns
-    assert "is_platform_admin" in user_columns
+    assert "is_platform_admin" in user_columns_info
+    assert user_columns_info["organization_id"][3] == 0
+    assert session_columns_info["organization_id"][3] == 0
+    assert log_columns_info["organization_id"][3] == 0
     assert {"subtitulo_empresa", "logo_url", "site_url", "instagram_url", "whatsapp_publico"} <= config_columns
     assert {"os_status_options", "os_priority_options", "attendance_type_options", "entry_checklist_options"} <= config_columns
     assert "tipo_atendimento" in order_columns
@@ -132,4 +137,4 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert "ix_notifications_org_status_next" in notification_indexes
     assert "ix_coletas_org_status_agendada_criado" in collection_indexes
     assert any(row[2] == "organizations" and row[3] == "organization_id" for row in counter_foreign_keys)
-    assert revision == "20260911_0023"
+    assert revision == "20260911_0024"

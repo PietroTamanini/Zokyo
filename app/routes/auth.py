@@ -9,6 +9,7 @@ Fixes:
 import time
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from sqlalchemy import null
 
 from app.extensions import db
 from app.models import Usuario, registrar
@@ -52,9 +53,16 @@ def _login_user(usuario):
     session["_last_active"] = time.time()
     from app.services.user_sessions import create_session_record
     create_session_record(usuario)
-    registrar("login", "sistema", f"Login: {usuario.nome}", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    registrar(
+        "login", "sistema", f"Login: {usuario.nome}",
+        usuario_id=usuario.id, usuario_nome=usuario.nome, organization_id=usuario.organization_id,
+    )
     db.session.commit()
-    destination = "pages.dashboard" if usuario.onboarding_completed else "pages.ajuda"
+    if usuario.is_platform_admin and not usuario.organization_id:
+        destination = "platform.index"
+        return redirect(url_for(destination))
+    else:
+        destination = "pages.dashboard" if usuario.onboarding_completed else "pages.ajuda"
     return redirect(url_for(destination, onboarding=1))
 
 
@@ -120,7 +128,10 @@ def _api_login_payload(usuario):
 
     record = create_session_record(usuario)
     raw_token = session["session_token"]
-    registrar("login", "api", f"Login API: {usuario.nome}", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    registrar(
+        "login", "api", f"Login API: {usuario.nome}",
+        usuario_id=usuario.id, usuario_nome=usuario.nome, organization_id=usuario.organization_id,
+    )
     db.session.commit()
     return {
         "status": True,
@@ -236,11 +247,13 @@ def logout():
     uid, uname = session.get("usuario_id"), session.get("usuario_nome", "—")
     if uid:
         from app.services.user_sessions import current_session_record, revoke_record
+        usuario = db.session.get(Usuario, uid)
         record = current_session_record(uid)
         if record:
             revoke_record(record, "logout")
         registrar("logout", "sistema", f"Logout: {uname}",
-                  usuario_id=uid, usuario_nome=uname)
+                  usuario_id=uid, usuario_nome=uname,
+                  organization_id=usuario.organization_id if usuario else None)
         db.session.commit()
     session.clear()
     return redirect(url_for("auth.login_page"))
@@ -364,14 +377,12 @@ def primeiro_acesso_post():
             if not data.get(campo):
                 flash(f"Campo obrigatório: {campo.replace('_', ' ')}.", "error")
                 return render_template("pages/register.html",
-                    nome=data.get("nome"), email=data.get("email"),
-                    empresa_nome=data.get("empresa_nome"))
+                    nome=data.get("nome"), email=data.get("email"))
 
         if data["senha"] != data["confirmar_senha"]:
             flash("As senhas não coincidem.", "error")
             return render_template("pages/register.html",
-                nome=data.get("nome"), email=data.get("email"),
-                empresa_nome=data.get("empresa_nome"))
+                nome=data.get("nome"), email=data.get("email"))
 
         # ── V-01 FIX: aplica política de senha forte ──────────────────────
         erros = validar_senha_forte(data["senha"])
@@ -389,33 +400,17 @@ def primeiro_acesso_post():
         if not nome_admin or len(nome_admin) < 2:
             flash("Nome deve ter pelo menos 2 caracteres.", "error")
             return render_template("pages/register.html")
-        from app.models import Organization
-        organization = Organization.query.filter_by(slug="default").first()
-        if not organization:
-            organization = Organization(nome=data.get("empresa_nome") or "Organizacao padrao", slug="default")
-            db.session.add(organization)
-            db.session.flush()
-            from app.services.message_templates import seed_default_templates
-            seed_default_templates(organization.id)
-            from app.services.billing import ensure_trial_subscription
-            ensure_trial_subscription(organization.id)
         admin = Usuario(
             nome=nome_admin, email=email, nivel="admin",
-            organization_id=organization.id, onboarding_completed=False,
+            organization_id=null(), onboarding_completed=True,
             is_platform_admin=True,
         )
         admin.set_senha(data["senha"])
         db.session.add(admin)
 
-        from app.models import Configuracao
-        if not Configuracao.query.first():
-            cfg = Configuracao(
-                nome_empresa=data.get("empresa_nome", "Zokyo Platform"))
-            db.session.add(cfg)
-
         registrar("criacao", "sistema",
                   f"Primeiro acesso — admin criado: {nome_admin}",
-                  usuario_nome=nome_admin)
+                  usuario_nome=nome_admin, organization_id=None)
         db.session.commit()
         flash("Conta criada! Faça login.", "success")
         return redirect(url_for("auth.login_page"))

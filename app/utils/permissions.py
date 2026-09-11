@@ -232,6 +232,15 @@ LAUDOS_EXACT_POLICIES = {
     "laudos.exportar_csv": "laudos.view",
 }
 
+GLOBAL_PLATFORM_ENDPOINTS = {
+    "platform.index",
+    "platform.create_organization",
+    "platform.update_organization",
+    "platform.sync_dns",
+    "platform.create_plan",
+    "platform.assign_subscription",
+}
+
 
 def permissions_for(user) -> set[str]:
     if not user or not user.ativo:
@@ -373,6 +382,9 @@ def _resource_visible_to_user(user, endpoint: str, arg_name: str, value: Any) ->
 
 
 def abac_allows_request(user) -> bool:
+    endpoint = request.endpoint or ""
+    if getattr(user, "is_platform_admin", False) and not getattr(user, "organization_id", None):
+        return endpoint in GLOBAL_PLATFORM_ENDPOINTS
     if not user or not getattr(user, "organization_id", None):
         return False
     g.organization_id = user.organization_id
@@ -381,7 +393,6 @@ def abac_allows_request(user) -> bool:
     if "organization_id" in view_args and not user_can_access_org(user, view_args["organization_id"]):
         return False
 
-    endpoint = request.endpoint or ""
     for arg_name, value in view_args.items():
         if not _resource_visible_to_user(user, endpoint, arg_name, value):
             return False

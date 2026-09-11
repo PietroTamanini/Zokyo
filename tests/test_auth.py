@@ -9,7 +9,7 @@ import pyotp
 import app as app_module
 from app import create_app
 from app.extensions import db
-from app.models import Organization, UserSession, Usuario
+from app.models import EventoLog, Organization, UserSession, Usuario
 from app.services.two_factor import consume_recovery_code, decrypt_secret, encrypt_secret, generate_recovery_codes
 
 
@@ -45,7 +45,6 @@ def test_primeiro_acesso_cria_admin_da_plataforma():
         "_csrf_token": csrf(client),
         "nome": "Admin Plataforma",
         "email": "platform@example.com",
-        "empresa_nome": "Empresa Teste",
         "senha": "Senha!123",
         "confirmar_senha": "Senha!123",
     })
@@ -53,7 +52,22 @@ def test_primeiro_acesso_cria_admin_da_plataforma():
     with app.app_context():
         admin = Usuario.query.filter_by(email="platform@example.com").one()
         assert admin.is_platform_admin is True
-        assert admin.organization.slug == "default"
+        assert admin.organization_id is None
+        assert Organization.query.count() == 0
+    response = client.post("/login", data={
+        "_csrf_token": csrf(client),
+        "email": "platform@example.com",
+        "senha": "Senha!123",
+    })
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/platform")
+    assert client.get("/").status_code == 404
+    assert client.get("/platform").status_code == 200
+    with app.app_context():
+        session_record = UserSession.query.one()
+        assert session_record.organization_id is None
+        login_event = EventoLog.query.filter_by(tipo="login").one()
+        assert login_event.organization_id is None
 
 
 def test_login_logout_e_csrf():
