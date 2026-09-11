@@ -32,6 +32,18 @@ def test_producao_desabilita_create_all(monkeypatch):
     assert app.config["DISABLE_CREATE_ALL"] is True
 
 
+def test_producao_nao_libera_origens_locais_do_portal_por_padrao(monkeypatch):
+    monkeypatch.delenv("DJTECH_SITE_ORIGINS", raising=False)
+    monkeypatch.setenv("SECRET_KEY", "prod-secret-key-with-32-plus-chars")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    monkeypatch.setenv("ENCRYPTION_SALT", valid_encryption_salt())
+    app = create_app("production")
+    origins = app.config["DJTECH_SITE_ORIGINS"]
+    assert "localhost" not in origins
+    assert "127.0.0.1" not in origins
+    assert "https://djtechinfo.com.br" in origins
+
+
 def test_producao_exige_encryption_salt(monkeypatch):
     monkeypatch.setenv("SECRET_KEY", "prod-secret-key-with-32-plus-chars")
     monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")

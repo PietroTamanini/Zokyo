@@ -136,6 +136,10 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     DISABLE_CREATE_ALL = True
+    DJTECH_SITE_ORIGINS = os.environ.get(
+        "DJTECH_SITE_ORIGINS",
+        "https://djtechinfo.com.br,https://www.djtechinfo.com.br,https://painel.djtechinfo.com.br",
+    )
 
     # C02: em produção, SECRET_KEY DEVE ser definida no ambiente
     @classmethod

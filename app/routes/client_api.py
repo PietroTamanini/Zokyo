@@ -27,8 +27,6 @@ def _raw_token():
     data = request.get_json(silent=True) or {}
     return (
         request.headers.get("X-Portal-Token", "").strip()
-        or request.args.get("portal_token", "").strip()
-        or request.args.get("token", "").strip()
         or str(data.get("portal_token") or data.get("token") or "").strip()
     )
 
@@ -60,7 +58,6 @@ def _serialize_os(os_obj):
         "equipamento": equipamento or "-",
         "defeito_alegado": os_obj.defeito_alegado or "",
         "solucao": os_obj.solucao or "",
-        "observacoes": os_obj.observacoes or "",
         "valor_servico": float(os_obj.valor_servico or 0),
         "valor_pecas": float(os_obj.valor_pecas or 0),
         "desconto": float(os_obj.desconto or 0),
@@ -87,7 +84,6 @@ def _serialize_transacao(item):
         "payment_url": item.payment_url,
         "payment_link": item.payment_link,
         "payment_barcode": item.payment_barcode,
-        "payment_payload": item.payment_payload,
         "payment_expires_at": item.payment_expires_at.isoformat() if item.payment_expires_at else None,
         "data_vencimento": item.data_vencimento.isoformat() if item.data_vencimento else None,
         "data_pagamento": item.data_pagamento.isoformat() if item.data_pagamento else None,

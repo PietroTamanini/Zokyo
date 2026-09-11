@@ -138,12 +138,17 @@ PUBLIC_ENDPOINTS = {
     "laudos.verificar",
     "client_api.auth",
     "client_api.consulta_os_publica",
+    "client_api.index",
+    "client_api.os_collection",
+    "client_api.os_detail",
+    "client_api.compras",
+    "client_api.cobrancas",
     "platform.sandbox_webhook",
     "platform.asaas_webhook",
     "static",
 }
 
-PUBLIC_ENDPOINT_PREFIXES = ("static", "client_api.")
+PUBLIC_ENDPOINT_PREFIXES = ("static",)
 
 PREFIX_POLICIES: tuple[tuple[str, str, str], ...] = (
     ("clientes.", "clientes.view", "clientes.manage"),

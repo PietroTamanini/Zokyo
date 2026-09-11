@@ -85,6 +85,17 @@ def test_resolucao_de_politica_cobre_endpoints_principais():
     assert permission_for_endpoint("auth.login_page", "GET", "/login") is None
 
 
+def test_client_api_publica_apenas_endpoints_auditados():
+    assert is_public_endpoint("client_api.auth")
+    assert is_public_endpoint("client_api.consulta_os_publica")
+    assert is_public_endpoint("client_api.os_collection")
+    assert is_public_endpoint("client_api.os_detail")
+    assert is_public_endpoint("client_api.compras")
+    assert is_public_endpoint("client_api.cobrancas")
+    assert not is_public_endpoint("client_api.admin_export")
+    assert permission_for_endpoint("client_api.admin_export", "GET", "/api/v1/client/admin-export") == "sistema.access"
+
+
 def test_toda_rota_nao_publica_tem_permissao_conhecida():
     app = create_app("development")
     for rule in app.url_map.iter_rules():

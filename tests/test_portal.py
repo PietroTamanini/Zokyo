@@ -27,6 +27,7 @@ def seed(app):
             tipo_aparelho="Notebook", marca="Dell", modelo="XPS",
             numero_serie="SERIE-SECRETA", defeito_alegado="Nao liga",
             defeito_encontrado="DIAGNOSTICO INTERNO", valor_servico=200, valor_pecas=50,
+            observacoes="OBSERVACAO INTERNA",
             status="aguardando_aprovacao",
         )
         db.session.add(service_order)
@@ -127,6 +128,8 @@ def test_api_client_usa_token_portal_e_isola_cliente():
             descricao="OS portal",
             valor=250,
             status="pendente",
+            payment_payload="PIX-COPIA-COLA-SENSIVEL",
+            payment_barcode="CODIGO-COBRANCA-CLIENTE",
         )
         db.session.add_all([other_order, charge])
         db.session.commit()
@@ -137,19 +140,29 @@ def test_api_client_usa_token_portal_e_isola_cliente():
     auth = client.post("/api/v1/client/auth", json={"portal_token": raw})
     assert auth.status_code == 200
     assert auth.json["cliente"]["nome"] == "Cliente Sigiloso"
+    assert "observacoes" not in auth.json["os"]
+    assert "OBSERVACAO INTERNA" not in auth.get_data(as_text=True)
+
+    assert client.get(f"/api/v1/client?portal_token={raw}").status_code == 401
 
     headers = {"Authorization": f"Bearer {raw}"}
     orders = client.get("/api/v1/client/os", headers=headers)
     assert orders.status_code == 200
     assert [item["id"] for item in orders.json["result"]["Os"]] == [os_id]
+    assert "observacoes" not in orders.json["result"]["Os"][0]
+    assert "OBSERVACAO INTERNA" not in orders.get_data(as_text=True)
     assert client.get(f"/api/v1/client/os/{other_order_id}", headers=headers).status_code == 404
 
     compras = client.get("/api/v1/client/compras", headers=headers)
     assert compras.status_code == 200
     assert compras.json["result"]["Compras"][0]["descricao"] == "OS portal"
+    assert compras.json["result"]["Compras"][0]["payment_barcode"] == "CODIGO-COBRANCA-CLIENTE"
+    assert "payment_payload" not in compras.json["result"]["Compras"][0]
+    assert "PIX-COPIA-COLA-SENSIVEL" not in compras.get_data(as_text=True)
     cobrancas = client.get("/api/v1/client/cobrancas", headers=headers)
     assert cobrancas.status_code == 200
     assert cobrancas.json["result"][0]["status"] == "pendente"
+    assert "payment_payload" not in cobrancas.json["result"][0]
 
     created = client.post("/api/v1/client/os", headers=headers, json={
         "descricaoProduto": "Tablet",
