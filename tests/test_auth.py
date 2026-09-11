@@ -6,6 +6,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import pyotp
 
+import app as app_module
 from app import create_app
 from app.extensions import db
 from app.models import Organization, UserSession, Usuario
@@ -31,6 +32,28 @@ def csrf(client):
     with client.session_transaction() as session:
         session["_csrf_token"] = "csrf-token"
     return "csrf-token"
+
+
+def test_primeiro_acesso_cria_admin_da_plataforma():
+    app_module._tem_usuarios = False
+    app = create_app("development")
+    app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+    client = app.test_client()
+    response = client.post("/primeiro-acesso", data={
+        "_csrf_token": csrf(client),
+        "nome": "Admin Plataforma",
+        "email": "platform@example.com",
+        "empresa_nome": "Empresa Teste",
+        "senha": "Senha!123",
+        "confirmar_senha": "Senha!123",
+    })
+    assert response.status_code == 302
+    with app.app_context():
+        admin = Usuario.query.filter_by(email="platform@example.com").one()
+        assert admin.is_platform_admin is True
+        assert admin.organization.slug == "default"
 
 
 def test_login_logout_e_csrf():

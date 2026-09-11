@@ -38,6 +38,7 @@ class Usuario(db.Model):
     recovery_codes_hash = db.Column(db.JSON)
     permissoes_extra = db.Column(db.JSON)
     permissoes_negadas = db.Column(db.JSON)
+    is_platform_admin = db.Column(db.Boolean, default=False, nullable=False)
     onboarding_completed = db.Column(db.Boolean, default=True, nullable=False)
     security_version = db.Column(db.Integer, default=1, nullable=False)
     organization = db.relationship("Organization", backref=db.backref("usuarios", lazy=True))
@@ -51,6 +52,7 @@ class Usuario(db.Model):
                 "nivel":self.nivel,"ativo":self.ativo,
                 "criado_em":self.criado_em.isoformat(),
                 "totp_enabled": self.totp_enabled,
+                "is_platform_admin": self.is_platform_admin,
                 "permissoes_extra": self.permissoes_extra or [],
                 "permissoes_negadas": self.permissoes_negadas or []}
 

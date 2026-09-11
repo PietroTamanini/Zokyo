@@ -402,6 +402,7 @@ def primeiro_acesso_post():
         admin = Usuario(
             nome=nome_admin, email=email, nivel="admin",
             organization_id=organization.id, onboarding_completed=False,
+            is_platform_admin=True,
         )
         admin.set_senha(data["senha"])
         db.session.add(admin)

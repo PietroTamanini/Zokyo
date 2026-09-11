@@ -82,6 +82,21 @@ def test_painel_global_usa_allowlist_de_email(monkeypatch):
     assert client.get("/platform").status_code == 200
 
 
+def test_painel_global_aceita_platform_admin_sem_allowlist(monkeypatch):
+    app, admin_id = make_app()
+    with app.app_context():
+        admin = db.session.get(Usuario, admin_id)
+        admin.is_platform_admin = True
+        db.session.commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+    monkeypatch.delenv("PLATFORM_ADMIN_EMAILS", raising=False)
+    assert client.get("/platform").status_code == 200
+
+
 def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):
     app, admin_id = make_app()
     monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")

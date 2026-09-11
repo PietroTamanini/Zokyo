@@ -33,7 +33,7 @@ def global_admin_required(function):
         allowed = {item.strip().lower() for item in os.environ.get("PLATFORM_ADMIN_EMAILS", "").split(",") if item.strip()}
         if not user:
             return redirect(url_for("auth.login_page"))
-        if user.nivel != "admin" or user.email.lower() not in allowed:
+        if user.nivel != "admin" or (not user.is_platform_admin and user.email.lower() not in allowed):
             abort(403)
         return function(*args, **kwargs)
     return wrapped
