@@ -158,6 +158,37 @@ def test_platform_gera_subdominio_automatico_com_wildcard(monkeypatch):
         assert organization.dns_last_error is None
 
 
+def test_platform_cria_admin_e_reseta_senha_de_tenant(monkeypatch):
+    app, admin_id = make_app()
+    monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+    created = client.post("/platform/organizations/1/admins", data={
+        "_csrf_token": "csrf",
+        "owner_name": "Admin Loja",
+        "owner_email": "admin-loja@test.local",
+        "owner_password": "Senha!123",
+    })
+    assert created.status_code == 302
+    with app.app_context():
+        user = Usuario.query.execution_options(include_all_tenants=True).filter_by(email="admin-loja@test.local").one()
+        assert user.organization_id == 1
+        assert user.nivel == "admin"
+        assert user.check_senha("Senha!123")
+        original_version = user.security_version
+        user_id = user.id
+    reset = client.post(f"/platform/users/{user_id}/reset-password", data={"_csrf_token": "csrf"})
+    assert reset.status_code == 302
+    with app.app_context():
+        user = db.session.get(Usuario, user_id)
+        assert user.security_version == original_version + 1
+        assert not user.check_senha("Senha!123")
+
+
 def test_resolve_tenant_por_subdominio_e_bloqueio_central():
     app, _admin_id = make_app()
     with app.app_context():

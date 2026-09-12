@@ -1,5 +1,7 @@
 """Painel global separado e webhook do provider sandbox."""
 import os
+import secrets
+import string
 from collections import defaultdict
 from functools import wraps
 
@@ -21,9 +23,15 @@ from app.models import (
 from app.services.billing import process_asaas_event, process_sandbox_event
 from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant, sync_tenant_dns, tenant_hostname
 from app.utils.sanitizers import sanitize_text
+from app.utils.validators import validar_email
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
 SUBSCRIPTION_STATUSES = ("trialing", "active", "past_due", "suspended", "cancelled")
+
+
+def _temporary_password() -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "Zk!" + "".join(secrets.choice(alphabet) for _ in range(13)) + "9"
 
 
 def global_admin_required(function):
@@ -89,13 +97,13 @@ def index():
         }
     owners = defaultdict(list)
     owner_rows = db.session.execute(
-        db.select(Usuario.organization_id, Usuario.nome, Usuario.email)
+        db.select(Usuario.organization_id, Usuario.id, Usuario.nome, Usuario.email)
         .where(Usuario.nivel == "admin", Usuario.organization_id.is_not(None))
         .order_by(Usuario.nome)
         .execution_options(**options)
     ).all()
-    for organization_id, name, email in owner_rows:
-        owners[organization_id].append({"name": name, "email": email})
+    for organization_id, user_id, name, email in owner_rows:
+        owners[organization_id].append({"id": user_id, "name": name, "email": email})
     subscriptions = OrganizationSubscription.query.all()
     subscriptions_by_org = {item.organization_id: item for item in subscriptions}
     summary = {
@@ -184,6 +192,59 @@ def update_organization(organization_id):
             organization.custom_domain = tenant_hostname(organization.subdomain)
         sync_tenant_dns(organization)
     db.session.commit()
+    return redirect(url_for("platform.index"))
+
+
+@platform_bp.route("/organizations/<int:organization_id>/admins", methods=["POST"])
+@global_admin_required
+def create_tenant_admin(organization_id):
+    organization = db.session.execute(
+        db.select(Organization).where(Organization.id == organization_id).execution_options(include_all_tenants=True)
+    ).scalar_one_or_none()
+    if not organization:
+        abort(404)
+    name = sanitize_text(request.form.get("owner_name", ""), max_length=120)
+    email = (request.form.get("owner_email") or "").strip().lower()
+    password = request.form.get("owner_password") or _temporary_password()
+    if len(name) < 2 or not validar_email(email):
+        flash("Nome ou e-mail do admin invalido.", "error")
+        return redirect(url_for("platform.index"))
+    if Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email).first():
+        flash("E-mail ja cadastrado.", "error")
+        return redirect(url_for("platform.index"))
+    user = Usuario(
+        organization_id=organization.id,
+        nome=name,
+        email=email,
+        nivel="admin",
+        ativo=True,
+        onboarding_completed=False,
+    )
+    user.set_senha(password)
+    db.session.add(user)
+    db.session.commit()
+    flash(f"Admin criado para {organization.nome}. Senha temporaria: {password}", "success")
+    return redirect(url_for("platform.index"))
+
+
+@platform_bp.route("/users/<int:user_id>/reset-password", methods=["POST"])
+@global_admin_required
+def reset_tenant_admin_password(user_id):
+    user = db.session.execute(
+        db.select(Usuario)
+        .where(Usuario.id == user_id, Usuario.organization_id.is_not(None))
+        .execution_options(include_all_tenants=True)
+    ).scalar_one_or_none()
+    if not user:
+        abort(404)
+    password = _temporary_password()
+    user.set_senha(password)
+    user.security_version += 1
+    from app.services.user_sessions import revoke_all
+
+    revoke_all(user.id, "reset pelo admin global")
+    db.session.commit()
+    flash(f"Senha temporaria de {user.nome}: {password}", "success")
     return redirect(url_for("platform.index"))
 
 

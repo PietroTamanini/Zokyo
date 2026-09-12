@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Usuários - Zokyo{% endblock %}
-{% block breadcrumb %}Usuários{% endblock %}
+{% block title %}Usuarios - Zokyo{% endblock %}
+{% block breadcrumb %}Usuarios{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">Usuários</div><div class="page-sub">Contas, perfis de acesso e segurança da equipe</div></div>
-  <button type="button" class="btn btn-primary" data-action="usuario-novo">Novo Usuário</button>
+  <div><div class="page-title">Usuarios</div><div class="page-sub">Contas, perfis de acesso e permissoes da equipe</div></div>
+  <button type="button" class="btn btn-primary" data-action="usuario-novo">Novo usuario</button>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -14,7 +14,7 @@
 <div class="card">
   <div class="table-wrap">
     <table>
-      <thead><tr><th>Nome</th><th class="th-hide-sm">E-mail</th><th>Perfil</th><th>Status</th><th class="th-hide-sm">Cadastro</th><th></th></tr></thead>
+      <thead><tr><th>Nome</th><th class="th-hide-sm">E-mail</th><th>Perfil</th><th>Status</th><th class="th-hide-sm">Permissoes</th><th></th></tr></thead>
       <tbody>
         {% for u in usuarios %}
         <tr class="tr-static">
@@ -25,10 +25,8 @@
             <span class="badge {{ pcls }}"><span class="dot"></span>{{ u.nivel }}</span>
           </td>
           <td><span class="badge {{ 'b-green' if u.ativo else 'b-gray' }}"><span class="dot"></span>{{ 'Ativo' if u.ativo else 'Inativo' }}</span></td>
-          <td class="td-mono muted-xs td-hide-sm">{{ u.criado_em | fmtdata }}</td>
-          <td>
-            <button type="button" class="btn btn-ghost btn-xs" data-action="usuario-editar" data-user='{{ u.to_dict()|tojson }}'>Editar</button>
-          </td>
+          <td class="td-hide-sm"><span class="muted-xs">+{{ (u.permissoes_extra or [])|length }} / -{{ (u.permissoes_negadas or [])|length }}</span></td>
+          <td><button type="button" class="btn btn-ghost btn-xs" data-action="usuario-editar" data-user='{{ u.to_dict()|tojson }}'>Editar</button></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -36,12 +34,11 @@
   </div>
 </div>
 
-<!-- MODAL NOVO -->
 <div class="modal-overlay" id="modal-novo">
-  <div class="modal-box modal-box-sm">
+  <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-title">Novo Usuário</div>
-      <button type="button" class="modal-close" data-action="usuario-novo-fechar">×</button>
+      <div class="modal-title">Novo usuario</div>
+      <button type="button" class="modal-close" data-action="usuario-novo-fechar">x</button>
     </div>
     <div id="novo-err" class="alert a-red mb16 hidden"></div>
     <div class="form-row fr2">
@@ -49,13 +46,26 @@
       <div class="form-group"><label>E-mail <span class="req">*</span></label><input type="email" id="n-email"></div>
     </div>
     <div class="form-row fr2">
-      <div class="form-group"><label>Senha <span class="req">*</span></label><input type="password" id="n-senha" placeholder="Mín. 8 caracteres"></div>
-      <div class="form-group"><label>Perfil <span class="req">*</span></label>
-        <select id="n-nivel">
-          {% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-        </select>
-      </div>
+      <div class="form-group"><label>Senha <span class="req">*</span></label><input type="password" id="n-senha" placeholder="Min. 8 caracteres"></div>
+      <div class="form-group"><label>Perfil <span class="req">*</span></label><select id="n-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
     </div>
+    <details class="mb16">
+      <summary>Permissoes especificas</summary>
+      <div class="form-row fr2 mt12">
+        <div>
+          <div class="muted-xs mb8">Permitir alem do perfil</div>
+          <div class="zokyo-permissions-grid">
+            {% for permissao in permissoes %}<label><input type="checkbox" data-new-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
+          </div>
+        </div>
+        <div>
+          <div class="muted-xs mb8">Bloquear mesmo se o perfil permitir</div>
+          <div class="zokyo-permissions-grid">
+            {% for permissao in permissoes %}<label><input type="checkbox" data-new-denied value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
+          </div>
+        </div>
+      </div>
+    </details>
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" data-action="usuario-novo-fechar">Cancelar</button>
       <button type="button" class="btn btn-primary" data-action="usuario-criar">Criar</button>
@@ -63,12 +73,11 @@
   </div>
 </div>
 
-<!-- MODAL EDITAR -->
 <div class="modal-overlay" id="modal-editar">
-  <div class="modal-box modal-box-sm">
+  <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-title">Editar Usuário</div>
-      <button type="button" class="modal-close" data-action="usuario-editar-fechar">×</button>
+      <div class="modal-title">Editar usuario</div>
+      <button type="button" class="modal-close" data-action="usuario-editar-fechar">x</button>
     </div>
     <div id="edit-err" class="alert a-red mb16 hidden"></div>
     <input type="hidden" id="e-id">
@@ -77,19 +86,31 @@
       <div class="form-group"><label>E-mail</label><input type="email" id="e-email"></div>
     </div>
     <div class="form-row fr2">
-      <div class="form-group"><label>Nova Senha <span class="txt-faint mono-xs">(deixe vazio para não alterar)</span></label>
-        <input type="password" id="e-senha" placeholder="Mín. 8 caracteres"></div>
-      <div class="form-group"><label>Perfil</label>
-        <select id="e-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
+      <div class="form-group"><label>Nova senha <span class="txt-faint mono-xs">(opcional)</span></label><input type="password" id="e-senha" placeholder="Min. 8 caracteres"></div>
+      <div class="form-group"><label>Perfil</label><select id="e-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-group"><label>Status</label><select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+    <details class="mb16">
+      <summary>Permissoes especificas</summary>
+      <div class="form-row fr2 mt12">
+        <div>
+          <div class="muted-xs mb8">Permitir alem do perfil</div>
+          <div class="zokyo-permissions-grid">
+            {% for permissao in permissoes %}<label><input type="checkbox" data-edit-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
+          </div>
+        </div>
+        <div>
+          <div class="muted-xs mb8">Bloquear mesmo se o perfil permitir</div>
+          <div class="zokyo-permissions-grid">
+            {% for permissao in permissoes %}<label><input type="checkbox" data-edit-denied value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="form-group"><label>Status</label>
-      <select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select>
-    </div>
-    <div class="alert a-amber mb16 muted-sm">Revogue as sessões em caso de perda de dispositivo ou suspeita de acesso.</div>
+    </details>
+    <div class="alert a-amber mb16 muted-sm">Revogue sessoes em caso de perda de dispositivo ou suspeita de acesso.</div>
     <div class="modal-actions">
       <button type="button" class="btn btn-danger btn-sm" data-action="usuario-deletar">Remover</button>
-      <button type="button" class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessões</button>
+      <button type="button" class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessoes</button>
       <button type="button" class="btn btn-ghost" data-action="usuario-editar-fechar">Cancelar</button>
       <button type="button" class="btn btn-primary" data-action="usuario-salvar">Salvar</button>
     </div>
@@ -99,13 +120,26 @@
 <script nonce="{{ csp_nonce }}">
 const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
 
+function collectPermissions(selector) {
+  return Array.from(document.querySelectorAll(selector + ':checked')).map((item) => item.value);
+}
+
+function setPermissions(selector, values) {
+  const selected = new Set(values || []);
+  document.querySelectorAll(selector).forEach((item) => {
+    item.checked = selected.has(item.value);
+  });
+}
+
 function editarUsuario(u) {
   document.getElementById('e-id').value = u.id;
   document.getElementById('e-nome').value = u.nome;
   document.getElementById('e-email').value = u.email;
   document.getElementById('e-nivel').value = u.nivel;
-  document.getElementById('e-ativo').value = u.ativo ?'true':'false';
+  document.getElementById('e-ativo').value = u.ativo ? 'true' : 'false';
   document.getElementById('e-senha').value = '';
+  setPermissions('[data-edit-extra]', u.permissoes_extra || []);
+  setPermissions('[data-edit-denied]', u.permissoes_negadas || []);
   document.getElementById('edit-err').classList.add('hidden');
   document.getElementById('modal-editar').classList.add('show');
 }
@@ -117,10 +151,12 @@ async function criarUsuario() {
     email: document.getElementById('n-email').value,
     senha: document.getElementById('n-senha').value,
     nivel: document.getElementById('n-nivel').value,
+    permissoes_extra: collectPermissions('[data-new-extra]'),
+    permissoes_negadas: collectPermissions('[data-new-denied]'),
   };
   const r = await fetch('/api/usuarios', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(body)});
   const d = await r.json();
-  if (!r.ok) { err.textContent=d.erro; err.classList.remove('hidden'); return; }
+  if (!r.ok) { err.textContent = d.erro || 'Erro ao criar usuario.'; err.classList.remove('hidden'); return; }
   location.reload();
 }
 
@@ -132,54 +168,44 @@ async function salvarUsuario() {
     email: document.getElementById('e-email').value,
     nivel: document.getElementById('e-nivel').value,
     ativo: document.getElementById('e-ativo').value === 'true',
+    permissoes_extra: collectPermissions('[data-edit-extra]'),
+    permissoes_negadas: collectPermissions('[data-edit-denied]'),
   };
-  const s = document.getElementById('e-senha').value;
-  if (s) body.senha = s;
+  const password = document.getElementById('e-senha').value;
+  if (password) body.senha = password;
   const r = await fetch(`/api/usuarios/${id}`, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(body)});
   const d = await r.json();
-  if (!r.ok) { err.textContent=d.erro; err.classList.remove('hidden'); return; }
+  if (!r.ok) { err.textContent = d.erro || 'Erro ao salvar usuario.'; err.classList.remove('hidden'); return; }
   location.reload();
 }
 
 async function deletarUsuario() {
-  if (!confirm('Remover este usuário?')) return;
+  if (!confirm('Remover este usuario?')) return;
   const id = document.getElementById('e-id').value;
   await fetch(`/api/usuarios/${id}`, {method:'DELETE', headers:{'X-CSRFToken':CSRF}});
   location.reload();
 }
 
 async function revogarSessoes() {
-  if (!confirm('Encerrar todas as sessões deste usuário?')) return;
+  if (!confirm('Encerrar todas as sessoes deste usuario?')) return;
   const id = document.getElementById('e-id').value;
-  const r = await fetch(`/api/usuarios/${id}/revogar-sessoes`, {method:'POST', headers:{'X-CSRFToken':CSRF}});
-  if (r.ok) location.reload();
+  const response = await fetch(`/api/usuarios/${id}/revogar-sessoes`, {method:'POST', headers:{'X-CSRFToken':CSRF}});
+  if (response.ok) location.reload();
 }
 
-document.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-action]');
-  if (!el) return;
-  const action = el.getAttribute('data-action');
-
-  if (action === 'usuario-novo') {
-    document.getElementById('modal-novo').classList.add('show');
-    return;
-  }
-  if (action === 'usuario-novo-fechar') {
-    document.getElementById('modal-novo').classList.remove('show');
-    return;
-  }
+document.addEventListener('click', (event) => {
+  const element = event.target.closest('[data-action]');
+  if (!element) return;
+  const action = element.getAttribute('data-action');
+  if (action === 'usuario-novo') return document.getElementById('modal-novo').classList.add('show');
+  if (action === 'usuario-novo-fechar') return document.getElementById('modal-novo').classList.remove('show');
   if (action === 'usuario-criar') return criarUsuario();
-
-  if (action === 'usuario-editar-fechar') {
-    document.getElementById('modal-editar').classList.remove('show');
-    return;
-  }
+  if (action === 'usuario-editar-fechar') return document.getElementById('modal-editar').classList.remove('show');
   if (action === 'usuario-salvar') return salvarUsuario();
   if (action === 'usuario-deletar') return deletarUsuario();
   if (action === 'usuario-revogar') return revogarSessoes();
-
   if (action === 'usuario-editar') {
-    const payload = el.getAttribute('data-user');
+    const payload = element.getAttribute('data-user');
     if (!payload) return;
     try { editarUsuario(JSON.parse(payload)); } catch {}
   }

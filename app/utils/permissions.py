@@ -236,6 +236,8 @@ GLOBAL_PLATFORM_ENDPOINTS = {
     "platform.index",
     "platform.create_organization",
     "platform.update_organization",
+    "platform.create_tenant_admin",
+    "platform.reset_tenant_admin_password",
     "platform.sync_dns",
     "platform.create_plan",
     "platform.assign_subscription",

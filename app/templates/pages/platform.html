@@ -109,6 +109,10 @@
           <td>
             {% for owner in owners.get(org.id, [])[:2] %}
               <div>{{ owner.name }}</div><div class="muted-xs">{{ owner.email }}</div>
+              <form method="POST" action="{{ url_for('platform.reset_tenant_admin_password', user_id=owner.id) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-xs btn-ghost" type="submit">Resetar senha</button>
+              </form>
             {% else %}
               <span class="muted-xs">sem admin</span>
             {% endfor %}
@@ -132,6 +136,13 @@
               <label class="muted-xs"><input type="checkbox" name="active" {{ 'checked' if org.ativo }}> Empresa ativa</label>
               <label class="muted-xs"><input type="checkbox" name="sync_dns"> Sincronizar DNS</label>
               <button class="btn btn-xs btn-outline" type="submit">Salvar</button>
+            </form>
+            <form method="POST" action="{{ url_for('platform.create_tenant_admin', organization_id=org.id) }}" class="parts-body mt8">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <input name="owner_name" placeholder="Novo admin" aria-label="Nome do novo admin">
+              <input type="email" name="owner_email" placeholder="email@empresa.com" aria-label="E-mail do novo admin">
+              <input type="password" name="owner_password" placeholder="senha temporaria opcional" aria-label="Senha temporaria">
+              <button class="btn btn-xs btn-ghost" type="submit">Adicionar admin</button>
             </form>
           </td>
         </tr>
