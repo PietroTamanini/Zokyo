@@ -1,0 +1,35 @@
+<form method="POST" action="{{ url_for('platform.create_organization') }}" class="admin-form admin-company-form" autocomplete="off" data-company-form data-base-domain="{{ base_domain }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <fieldset class="admin-fieldset">
+    <legend>Dados da empresa</legend>
+    <div class="form-row fr2">
+      <div class="form-group"><label for="company-name">Nome da empresa</label><input id="company-name" name="name" required maxlength="200" placeholder="Nome da empresa" data-company-name></div>
+      <div class="form-group">
+        <label for="company-slug">Subdomínio</label>
+        <div class="admin-domain-field"><input id="company-slug" name="slug" maxlength="63" placeholder="nome-da-empresa" data-company-slug><span>.{{ base_domain }}</span></div>
+        <div class="input-hint"><strong data-domain-preview>nome-da-empresa.{{ base_domain }}</strong></div>
+      </div>
+    </div>
+  </fieldset>
+  <fieldset class="admin-fieldset">
+    <legend>Responsável</legend>
+    <div class="form-row fr2">
+      <div class="form-group"><label for="owner-name">Nome completo</label><input id="owner-name" name="owner_name" required minlength="2" maxlength="120" placeholder="Nome do responsável"></div>
+      <div class="form-group"><label for="owner-email">E-mail</label><input id="owner-email" type="email" name="owner_email" required placeholder="responsavel@empresa.com" autocomplete="off"></div>
+    </div>
+    <div class="form-group admin-short-field"><label for="owner-password">Senha inicial</label><input id="owner-password" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"></div>
+  </fieldset>
+  <fieldset class="admin-fieldset">
+    <legend>Assinatura e acesso</legend>
+    <div class="form-row fr2">
+      <div class="form-group"><label for="company-plan">Plano</label><select id="company-plan" name="plan_id"><option value="">Starter padrão</option>{% for plan in plans if plan.ativo %}<option value="{{ plan.id }}">{{ plan.nome }} - R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}/mês</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="trial-days">Período de teste (dias)</label><input id="trial-days" type="number" min="1" max="90" name="trial_days" value="14" required></div>
+    </div>
+    <div class="admin-toggle-stack">
+      <label class="check-inline"><input class="input-check" type="checkbox" name="active" checked> Empresa ativa</label>
+      <label class="check-inline"><input class="input-check" type="checkbox" name="provision_dns" {{ 'checked' if dns.ready }}> Ativar subdomínio</label>
+    </div>
+    {% if not dns.ready %}<p class="admin-inline-notice">Provisionamento automático de DNS não configurado. <a href="{{ url_for('platform.index', view='domains') }}">Ver domínios</a></p>{% endif %}
+  </fieldset>
+  <div class="admin-form-footer"><button class="btn btn-primary" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>Criar empresa</button><a class="btn btn-ghost" href="{{ url_for('platform.index', view='organizations') }}">Cancelar</a></div>
+</form>

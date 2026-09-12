@@ -11,6 +11,16 @@
   {% for cat, msg in msgs %}<div class="alert a-{{ 'green' if cat=='success' else 'red' }} mb16">{{ msg }}</div>{% endfor %}
 {% endwith %}
 
+<div class="card users-toolbar-card">
+  <div class="users-toolbar">
+    <div>
+      <strong>{{ usuarios|length }} usuario{{ '' if usuarios|length == 1 else 's' }}</strong>
+      <span>Use perfis como base e aplique excecoes so quando precisar.</span>
+    </div>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('pages.zokyo_permissoes') }}">Mapa de permissoes</a>
+  </div>
+</div>
+
 <div class="card">
   <div class="table-wrap">
     <table>
@@ -25,7 +35,12 @@
             <span class="badge {{ pcls }}"><span class="dot"></span>{{ u.nivel }}</span>
           </td>
           <td><span class="badge {{ 'b-green' if u.ativo else 'b-gray' }}"><span class="dot"></span>{{ 'Ativo' if u.ativo else 'Inativo' }}</span></td>
-          <td class="td-hide-sm"><span class="muted-xs">+{{ (u.permissoes_extra or [])|length }} / -{{ (u.permissoes_negadas or [])|length }}</span></td>
+          <td class="td-hide-sm">
+            <span class="user-permission-summary">
+              <strong>+{{ (u.permissoes_extra or [])|length }}</strong> liberadas
+              <strong>-{{ (u.permissoes_negadas or [])|length }}</strong> bloqueadas
+            </span>
+          </td>
           <td><button type="button" class="btn btn-ghost btn-xs" data-action="usuario-editar" data-user='{{ u.to_dict()|tojson }}'>Editar</button></td>
         </tr>
         {% endfor %}
@@ -51,16 +66,18 @@
     </div>
     <details class="mb16">
       <summary>Permissoes especificas</summary>
-      <div class="form-row fr2 mt12">
-        <div>
-          <div class="muted-xs mb8">Permitir alem do perfil</div>
-          <div class="zokyo-permissions-grid">
+      <div class="permission-picker">
+        <div class="permission-picker-panel">
+          <h4>Permitir alem do perfil</h4>
+          <p>Use para liberar uma funcao pontual sem trocar o cargo do usuario.</p>
+          <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-new-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
         </div>
-        <div>
-          <div class="muted-xs mb8">Bloquear mesmo se o perfil permitir</div>
-          <div class="zokyo-permissions-grid">
+        <div class="permission-picker-panel">
+          <h4>Bloquear mesmo se o perfil permitir</h4>
+          <p>Use para reduzir acesso sem criar um perfil novo.</p>
+          <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-new-denied value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
         </div>
@@ -92,16 +109,18 @@
     <div class="form-group"><label>Status</label><select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
     <details class="mb16">
       <summary>Permissoes especificas</summary>
-      <div class="form-row fr2 mt12">
-        <div>
-          <div class="muted-xs mb8">Permitir alem do perfil</div>
-          <div class="zokyo-permissions-grid">
+      <div class="permission-picker">
+        <div class="permission-picker-panel">
+          <h4>Permitir alem do perfil</h4>
+          <p>Use para liberar uma funcao pontual sem trocar o cargo do usuario.</p>
+          <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-edit-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
         </div>
-        <div>
-          <div class="muted-xs mb8">Bloquear mesmo se o perfil permitir</div>
-          <div class="zokyo-permissions-grid">
+        <div class="permission-picker-panel">
+          <h4>Bloquear mesmo se o perfil permitir</h4>
+          <p>Use para reduzir acesso sem criar um perfil novo.</p>
+          <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-edit-denied value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
         </div>
@@ -129,6 +148,17 @@ function setPermissions(selector, values) {
   document.querySelectorAll(selector).forEach((item) => {
     item.checked = selected.has(item.value);
   });
+}
+
+function abrirNovoUsuario() {
+  document.getElementById('n-nome').value = '';
+  document.getElementById('n-email').value = '';
+  document.getElementById('n-senha').value = '';
+  document.getElementById('n-nivel').selectedIndex = 0;
+  setPermissions('[data-new-extra]', []);
+  setPermissions('[data-new-denied]', []);
+  document.getElementById('novo-err').classList.add('hidden');
+  document.getElementById('modal-novo').classList.add('show');
 }
 
 function editarUsuario(u) {
@@ -197,7 +227,7 @@ document.addEventListener('click', (event) => {
   const element = event.target.closest('[data-action]');
   if (!element) return;
   const action = element.getAttribute('data-action');
-  if (action === 'usuario-novo') return document.getElementById('modal-novo').classList.add('show');
+  if (action === 'usuario-novo') return abrirNovoUsuario();
   if (action === 'usuario-novo-fechar') return document.getElementById('modal-novo').classList.remove('show');
   if (action === 'usuario-criar') return criarUsuario();
   if (action === 'usuario-editar-fechar') return document.getElementById('modal-editar').classList.remove('show');

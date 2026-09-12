@@ -1,0 +1,45 @@
+<section class="admin-kpis" aria-label="Resumo da plataforma">
+  {% for label, value, meta, color, filter in [
+    ('Empresas', summary.organizations, (summary.active_organizations|string) ~ ' ativas', 'blue', ''),
+    ('Assinaturas em dia', summary.active_subscriptions, (summary.trialing|string) ~ ' em período de teste', 'green', 'active'),
+    ('Contas cadastradas', summary.total_users, 'Usuários das empresas', 'amber', ''),
+    ('Assinaturas pendentes', summary.past_due + summary.suspended, (summary.past_due|string) ~ ' em atraso · ' ~ (summary.suspended|string) ~ ' suspensas', 'red', 'past_due')
+  ] %}
+  <a class="stat-card c-{{ color }}" href="{{ url_for('platform.index', view='organizations', status=filter) }}">
+    <div class="stat-label">{{ label }}</div>
+    <div class="stat-value">{{ value }}</div>
+    <div class="stat-meta">{{ meta }}</div>
+  </a>
+  {% endfor %}
+</section>
+<div class="admin-overview-grid">
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Últimas empresas</h2><a href="{{ url_for('platform.index', view='organizations') }}">Ver todas</a></div>
+    {% if organizations %}
+    <div class="admin-recent-list">
+      {% for org in (organizations|sort(attribute='id', reverse=true))[:5] %}
+      {% set subscription = subscriptions_by_org.get(org.id) %}
+      <a class="admin-recent-row" href="{{ url_for('platform.index', view='company', organization_id=org.id) }}">
+        <span class="admin-company-avatar" aria-hidden="true">{{ org.nome[:2]|upper }}</span>
+        <span class="admin-company-name"><strong>{{ org.nome }}</strong><small>{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}</small></span>
+        <span class="badge {{ subscription_status_badges.get(subscription.status, 'b-gray') if subscription else 'b-gray' }}">{{ subscription_status_labels.get(subscription.status, subscription.status) if subscription else 'Sem assinatura' }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="admin-empty">
+      <svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>
+      <h3>Nenhuma empresa cadastrada</h3>
+      <a class="btn btn-outline" href="{{ url_for('platform.index', view='new-company') }}">Cadastrar primeira empresa</a>
+    </div>
+    {% endif %}
+  </section>
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Acompanhamento</h2></div>
+    <a class="admin-status-row" href="{{ url_for('platform.index', view='organizations', status='past_due') }}"><span>Mensalidades em atraso</span><span class="badge {{ 'b-amber' if summary.past_due else 'b-gray' }}">{{ summary.past_due }}</span></a>
+    <a class="admin-status-row" href="{{ url_for('platform.index', view='organizations', status='suspended') }}"><span>Assinaturas suspensas</span><span class="badge {{ 'b-red' if summary.suspended else 'b-gray' }}">{{ summary.suspended }}</span></a>
+    <a class="admin-status-row" href="{{ url_for('platform.index', view='domains', status='dns_pending') }}"><span>Domínios pendentes</span><span class="badge {{ 'b-amber' if summary.dns_pending else 'b-gray' }}">{{ summary.dns_pending }}</span></a>
+    <div class="admin-status-row"><span>Provisionamento DNS</span><span class="badge {{ 'b-green' if dns.ready else 'b-amber' }}">{{ dns.mode_label if dns.ready else 'Não configurado' }}</span></div>
+    <div class="admin-domain-summary"><span>Domínio da plataforma</span><strong>{{ base_domain }}</strong><a href="{{ url_for('platform.index', view='domains') }}">Gerenciar domínios</a></div>
+  </section>
+</div>

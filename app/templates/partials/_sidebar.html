@@ -2,17 +2,24 @@
   {% set nav_active = active|default(request.endpoint, true) %}
   {% set nav_endpoint = request.endpoint or '' %}
   {% set nav_path = request.path or '' %}
-  {% set brand_name = cfg.nome_empresa if cfg else APP_NAME %}
+  {% set brand_name = APP_SHORT_NAME if platform_workspace else (cfg.nome_empresa if cfg else APP_NAME) %}
 
   <div class="logo-area">
     <div class="logo-content">
       <div class="logo-brand" title="{{ brand_name }}">{{ brand_name }}</div>
-      <div class="logo-tag">Assistência técnica</div>
+      <div class="logo-tag">{{ 'Administração global' if platform_workspace else 'Assistência técnica' }}</div>
     </div>
     <button type="button" class="sidebar-close" data-action="close-sidebar" aria-label="Fechar menu">x</button>
   </div>
 
   <nav aria-label="Navegação principal">
+    {% if platform_workspace %}
+    <form class="sidebar-search" action="{{ url_for('platform.index') }}" method="GET">
+      <input type="hidden" name="view" value="organizations">
+      <button type="submit" aria-label="Buscar empresa"><svg class="ui-icon" aria-hidden="true"><use href="#i-search"></use></svg></button>
+      <input type="search" name="q" aria-label="Buscar empresa" placeholder="Buscar empresa" autocomplete="off" value="{{ search_query|default('') }}">
+    </form>
+    {% else %}
     <form class="sidebar-search" action="{{ url_for('pages.zokyo_pesquisar') }}" method="GET">
       <button type="submit" aria-label="Pesquisar"><svg class="ui-icon" aria-hidden="true"><use href="#i-search"></use></svg></button>
       <input type="search" name="termo" placeholder="Buscar cliente, OS ou produto" autocomplete="off">
@@ -185,13 +192,24 @@
       </div>
     </section>
     {% endif %}
+    {% endif %}
+    {% if can_manage_platform %}
+      {% include 'admin/partials/_module_nav.html' %}
+    {% endif %}
   </nav>
 
   <div class="sidebar-bottom">
+    {% if not platform_workspace %}
     <a class="nav-item {{ 'active' if active == 'ajuda' }}" href="{{ url_for('pages.ajuda') }}">
       <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-help"></use></svg></span>
       Ajuda
     </a>
+    {% elif current_user.organization_id %}
+    <a class="nav-item" href="{{ url_for('pages.dashboard') }}">
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-home"></use></svg></span>
+      Minha empresa
+    </a>
+    {% endif %}
     <form method="POST" action="{{ url_for('auth.logout') }}" class="sidebar-logout-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <button class="nav-item" type="submit">

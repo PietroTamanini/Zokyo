@@ -1,0 +1,38 @@
+<div class="admin-plans-grid">
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Planos cadastrados</h2></div>
+    {% for plan in plans %}
+    <article class="admin-plan-item">
+      <div class="admin-plan-header"><h3>{{ plan.nome }}</h3><span class="badge {{ 'b-green' if plan.ativo else 'b-gray' }}">{{ 'Ativo' if plan.ativo else 'Inativo' }}</span></div>
+      <div class="admin-plan-price">R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}<small>/mês</small></div>
+      <dl class="admin-definition-list">
+        {% for key, label in [('max_users', 'Usuários'), ('max_clients', 'Clientes'), ('max_open_orders', 'OS abertas'), ('max_storage_mb', 'Armazenamento (MB)')] %}
+        <div><dt>{{ label }}</dt><dd>{{ plan.limites.get(key) if plan.limites and plan.limites.get(key) is not none else 'Sem limite' }}</dd></div>
+        {% endfor %}
+      </dl>
+    </article>
+    {% else %}<div class="admin-empty"><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg><h3>Nenhum plano cadastrado</h3></div>{% endfor %}
+  </section>
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Novo plano</h2></div>
+    <form method="POST" action="{{ url_for('platform.create_plan') }}" class="admin-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row fr2">
+        <div class="form-group"><label for="plan-code">Código</label><input id="plan-code" name="code" required placeholder="pro"></div>
+        <div class="form-group"><label for="plan-name">Nome</label><input id="plan-name" name="nome" required placeholder="Profissional"></div>
+      </div>
+      <div class="form-group"><label for="plan-price">Mensalidade (R$)</label><input id="plan-price" type="number" min="0" step="0.01" name="preco_mensal" value="0.00" required></div>
+      <fieldset class="admin-fieldset"><legend>Limites por empresa</legend>
+        <div class="form-row fr2">
+          <div class="form-group"><label for="plan-users">Usuários</label><input id="plan-users" type="number" min="0" name="max_users" placeholder="Sem limite"></div>
+          <div class="form-group"><label for="plan-clients">Clientes</label><input id="plan-clients" type="number" min="0" name="max_clients" placeholder="Sem limite"></div>
+        </div>
+        <div class="form-row fr2">
+          <div class="form-group"><label for="plan-orders">OS abertas</label><input id="plan-orders" type="number" min="0" name="max_open_orders" placeholder="Sem limite"></div>
+          <div class="form-group"><label for="plan-storage">Armazenamento (MB)</label><input id="plan-storage" type="number" min="0" name="max_storage_mb" placeholder="Sem limite"></div>
+        </div>
+      </fieldset>
+      <div class="admin-form-footer"><button class="btn btn-primary" type="submit">Criar plano</button></div>
+    </form>
+  </section>
+</div>

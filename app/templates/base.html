@@ -19,7 +19,7 @@
   <style nonce="{{ csp_nonce }}">[data-theme="dark"],[data-theme="light"]{--blue:{{ PRIMARY_COLOR }};--indigo:{{ ACCENT_COLOR }};}</style>
   {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body{% if platform_workspace %} class="platform-workspace"{% endif %}>
 <svg class="icon-sprite" aria-hidden="true" focusable="false">
   <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
@@ -52,9 +52,24 @@
   <div class="topbar">
     <div class="topbar-left">
       <button type="button" class="hamburger" data-action="toggle-sidebar" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false"><svg class="ui-icon" aria-hidden="true"><use href="#i-menu"></use></svg></button>
-      <div class="breadcrumb"><a href="{{ url_for('pages.dashboard') }}">Início</a> / <span class="ca">{% block breadcrumb %}—{% endblock %}</span></div>
+      <div class="breadcrumb"><a href="{{ url_for('platform.index') if platform_workspace else url_for('pages.dashboard') }}">Início</a> / <span class="ca">{% block breadcrumb %}—{% endblock %}</span></div>
     </div>
     <div class="topbar-right">
+      {% if platform_workspace %}
+      <span class="badge b-blue">Admin global</span>
+      <nav class="topbar-menu-icons" aria-label="Conta">
+        <details>
+          <summary aria-label="Conta do administrador"><svg class="ui-icon" aria-hidden="true"><use href="#i-user"></use></svg></summary>
+          <div class="topbar-dropdown">
+            <div class="admin-account-info"><strong>{{ current_user.nome }}</strong><span>{{ current_user.email }}</span></div>
+            <form method="POST" action="{{ url_for('auth.logout') }}" class="topbar-dropdown-form">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button type="submit">Sair do sistema</button>
+            </form>
+          </div>
+        </details>
+      </nav>
+      {% else %}
       <nav class="topbar-shortcuts" aria-label="Atalhos do sistema">
         <a href="{{ url_for('pages.clientes') }}">Clientes</a>
         <a href="{{ url_for('pages.estoque') }}">Produtos</a>
@@ -99,6 +114,7 @@
           </div>
         </details>
       </nav>
+      {% endif %}
       <div class="topbar-user">
         <span class="topbar-greeting" id="td-date"></span>
         <strong>{{ current_user.nome if current_user else 'Usuário' }}</strong>
@@ -243,6 +259,7 @@ function toggleTheme() {
 
 // ── Date + Clock ─────────────────────────────────────────────
 // Zokyo shortcuts
+{% if not platform_workspace %}
 (function(){
   const shortcuts = {
     F1: "{{ url_for('pages.clientes') }}",
@@ -261,6 +278,7 @@ function toggleTheme() {
     window.location.href = target;
   });
 })();
+{% endif %}
 
 (function(){
   const el = document.getElementById('td-date');

@@ -1,0 +1,14 @@
+<section class="nav-module" data-nav-module="plataforma">
+  <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-plataforma">
+    <span>Admin global</span><span class="nav-chevron" aria-hidden="true">v</span>
+  </button>
+  <div class="nav-module-links" id="nav-plataforma">
+    {% for view, label, icon in [('overview', 'Visão geral', 'home'), ('organizations', 'Empresas', 'users'), ('plans', 'Planos', 'dollar'), ('domains', 'Domínios', 'settings')] %}
+      {% set selected = platform_workspace and (admin_view|default('overview') == view or (view == 'organizations' and admin_view|default('') in ['company', 'new-company'])) %}
+      <a class="nav-item {{ 'active' if selected }}" href="{{ url_for('platform.index', view=view) }}" {% if selected %}aria-current="page"{% endif %}>
+        <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-{{ icon }}"></use></svg></span>
+        {{ label }}
+      </a>
+    {% endfor %}
+  </div>
+</section>

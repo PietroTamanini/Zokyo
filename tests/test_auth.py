@@ -61,7 +61,9 @@ def test_primeiro_acesso_cria_admin_da_plataforma():
     })
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/platform")
-    assert client.get("/").status_code == 404
+    home = client.get("/")
+    assert home.status_code == 302
+    assert home.headers["Location"].endswith("/platform")
     assert client.get("/platform").status_code == 200
     with app.app_context():
         assert Configuracao.query.count() == 0

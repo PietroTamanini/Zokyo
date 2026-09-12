@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block extra_css %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/admin.css', v=3) }}">
+{% endblock %}
+{% block extra_scripts %}
+{{ super() }}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/admin.js', v=1) }}" defer></script>
+{% endblock %}

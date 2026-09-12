@@ -98,6 +98,7 @@ def create_app(config_name="default"):
     def inject_globals():
         from flask import session as _s
 
+        from app.admin.security import can_manage_platform
         from app.models import Configuracao, Usuario
         usuario = None
         if "usuario_id" in _s:
@@ -124,6 +125,12 @@ def create_app(config_name="default"):
             cfg=cfg,
             is_admin=(nivel == "admin"),
             is_financeiro=(nivel in ("admin", "financeiro")),
+            can_manage_platform=can_manage_platform(usuario),
+            platform_workspace=ep in {
+                "platform.index", "platform.create_organization", "platform.update_organization",
+                "platform.create_plan", "platform.create_tenant_admin", "platform.sync_dns",
+                "platform.reset_tenant_admin_password", "platform.assign_subscription",
+            } or bool(usuario and usuario.is_platform_admin and not usuario.organization_id),
         )
 
     @app.context_processor

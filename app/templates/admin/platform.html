@@ -1,0 +1,36 @@
+{% extends 'admin/base.html' %}
+{% set titles = {'overview': 'Visão geral', 'organizations': 'Empresas', 'plans': 'Planos', 'domains': 'Domínios', 'new-company': 'Nova empresa', 'company': 'Gerenciar empresa'} %}
+{% block title %}{{ titles[admin_view] }} | Admin - {{ APP_SHORT_NAME }}{% endblock %}
+{% block breadcrumb %}Admin / {{ titles[admin_view] }}{% endblock %}
+{% block content %}
+<div class="admin-workspace">
+  <header class="page-header admin-page-header">
+    <div>
+      <div class="admin-eyebrow">Admin global</div>
+      <h1 class="page-title">{{ org.nome if admin_view == 'company' else titles[admin_view] }}</h1>
+      <p class="page-sub">{% if admin_view == 'overview' %}{{ summary.organizations }} empresas &middot; {{ summary.active_subscriptions }} assinaturas em dia{% elif admin_view == 'organizations' %}{{ result_count }} empresas{% elif admin_view == 'domains' %}{{ base_domain }}{% elif admin_view == 'plans' %}{{ plans|length }} planos cadastrados{% elif admin_view == 'company' %}{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}{% endif %}</p>
+    </div>
+    <div class="admin-header-actions">
+      {% if admin_view in ['company', 'new-company'] %}
+      <a class="btn btn-outline" href="{{ url_for('platform.index', view='organizations') }}">Voltar para empresas</a>
+      {% else %}
+      <a class="btn btn-primary" href="{{ url_for('platform.index', view='new-company') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>Nova empresa</a>
+      {% endif %}
+    </div>
+  </header>
+  {% if admin_view == 'overview' %}
+    {% include 'admin/partials/_overview.html' %}
+  {% elif admin_view == 'organizations' %}
+    {% include 'admin/partials/_organizations.html' %}
+  {% elif admin_view == 'new-company' %}
+    {% include 'admin/partials/_create_company.html' %}
+  {% elif admin_view == 'plans' %}
+    {% include 'admin/partials/_plans.html' %}
+  {% elif admin_view == 'domains' %}
+    {% include 'admin/partials/_dns.html' %}
+  {% elif admin_view == 'company' %}
+    {% set subscription = subscriptions_by_org.get(org.id) %}
+    {% include 'admin/partials/_organization_actions.html' %}
+  {% endif %}
+</div>
+{% endblock %}

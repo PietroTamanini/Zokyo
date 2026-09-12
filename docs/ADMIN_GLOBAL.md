@@ -2,6 +2,16 @@
 
 O primeiro acesso cria um admin global sem empresa. Esse usuario entra em `/platform` e gerencia empresas, planos, assinaturas, DNS e admins de cada empresa sem acessar dados internos dos tenants.
 
+## Estrutura modular
+
+- `app/routes/platform.py`: somente rotas HTTP e compatibilidade dos endpoints `platform.*`.
+- `app/admin/security.py`: autorizacao do admin global e senhas temporarias.
+- `app/admin/dashboard.py`: consultas agregadas, KPIs, DNS e contexto da tela.
+- `app/admin/organizations.py`: criacao/edicao de empresas, admins de tenant, reset de senha e DNS.
+- `app/admin/plans.py`: planos, assinatura sandbox e JSON de planos.
+- `app/templates/admin/`: tela do admin global separada por partials.
+- `app/static/css/components/admin.css`: estilos do admin global e telas administrativas.
+
 ## Subdominio automatico
 
 O caminho mais simples para `empresa.tamanini.dev.br` e usar wildcard DNS:
@@ -39,6 +49,7 @@ O token precisa permitir editar DNS da zona `tamanini.dev.br`. No painel da Clou
 
 - `/platform`: painel global.
 - Criar empresa: gera slug automatico pelo nome quando o campo subdominio fica vazio.
+- Senha inicial: se ficar vazia, o sistema gera uma senha temporaria forte e mostra no aviso de sucesso.
 - Plano e status: podem ser alterados na tabela de empresas.
 - Empresa inativa: bloqueia login daquele tenant.
 - `past_due`, `suspended` e `cancelled`: bloqueiam novas escritas do tenant.

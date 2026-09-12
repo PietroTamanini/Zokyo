@@ -97,6 +97,56 @@ def test_painel_global_aceita_platform_admin_sem_allowlist(monkeypatch):
     monkeypatch.delenv("PLATFORM_ADMIN_EMAILS", raising=False)
     assert client.get("/platform").status_code == 200
     assert client.get("/platform/subscription").status_code == 404
+    home = client.get("/", follow_redirects=False)
+    assert home.status_code == 302
+    assert home.headers["Location"].endswith("/platform")
+    response = client.get("/clientes", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/platform")
+    with client.session_transaction() as session:
+        session["_csrf_token"] = "csrf"
+    logout = client.post("/logout", data={"_csrf_token": "csrf"}, follow_redirects=False)
+    assert logout.status_code == 302
+
+
+def test_painel_global_usa_dashboard_compartilhada_e_modulos(monkeypatch):
+    app, admin_id = make_app()
+    with app.app_context():
+        admin = db.session.get(Usuario, admin_id)
+        admin.is_platform_admin = True
+        admin.organization_id = None
+        db.session.commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+    response = client.get("/platform?view=organizations&status=trialing")
+    body = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Admin global" in body
+    assert "Empresas" in body
+    assert "Billing" in body
+    assert "/clientes" not in body
+    assert "/ordens" not in body
+
+    active = client.get("/platform?view=organizations&status=active")
+    assert active.status_code == 200
+    assert "Billing" not in active.get_data(as_text=True)
+
+
+def test_painel_global_detalhe_empresa_e_404_isolado(monkeypatch):
+    app, admin_id = make_app()
+    monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+    detail = client.get("/platform?view=company&organization_id=1")
+    assert detail.status_code == 200
+    assert "Gerenciar empresa" in detail.get_data(as_text=True)
+    assert client.get("/platform?view=company&organization_id=999").status_code == 404
 
 
 def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):

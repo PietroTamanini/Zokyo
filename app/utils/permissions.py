@@ -233,6 +233,7 @@ LAUDOS_EXACT_POLICIES = {
 }
 
 GLOBAL_PLATFORM_ENDPOINTS = {
+    "auth.logout",
     "platform.index",
     "platform.create_organization",
     "platform.update_organization",
@@ -419,6 +420,14 @@ def _deny(status_code: int, message: str, permission: str | None = None):
     abort(status_code)
 
 
+def _is_platform_admin_without_tenant(user) -> bool:
+    return bool(getattr(user, "is_platform_admin", False) and not getattr(user, "organization_id", None))
+
+
+def _is_platform_endpoint(endpoint: str | None) -> bool:
+    return (endpoint or "").startswith("platform.")
+
+
 def enforce_request_authorization():
     if request.method == "OPTIONS":
         return None
@@ -443,6 +452,8 @@ def enforce_request_authorization():
         return _deny(403, "Acesso negado", permission)
 
     if not abac_allows_request(user):
+        if _is_platform_admin_without_tenant(user) and not _is_platform_endpoint(endpoint) and not _wants_json_response():
+            return redirect(url_for("platform.index"))
         current_app.logger.warning(
             "ABAC negou acesso cross-tenant: usuario=%s endpoint=%s view_args=%s",
             getattr(user, "id", None),

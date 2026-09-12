@@ -1,0 +1,58 @@
+<div class="admin-detail-grid">
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Empresa e assinatura</h2><span class="badge {{ 'b-green' if org.ativo else 'b-gray' }}">{{ 'Ativa' if org.ativo else 'Inativa' }}</span></div>
+    <form method="POST" action="{{ url_for('platform.update_organization', organization_id=org.id) }}" class="admin-form">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label for="edit-company-name">Nome da empresa</label><input id="edit-company-name" name="name" value="{{ org.nome }}" required maxlength="200"></div>
+      <div class="form-row fr2">
+        <div class="form-group"><label for="edit-plan">Plano</label><select id="edit-plan" name="plan_id">
+          {% if not subscription %}<option value="">Sem plano</option>{% endif %}
+          {% for plan in plans if plan.ativo or (subscription and plan.id == subscription.plan_id) %}<option value="{{ plan.id }}" {{ 'selected' if subscription and subscription.plan_id == plan.id }}>{{ plan.nome }}</option>{% endfor %}
+        </select></div>
+        <div class="form-group"><label for="edit-status">Situação da assinatura</label><select id="edit-status" name="status">
+          {% for item in subscription_statuses %}<option value="{{ item }}" {{ 'selected' if subscription and subscription.status == item }}>{{ subscription_status_labels.get(item, item) }}</option>{% endfor %}
+        </select></div>
+      </div>
+      <dl class="admin-definition-list">
+        <div><dt>Mensalidade</dt><dd>{{ ('R$ ' ~ ('%.2f'|format(subscription.plan.preco_mensal or 0)|replace('.', ','))) if subscription else 'Sem plano' }}</dd></div>
+        <div><dt>Fim do período de teste</dt><dd>{{ subscription.trial_fim.strftime('%d/%m/%Y') if subscription and subscription.trial_fim else '-' }}</dd></div>
+        <div><dt>Fim do período atual</dt><dd>{{ subscription.periodo_fim.strftime('%d/%m/%Y') if subscription and subscription.periodo_fim else '-' }}</dd></div>
+        <div><dt>Contas cadastradas</dt><dd>{{ usage[org.id].users }}</dd></div>
+        <div><dt>Armazenamento utilizado</dt><dd>{{ '%.2f'|format(usage[org.id].storage_bytes / 1048576)|replace('.', ',') }} MB</dd></div>
+      </dl>
+      <div class="admin-toggle-stack"><label class="check-inline"><input class="input-check" type="checkbox" name="active" {{ 'checked' if org.ativo }}> Empresa ativa</label></div>
+      <div class="admin-form-footer"><button class="btn btn-primary" type="submit">Salvar alterações</button></div>
+    </form>
+  </section>
+  <section class="admin-section">
+    <div class="admin-section-heading"><h2>Responsáveis</h2><span class="muted-xs">{{ owners.get(org.id, [])|length }} administradores</span></div>
+    <div class="admin-owner-list">
+      {% for owner in owners.get(org.id, []) %}
+      <div class="admin-owner-row">
+        <div><strong>{{ owner.name }}</strong><small>{{ owner.email }}</small></div>
+        <form method="POST" action="{{ url_for('platform.reset_tenant_admin_password', user_id=owner.id) }}" data-confirm="Redefinir a senha de {{ owner.name }} e encerrar suas sessões?">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-ghost" type="submit" title="Redefinir senha de {{ owner.name }}" aria-label="Redefinir senha de {{ owner.name }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-lock"></use></svg></button>
+        </form>
+      </div>
+      {% else %}<p class="muted-xs">Nenhum responsável cadastrado.</p>{% endfor %}
+    </div>
+    <details class="admin-disclosure">
+      <summary>Adicionar administrador</summary>
+      <form method="POST" action="{{ url_for('platform.create_tenant_admin', organization_id=org.id) }}" class="admin-form" autocomplete="off">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group"><label for="new-owner-name">Nome completo</label><input id="new-owner-name" name="owner_name" required minlength="2" maxlength="120"></div>
+        <div class="form-group"><label for="new-owner-email">E-mail</label><input id="new-owner-email" type="email" name="owner_email" required autocomplete="off"></div>
+        <div class="form-group"><label for="new-owner-password">Senha inicial</label><input id="new-owner-password" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"></div>
+        <button class="btn btn-outline" type="submit">Adicionar administrador</button>
+      </form>
+    </details>
+    <div class="admin-section-heading admin-domain-heading"><h2>Domínio</h2></div>
+    <dl class="admin-definition-list">
+      <div><dt>Endereço</dt><dd>{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}</dd></div>
+      <div><dt>Situação</dt><dd><span class="badge {{ 'b-green' if org.dns_status == 'active' else 'b-amber' }}">{{ {'active': 'Ativo', 'error': 'Falha', 'manual': 'Manual', 'pending': 'Pendente'}.get(org.dns_status, 'Pendente') }}</span></dd></div>
+    </dl>
+    {% if org.dns_last_error %}<p class="admin-inline-notice">{{ org.dns_last_error }}</p>{% endif %}
+    <form method="POST" action="{{ url_for('platform.sync_dns', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Sincronizar DNS</button></form>
+  </section>
+</div>

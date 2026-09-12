@@ -1,0 +1,24 @@
+<section class="admin-section" aria-label="Empresas cadastradas">
+  {% include 'admin/partials/_filters.html' %}
+  <div class="table-wrap admin-table-wrap" tabindex="0" role="region" aria-label="Lista de empresas">
+    <table class="admin-table">
+      <thead><tr><th>Empresa</th><th>Plano e assinatura</th><th>Acesso</th><th>Contas</th><th>Domínio</th><th><span class="sr-only">Ações</span></th></tr></thead>
+      <tbody>
+      {% for org in filtered_organizations %}
+        {% set subscription = subscriptions_by_org.get(org.id) %}
+        <tr class="tr-static">
+          <td><a class="admin-table-name" href="{{ url_for('platform.index', view='company', organization_id=org.id) }}">{{ org.nome }}</a><div class="muted-xs">{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}</div></td>
+          <td><div>{{ subscription.plan.nome if subscription else 'Sem plano' }}</div><span class="badge {{ subscription_status_badges.get(subscription.status, 'b-gray') if subscription else 'b-gray' }}">{{ subscription_status_labels.get(subscription.status, subscription.status) if subscription else 'Sem assinatura' }}</span></td>
+          <td><span class="badge {{ 'b-green' if org.ativo else 'b-gray' }}">{{ 'Ativa' if org.ativo else 'Inativa' }}</span></td>
+          <td>{{ usage[org.id].users }}</td>
+          <td><span class="badge {{ 'b-green' if org.dns_status == 'active' else ('b-red' if org.dns_status == 'error' else 'b-amber') }}">{{ {'active': 'Ativo', 'error': 'Falha', 'manual': 'Manual', 'pending': 'Pendente'}.get(org.dns_status, 'Pendente') }}</span></td>
+          <td><a class="btn btn-sm btn-outline" href="{{ url_for('platform.index', view='company', organization_id=org.id) }}" aria-label="Gerenciar {{ org.nome }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Gerenciar</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6"><div class="admin-empty"><h3>{{ 'Nenhuma empresa encontrada' if search_query or status_filter else 'Nenhuma empresa cadastrada' }}</h3><a href="{{ url_for('platform.index', view='organizations') if search_query or status_filter else url_for('platform.index', view='new-company') }}">{{ 'Limpar filtros' if search_query or status_filter else 'Cadastrar primeira empresa' }}</a></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include 'admin/partials/_pagination.html' %}
+</section>

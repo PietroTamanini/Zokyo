@@ -1,0 +1,7 @@
+<nav class="admin-pagination" aria-label="Paginação de empresas">
+  <span>{{ result_count }} resultados{% if page_count > 1 %} &middot; Página {{ page }} de {{ page_count }}{% endif %}</span>
+  {% if page_count > 1 %}<div>
+    {% if page > 1 %}<a class="btn btn-sm btn-outline" href="{{ url_for('platform.index', view=admin_view, q=search_query, status=status_filter, page=page-1) }}" rel="prev">Anterior</a>{% endif %}
+    {% if page < page_count %}<a class="btn btn-sm btn-outline" href="{{ url_for('platform.index', view=admin_view, q=search_query, status=status_filter, page=page+1) }}" rel="next">Próxima</a>{% endif %}
+  </div>{% endif %}
+</nav>

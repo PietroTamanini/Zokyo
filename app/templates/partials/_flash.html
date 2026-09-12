@@ -8,6 +8,8 @@
         </div>
       {% endfor %}
     </div>
+    {% if not platform_workspace %}
     <script nonce="{{ csp_nonce }}">setTimeout(()=>{const el=document.getElementById('flash-container');if(el){el.classList.add('fade-out');setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},450);}},7000);</script>
+    {% endif %}
   {% endif %}
 {% endwith %}

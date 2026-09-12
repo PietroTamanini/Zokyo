@@ -1,0 +1,30 @@
+<section class="admin-section admin-dns-overview">
+  <div class="admin-section-heading"><h2>Provisionamento de subdomínios</h2><span class="badge {{ 'b-green' if dns.ready else 'b-amber' }}">{{ 'Configurado' if dns.ready else 'Configuração pendente' }}</span></div>
+  <dl class="admin-dns-facts">
+    <div><dt>Domínio base</dt><dd>{{ base_domain }}</dd></div>
+    <div><dt>Modo</dt><dd>{{ dns.mode_label }}</dd></div>
+    <div><dt>Destino</dt><dd>{{ dns.target or 'Não definido' }}</dd></div>
+    <div><dt>Endereços</dt><dd>*.{{ base_domain }}</dd></div>
+  </dl>
+  {% if not dns.ready %}<p class="admin-inline-notice">DNS automático não configurado no servidor. Novos subdomínios dependem da configuração do provedor.</p>{% endif %}
+</section>
+<section class="admin-section">
+  <div class="admin-section-heading"><h2>Domínios das empresas</h2><span class="muted-xs">{{ summary.dns_pending }} pendentes</span></div>
+  {% include 'admin/partials/_filters.html' %}
+  <div class="table-wrap admin-table-wrap" tabindex="0" role="region" aria-label="Lista de domínios">
+    <table class="admin-table admin-domains-table">
+      <thead><tr><th>Empresa</th><th>Domínio</th><th>Situação</th><th><span class="sr-only">Ações</span></th></tr></thead>
+      <tbody>
+        {% for org in filtered_organizations %}
+        <tr class="tr-static">
+          <td><a class="admin-table-name" href="{{ url_for('platform.index', view='company', organization_id=org.id) }}">{{ org.nome }}</a></td>
+          <td class="td-mono">{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}{% if org.dns_last_error %}<div class="admin-error-text">{{ org.dns_last_error }}</div>{% endif %}</td>
+          <td><span class="badge {{ 'b-green' if org.dns_status == 'active' else ('b-red' if org.dns_status == 'error' else 'b-amber') }}">{{ {'active': 'Ativo', 'error': 'Falha', 'manual': 'Manual', 'pending': 'Pendente'}.get(org.dns_status, 'Pendente') }}</span></td>
+          <td><form method="POST" action="{{ url_for('platform.sync_dns', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit" aria-label="Sincronizar DNS de {{ org.nome }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Sincronizar</button></form></td>
+        </tr>
+        {% else %}<tr><td colspan="4"><div class="admin-empty"><h3>{{ 'Nenhum domínio encontrado' if search_query or status_filter else 'Nenhum domínio cadastrado' }}</h3></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include 'admin/partials/_pagination.html' %}
+</section>
