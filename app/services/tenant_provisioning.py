@@ -30,6 +30,40 @@ def normalize_slug(value: str) -> str:
     return text
 
 
+def suggest_slug(value: str) -> str:
+    text = str(value or "").strip().lower()
+    replacements = {
+        "á": "a", "à": "a", "ã": "a", "â": "a", "ä": "a",
+        "é": "e", "è": "e", "ê": "e", "ë": "e",
+        "í": "i", "ì": "i", "î": "i", "ï": "i",
+        "ó": "o", "ò": "o", "õ": "o", "ô": "o", "ö": "o",
+        "ú": "u", "ù": "u", "û": "u", "ü": "u",
+        "ç": "c", "ñ": "n",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    text = re.sub(r"[^a-z0-9-]+", "-", text)
+    text = re.sub(r"-{2,}", "-", text).strip("-")
+    return text[:80].strip("-")
+
+
+def unique_slug_for_name(name: str) -> str:
+    base = suggest_slug(name)
+    if not base:
+        raise TenantProvisioningError("Informe um subdominio ou um nome de empresa valido.")
+    base = normalize_slug(base)
+    candidate = base
+    suffix = 2
+    while (
+        Organization.query.execution_options(include_all_tenants=True).filter_by(slug=candidate).first()
+        or Organization.query.execution_options(include_all_tenants=True).filter_by(subdomain=candidate).first()
+    ):
+        suffix_text = f"-{suffix}"
+        candidate = f"{base[:80 - len(suffix_text)]}{suffix_text}"
+        suffix += 1
+    return candidate
+
+
 def tenant_hostname(slug: str, base_domain: str | None = None) -> str:
     base = (base_domain or _config_value("TENANT_BASE_DOMAIN") or "tamanini.dev.br").strip().lower().strip(".")
     return f"{normalize_slug(slug)}.{base}"
@@ -68,7 +102,7 @@ def provision_tenant(
     provision_dns: bool = True,
 ) -> tuple[Organization, Usuario]:
     organization_name = sanitize_text(name, max_length=200)
-    normalized_slug = normalize_slug(slug)
+    normalized_slug = normalize_slug(slug) if str(slug or "").strip() else unique_slug_for_name(organization_name)
     owner_name, owner_email = _validate_owner(owner_name, owner_email, owner_password, owner_password is not None)
     if not organization_name:
         raise TenantProvisioningError("Nome da empresa e obrigatorio.")
@@ -129,6 +163,15 @@ def provision_tenant(
 
 
 def sync_tenant_dns(organization: Organization) -> bool:
+    mode = (_config_value("TENANT_DNS_MODE") or "manual").strip().lower()
+    if mode == "wildcard":
+        organization.dns_status = "active"
+        organization.dns_last_error = None
+        return True
+    if mode not in {"cloudflare", "api"}:
+        organization.dns_status = "manual"
+        organization.dns_last_error = "Configure TENANT_DNS_MODE=wildcard ou Cloudflare para ativar subdominios automaticos."
+        return False
     token = _config_value("CLOUDFLARE_API_TOKEN")
     zone_id = _config_value("CLOUDFLARE_ZONE_ID")
     target = (_config_value("TENANT_DNS_TARGET") or "").strip()

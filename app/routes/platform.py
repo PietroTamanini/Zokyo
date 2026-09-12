@@ -1,5 +1,6 @@
 """Painel global separado e webhook do provider sandbox."""
 import os
+from collections import defaultdict
 from functools import wraps
 
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
@@ -22,6 +23,7 @@ from app.services.tenant_provisioning import TenantProvisioningError, provision_
 from app.utils.sanitizers import sanitize_text
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
+SUBSCRIPTION_STATUSES = ("trialing", "active", "past_due", "suspended", "cancelled")
 
 
 def global_admin_required(function):
@@ -85,9 +87,39 @@ def index():
             "last_activity": last_activity.get(organization.id),
             "storage_bytes": int(os_storage.get(organization.id, 0) or 0) + int(report_storage.get(organization.id, 0) or 0),
         }
+    owners = defaultdict(list)
+    owner_rows = db.session.execute(
+        db.select(Usuario.organization_id, Usuario.nome, Usuario.email)
+        .where(Usuario.nivel == "admin", Usuario.organization_id.is_not(None))
+        .order_by(Usuario.nome)
+        .execution_options(**options)
+    ).all()
+    for organization_id, name, email in owner_rows:
+        owners[organization_id].append({"name": name, "email": email})
+    subscriptions = OrganizationSubscription.query.all()
+    subscriptions_by_org = {item.organization_id: item for item in subscriptions}
+    summary = {
+        "organizations": len(organizations),
+        "active_organizations": sum(1 for item in organizations if item.ativo),
+        "total_users": sum(item["users"] for item in usage.values()),
+        "total_clients": sum(item["clients"] for item in usage.values()),
+        "total_orders": sum(item["orders"] for item in usage.values()),
+        "past_due": sum(1 for item in subscriptions if item.status == "past_due"),
+        "suspended": sum(1 for item in subscriptions if item.status == "suspended"),
+    }
+    dns_mode = (current_app.config.get("TENANT_DNS_MODE") or "manual").lower()
+    dns_target = current_app.config.get("TENANT_DNS_TARGET") or ""
+    dns_ready = dns_mode == "wildcard" or (
+        dns_mode in {"cloudflare", "api"}
+        and bool(current_app.config.get("CLOUDFLARE_API_TOKEN"))
+        and bool(current_app.config.get("CLOUDFLARE_ZONE_ID"))
+        and bool(dns_target)
+    )
     return render_template(
         "pages/platform.html", organizations=organizations,
-        plans=Plan.query.order_by(Plan.nome).all(), subscriptions=OrganizationSubscription.query.all(), usage=usage,
+        plans=Plan.query.order_by(Plan.nome).all(), subscriptions=subscriptions, subscriptions_by_org=subscriptions_by_org,
+        usage=usage, summary=summary, owners=dict(owners), dns_mode=dns_mode, dns_target=dns_target, dns_ready=dns_ready,
+        subscription_statuses=SUBSCRIPTION_STATUSES,
         base_domain=current_app.config.get("TENANT_BASE_DOMAIN", "tamanini.dev.br"),
     )
 
@@ -130,6 +162,27 @@ def update_organization(organization_id):
     if name:
         organization.nome = name
     organization.ativo = request.form.get("active") == "on"
+    plan_id = request.form.get("plan_id", type=int)
+    status = sanitize_text(request.form.get("status") or "", max_length=30)
+    if plan_id:
+        if status not in SUBSCRIPTION_STATUSES:
+            abort(400)
+        plan = db.session.get(Plan, plan_id)
+        if not plan or not plan.ativo:
+            abort(400)
+        subscription = OrganizationSubscription.query.filter_by(organization_id=organization.id).first()
+        if subscription:
+            subscription.plan_id = plan.id
+            subscription.status = status
+            subscription.provider = subscription.provider or "sandbox"
+        else:
+            db.session.add(OrganizationSubscription(
+                organization_id=organization.id, plan_id=plan.id, provider="sandbox", status=status,
+            ))
+    if request.form.get("sync_dns") == "on":
+        if not organization.custom_domain and organization.subdomain:
+            organization.custom_domain = tenant_hostname(organization.subdomain)
+        sync_tenant_dns(organization)
     db.session.commit()
     return redirect(url_for("platform.index"))
 
@@ -175,7 +228,7 @@ def assign_subscription():
     organization_id = request.form.get("organization_id", type=int)
     plan_id = request.form.get("plan_id", type=int)
     status = sanitize_text(request.form.get("status") or "trialing", max_length=30)
-    if status not in {"trialing", "active", "past_due", "suspended", "cancelled"}:
+    if status not in SUBSCRIPTION_STATUSES:
         abort(400)
     organization = db.session.execute(
         db.select(Organization).where(Organization.id == organization_id).execution_options(include_all_tenants=True)

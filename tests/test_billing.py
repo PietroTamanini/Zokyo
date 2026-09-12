@@ -130,6 +130,34 @@ def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):
         assert subscription.status == "trialing"
 
 
+def test_platform_gera_subdominio_automatico_com_wildcard(monkeypatch):
+    app, admin_id = make_app()
+    app.config.update(TENANT_DNS_MODE="wildcard")
+    monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+    response = client.post("/platform/organizations", data={
+        "_csrf_token": "csrf",
+        "name": "Assistencia Acao",
+        "owner_name": "Dono Acao",
+        "owner_email": "dono-acao@loja.test",
+        "owner_password": "Senha!123",
+        "trial_days": "7",
+        "active": "on",
+        "provision_dns": "on",
+    })
+    assert response.status_code == 302
+    with app.app_context():
+        organization = Organization.query.execution_options(include_all_tenants=True).filter_by(slug="assistencia-acao").one()
+        assert organization.custom_domain == "assistencia-acao.tamanini.dev.br"
+        assert organization.dns_status == "active"
+        assert organization.dns_last_error is None
+
+
 def test_resolve_tenant_por_subdominio_e_bloqueio_central():
     app, _admin_id = make_app()
     with app.app_context():

@@ -92,6 +92,7 @@ class Config:
     RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
     REDIS_URL = os.environ.get("REDIS_URL", "").strip() or None
     TENANT_BASE_DOMAIN = os.environ.get("TENANT_BASE_DOMAIN", "tamanini.dev.br").strip().lower()
+    TENANT_DNS_MODE = os.environ.get("TENANT_DNS_MODE", "manual").strip().lower()
     TENANT_DNS_TARGET = os.environ.get("TENANT_DNS_TARGET", "").strip()
     CLOUDFLARE_API_TOKEN = os.environ.get("CLOUDFLARE_API_TOKEN", "").strip() or None
     CLOUDFLARE_ZONE_ID = os.environ.get("CLOUDFLARE_ZONE_ID", "").strip() or None

@@ -9,7 +9,7 @@ import pyotp
 import app as app_module
 from app import create_app
 from app.extensions import db
-from app.models import EventoLog, Organization, UserSession, Usuario
+from app.models import Configuracao, EventoLog, Organization, UserSession, Usuario
 from app.services.two_factor import consume_recovery_code, decrypt_secret, encrypt_secret, generate_recovery_codes
 
 
@@ -64,6 +64,7 @@ def test_primeiro_acesso_cria_admin_da_plataforma():
     assert client.get("/").status_code == 404
     assert client.get("/platform").status_code == 200
     with app.app_context():
+        assert Configuracao.query.count() == 0
         session_record = UserSession.query.one()
         assert session_record.organization_id is None
         login_event = EventoLog.query.filter_by(tipo="login").one()

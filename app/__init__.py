@@ -87,7 +87,7 @@ def create_app(config_name="default"):
         try:
             from app.models import Configuracao
             cfg = getattr(g, "cfg", None)
-            if cfg is None:
+            if cfg is None and getattr(g, "organization_id", None):
                 cfg = Configuracao.get()
                 g.cfg = cfg
         except Exception:
@@ -110,7 +110,7 @@ def create_app(config_name="default"):
                 app.logger.debug("Não foi possível carregar usuário do contexto.", exc_info=True)
         try:
             cfg = getattr(g, "cfg", None)
-            if cfg is None:
+            if cfg is None and getattr(g, "organization_id", None):
                 cfg = Configuracao.get()
                 g.cfg = cfg
         except Exception:
