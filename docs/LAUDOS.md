@@ -1,6 +1,6 @@
 # Modulo de laudos tecnicos
 
-Estado revisado em 2026-08-27: criação, rascunho, templates, PDF, storage privado e concorrência possuem cobertura automatizada e auditoria visual responsiva. A identidade final do PDF e eventual validade jurídica dependem de homologação externa.
+Estado revisado em 2026-09-15: criação, rascunho, templates, PDF, storage privado local/S3 compatível e concorrência possuem cobertura automatizada e auditoria visual responsiva. A identidade final do PDF e eventual validade jurídica dependem de homologação externa.
 
 O modulo de laudos cria documentos tecnicos vinculados a uma ordem de servico existente. O fluxo atual cobre:
 
@@ -43,9 +43,15 @@ As revisoes `20260711_0001` e `20260712_0002` criam:
 ```env
 REPORTS_UPLOAD_FOLDER=
 REPORTS_PUBLIC_VERIFICATION=true
+S3_BUCKET=
+S3_ENDPOINT_URL=
+S3_REGION=
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_SSE=AES256
 ```
 
-Se `REPORTS_UPLOAD_FOLDER` ficar vazio, os arquivos ficam em `instance/uploads/reports`.
+Se `REPORTS_UPLOAD_FOLDER` ficar vazio, os arquivos ficam em `instance/uploads/reports`. Quando `S3_BUCKET` estiver configurado, fotos e PDFs tambem sao enviados para um backend S3 compativel com criptografia server-side.
 
 ## Regras principais
 
@@ -60,7 +66,7 @@ Se `REPORTS_UPLOAD_FOLDER` ficar vazio, os arquivos ficam em `instance/uploads/r
 
 - uma API JSON dedicada para laudos so deve ser criada quando houver consumidor externo definido;
 - assinatura com validade juridica especifica depende da politica do proprietario e/ou assessoria juridica;
-- armazenamento compativel com S3 pode ser adicionado se o ambiente de producao exigir.
+- homologacao do backend S3 escolhido, se o ambiente de producao exigir storage remoto.
 
 ## Auditoria do storage
 

@@ -173,6 +173,14 @@ def api_v1_regen_token():
     payload = _api_login_payload(usuario)
     if old_record:
         revoke_record(old_record, "token regenerado")
+        registrar(
+            "seguranca",
+            "sessoes",
+            f"Token API regenerado para usuario #{usuario.id}",
+            usuario_id=usuario.id,
+            usuario_nome=usuario.nome,
+            organization_id=usuario.organization_id,
+        )
         db.session.commit()
     return jsonify(payload)
 

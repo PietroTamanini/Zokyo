@@ -161,6 +161,13 @@ def criar():
         )
     except (TypeError, ValueError) as exc:
         return jsonify({"success": False, "erro": str(exc)}), 400
+    ids = ", ".join(f"#{item.id}" for item in created)
+    registrar(
+        "criacao",
+        "financeiro",
+        f"{len(created)} transacao(oes) criada(s): {ids}",
+        f"tipo={data['tipo']}; status={status}",
+    )
     db.session.commit()
     if len(created) == 1:
         return jsonify(created[0].to_dict()), 201
@@ -206,6 +213,7 @@ def atualizar(id):
     if "data_pagamento" in data:
         t.data_pagamento = _parse_date_safe(data["data_pagamento"])
 
+    registrar("edicao", "financeiro", f"Transacao #{id} atualizada")
     db.session.commit()
     return jsonify(t.to_dict())
 
@@ -215,6 +223,7 @@ def atualizar(id):
 def deletar(id):
     t = db.get_or_404(Transacao, id)
     db.session.delete(t)
+    registrar("exclusao", "financeiro", f"Transacao #{id} removida")
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Transação removida"})
 

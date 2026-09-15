@@ -4,7 +4,7 @@ import json
 
 from app import create_app
 from app.extensions import db
-from app.models import BillingEvent, Organization, OrganizationSubscription, Plan, Usuario
+from app.models import BillingEvent, EventoLog, Organization, OrganizationSubscription, Plan, Usuario
 from app.services.billing import assert_limit, assert_write_allowed, ensure_trial_subscription, process_asaas_event
 from app.services.tenant_provisioning import provision_tenant
 
@@ -47,6 +47,10 @@ def test_webhook_sandbox_exige_hmac_e_e_idempotente(monkeypatch):
     with app.app_context():
         assert BillingEvent.query.count() == 1
         assert OrganizationSubscription.query.one().status == "active"
+        event = EventoLog.query.filter_by(modulo="platform", tipo="billing").one()
+        assert event.organization_id == 1
+        assert event.operacao == "Webhook sandbox subscription.activated processado"
+        assert event.descricao == "event_id=evt-1"
 
 
 def test_limites_e_inadimplencia_sao_aplicados():
@@ -180,6 +184,102 @@ def test_platform_cria_empresa_dono_subdominio_e_trial(monkeypatch):
         assert subscription.status == "trialing"
 
 
+def test_platform_audita_plano_e_assinatura_sem_dados_livres(monkeypatch):
+    app, admin_id = make_app()
+    monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+
+    plan_response = client.post("/platform/plans", data={
+        "_csrf_token": "csrf",
+        "code": "Plano Privado",
+        "nome": "Plano com nome livre",
+        "max_users": "3",
+    })
+    assert plan_response.status_code == 302
+    with app.app_context():
+        plan = Plan.query.filter_by(code="plano-privado").one()
+        plan_id = plan.id
+
+    subscription_response = client.post("/platform/subscriptions", data={
+        "_csrf_token": "csrf",
+        "organization_id": "1",
+        "plan_id": str(plan_id),
+        "status": "active",
+    })
+    assert subscription_response.status_code == 302
+
+    with app.app_context():
+        events = EventoLog.query.filter_by(modulo="platform").order_by(EventoLog.id).all()
+        assert [event.tipo for event in events] == ["criacao", "assinatura"]
+        assert events[0].organization_id == 1
+        assert events[0].operacao == f"Plano #{plan_id} criado"
+        assert events[0].descricao == "code=plano-privado"
+        assert events[1].organization_id == 1
+        assert events[1].operacao == "Assinatura da organizacao #1 atualizada"
+        assert events[1].descricao == f"status=active; plan_id={plan_id}"
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "Plano com nome livre" not in combined
+
+
+def test_checkout_e_cancelamento_asaas_geram_auditoria_sem_documento(monkeypatch):
+    app, admin_id = make_app()
+    with app.app_context():
+        plan = Plan.query.filter_by(code="sandbox-basic").one()
+        plan.preco_mensal = 99
+        db.session.commit()
+        plan_id = plan.id
+
+    import app.services.asaas_subscriptions as asaas_subscriptions
+
+    def fake_create(subscription, organization, admin, document, billing_type, trial_days):
+        subscription.provider = "asaas"
+        subscription.external_id = "sub_sensitive"
+        subscription.status = "trialing"
+        return {"id": "sub_sensitive"}
+
+    def fake_cancel(subscription):
+        subscription.status = "cancelled"
+        subscription.cancelar_no_fim = False
+
+    monkeypatch.setattr(asaas_subscriptions, "create_subscription", fake_create)
+    monkeypatch.setattr(asaas_subscriptions, "cancel_subscription", fake_cancel)
+
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["_last_active"] = 9999999999
+        session["_csrf_token"] = "csrf"
+    checkout = client.post("/platform/subscription/checkout", data={
+        "_csrf_token": "csrf",
+        "plan_id": str(plan_id),
+        "cpf_cnpj": "529.982.247-25",
+        "billing_type": "PIX",
+        "trial_days": "7",
+    })
+    cancel = client.post("/platform/subscription/cancel", data={"_csrf_token": "csrf"})
+    assert checkout.status_code == 201
+    assert cancel.status_code == 200
+
+    with app.app_context():
+        events = EventoLog.query.filter_by(modulo="platform").order_by(EventoLog.id).all()
+        assert [event.tipo for event in events] == ["assinatura", "cancelamento"]
+        assert {event.organization_id for event in events} == {1}
+        assert events[0].operacao == "Checkout Asaas criado para organizacao #1"
+        assert events[0].descricao == f"plan_id={plan_id}; status=trialing"
+        assert events[1].operacao == "Assinatura da organizacao #1 cancelada"
+        assert events[1].descricao == "provider=asaas"
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "52998224725" not in combined
+        assert "529.982.247-25" not in combined
+        assert "sub_sensitive" not in combined
+
+
 def test_platform_gera_subdominio_automatico_com_wildcard(monkeypatch):
     app, admin_id = make_app()
     app.config.update(TENANT_DNS_MODE="wildcard")
@@ -290,6 +390,10 @@ def test_trial_automatico_e_webhook_asaas_idempotente(monkeypatch):
         assert processed is True
         assert event.provider == "asaas"
         assert OrganizationSubscription.query.one().status == "active"
+        audit = EventoLog.query.filter_by(modulo="platform", tipo="billing").one()
+        assert audit.organization_id == 1
+        assert audit.operacao == "Webhook Asaas PAYMENT_RECEIVED processado"
+        assert audit.descricao == "event_id=evt_asaas_1"
         _event, processed_again = process_asaas_event(payload)
         assert processed_again is False
 

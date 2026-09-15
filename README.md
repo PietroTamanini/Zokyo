@@ -65,7 +65,7 @@ Instalacoes novas executam a cadeia Alembic iniciada pela baseline consolidada e
 
 ## Testes e qualidade
 
-Estado verificado em 2026-08-27: 201 testes Python aprovados, 200 cenários Playwright executados nos projetos compact, mobile, tablet, desktop e wide, e teste local de 150 requisições simultâneas sem erro. A auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
+Estado verificado em 2026-09-15: 223 testes Python aprovados, lint, compilação Python e validação JavaScript aprovados. A auditoria Playwright mais recente executou 200 cenários nos projetos compact, mobile, tablet, desktop e wide; a auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
 
 ```bash
 pytest -q

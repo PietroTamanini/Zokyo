@@ -322,6 +322,7 @@ def criar():
     db.session.add(os_obj)
     db.session.flush()
     _registrar_historico(os_obj.id, None, os_obj.status, session["usuario_id"])
+    registrar("criacao", "ordens_servico", f"OS #{os_obj.id} criada pela API", f"status={os_obj.status}")
     db.session.commit()
     from app.services.order_notifications import queue_order_event
     event_type = "warranty_return" if warranty_origin else f"os_status_{os_obj.status}"
@@ -514,6 +515,7 @@ def atualizar(id):
             _registrar_historico(
                 os_obj.id, status_anterior, novo_status, session["usuario_id"])
 
+    registrar("edicao", "ordens_servico", f"OS #{os_obj.id} atualizada pela API", f"status={os_obj.status}")
     db.session.commit()
     if novo_status_raw and os_obj.status != status_anterior:
         from app.services.order_notifications import queue_order_event
@@ -558,6 +560,7 @@ def deletar(id):
               .filter(OrdemServico.deletado_em.is_(None))
               .first_or_404())
     os_obj.deletado_em = _now()
+    registrar("exclusao", "ordens_servico", f"OS #{os_obj.id} removida pela API")
     db.session.commit()
     return jsonify({"mensagem": "OS removida"})
 
@@ -652,6 +655,7 @@ def adicionar_peca(id):
         {"o": os_obj.id},
     ).scalar()
     os_obj.valor_pecas = total_pecas
+    registrar("edicao", "ordens_servico", f"Peca #{peca.id} vinculada a OS #{os_obj.id}", f"quantidade={quantidade}")
     db.session.commit()
     return jsonify(os_obj.to_dict()), 200
 
@@ -688,6 +692,7 @@ def remover_peca(id, peca_id):
         {"o": os_obj.id},
     ).scalar()
     os_obj.valor_pecas = total_pecas
+    registrar("edicao", "ordens_servico", f"Peca #{peca_id} removida da OS #{os_obj.id}")
     db.session.commit()
     return jsonify(os_obj.to_dict()), 200
 
@@ -848,6 +853,13 @@ def reservar_peca(id):
         reservation = reserve_stock(part, os_obj, session["usuario_id"], quantity)
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
+    db.session.flush()
+    registrar(
+        "reserva",
+        "ordens_servico",
+        f"Reserva #{reservation.id} criada para OS #{os_obj.id}",
+        f"peca_id={part.id}; quantidade={quantity}",
+    )
     db.session.commit()
     return jsonify({
         "id": reservation.id, "peca_id": reservation.part_id,
@@ -864,6 +876,7 @@ def cancelar_reserva(id, reservation_id):
         id=reservation_id, order_id=id, status="active",
     ).first_or_404()
     cancel_reservation(reservation)
+    registrar("reserva", "ordens_servico", f"Reserva #{reservation.id} cancelada na OS #{id}")
     db.session.commit()
     return jsonify({"success": True})
 

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import Cliente, Notification, OrdemServico, Organization, SavedReport, Transacao, Usuario
+from app.models import Cliente, EventoLog, Notification, OrdemServico, Organization, SavedReport, Transacao, Usuario
 from app.services.scheduled_reports import process_scheduled_reports
 
 
@@ -124,3 +124,14 @@ def test_filtro_salvo_e_relatorio_agendado_entram_na_fila():
     assert invalid_frequency.status_code == 302
     assert invalid_email.status_code == 302
     assert delete_response.status_code == 302
+
+    with app.app_context():
+        events = EventoLog.query.filter_by(modulo="relatorios").order_by(EventoLog.id).all()
+        assert [event.tipo for event in events] == ["criacao", "exclusao"]
+        assert {event.organization_id for event in events} == {1}
+        assert events[0].operacao == f"Relatorio salvo #{report_id} criado"
+        assert events[0].descricao == "frequencia=daily"
+        assert events[1].operacao == f"Relatorio salvo #{report_id} removido"
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "Resumo diario" not in combined
+        assert "gestor@example.com" not in combined

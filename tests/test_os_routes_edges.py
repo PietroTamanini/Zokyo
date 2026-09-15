@@ -5,6 +5,7 @@ from app import create_app
 from app.extensions import db
 from app.models import (
     Cliente,
+    EventoLog,
     OrdemServico,
     OrderSignature,
     Organization,
@@ -264,3 +265,18 @@ def test_os_api_cobre_criacao_atualizacao_checklist_pdf_whatsapp_e_assinatura(mo
 
     assert _json(browser, "DELETE", f"/api/os/{warranty_id}").status_code == 200
     assert browser.get(f"/api/os/{warranty_id}").status_code == 404
+
+    with app.app_context():
+        events = EventoLog.query.filter_by(modulo="ordens_servico").order_by(EventoLog.id).all()
+        operations = [event.operacao for event in events]
+        assert any(operation == f"OS #{warranty_id} criada pela API" for operation in operations)
+        assert any(operation == f"OS #{warranty_id} atualizada pela API" for operation in operations)
+        assert any(operation == f"Peca #{ids['part']} vinculada a OS #{ids['order']}" for operation in operations)
+        assert any(operation == f"Peca #{ids['part']} removida da OS #{ids['order']}" for operation in operations)
+        assert any(operation == f"Reserva #{reservation_id} criada para OS #{ids['order']}" for operation in operations)
+        assert any(operation == f"OS #{warranty_id} removida pela API" for operation in operations)
+        assert {event.organization_id for event in events} == {1}
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "Falha intermitente" not in combined
+        assert "Observacao tecnica" not in combined
+        assert "Retorno garantia" not in combined

@@ -155,7 +155,7 @@ def criar_convite():
         email, "Convite para acessar o Zokyo",
         f"Você foi convidado para acessar o sistema. O link expira em 48 horas e pode ser usado uma vez.\n\n{link}",
     )
-    registrar("convite", "usuarios", f"Convite criado para {email}")
+    registrar("convite", "usuarios", f"Convite #{invite.id} criado", f"perfil={role}")
     db.session.commit()
     return jsonify({"id": invite.id, "link": link, "delivery": delivery}), 201
 
@@ -185,6 +185,16 @@ def aceitar_convite(token):
         user.set_senha(password)
         db.session.add(user)
         invite.used_at = datetime.now(timezone.utc)
+        db.session.flush()
+        registrar(
+            "convite",
+            "usuarios",
+            f"Convite #{invite.id} aceito por usuario #{user.id}",
+            f"perfil={invite.role}",
+            usuario_id=user.id,
+            usuario_nome=user.nome,
+            organization_id=invite.organization_id,
+        )
         db.session.commit()
         flash("Conta criada. Entre com sua senha.", "success")
         return redirect(url_for("auth.login_page"))
@@ -297,6 +307,7 @@ def alterar_senha():
 
     u.set_senha(nova_senha)
     u.security_version += 1
+    registrar("senha", "usuarios", f"Senha alterada pelo usuario #{u.id}")
     db.session.commit()
     session.clear()
     return jsonify({"success": True, "mensagem": "Senha alterada; entre novamente"})

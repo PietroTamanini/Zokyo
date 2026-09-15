@@ -127,6 +127,7 @@ def criar():
     if quantidade:
         record_movement(peca, session["usuario_id"], "initial", 0, quantidade, "Estoque inicial")
     registrar("criacao", "estoque", f"Peça criada: {nome}")
+    registrar("edicao", "estoque", f"Peca #{peca.id} atualizada")
     db.session.commit()
     return jsonify(peca.to_dict()), 201
 
@@ -195,6 +196,7 @@ def deletar(id):
     if peca.ordens:
         return jsonify({"success": False, "erro": "Peça usada em OS deve ser preservada"}), 409
     db.session.delete(peca)
+    registrar("exclusao", "estoque", f"Peca #{id} removida")
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Peça removida"})
 
@@ -226,6 +228,7 @@ def ajuste_estoque(id):
 
     peca.quantidade = nova_qtd
     record_movement(peca, session["usuario_id"], "adjustment", before, nova_qtd, reason)
+    registrar("ajuste", "estoque", f"Estoque da peca #{peca.id} ajustado", f"delta={delta}")
     db.session.commit()
     return jsonify(peca.to_dict())
 
@@ -274,5 +277,6 @@ def receber_lote(id):
         )
     except ValueError as exc:
         return jsonify({"erro": str(exc)}), 400
+    registrar("recebimento", "estoque", f"Lote #{lot.id} recebido para peca #{part.id}", f"quantidade={quantity}")
     db.session.commit()
     return jsonify({"lote": lot.to_dict(), "peca": part.to_dict()}), 201

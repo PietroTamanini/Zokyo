@@ -8,6 +8,7 @@ from app import create_app
 from app.extensions import db
 from app.models import (
     Cliente,
+    EventoLog,
     Fornecedor,
     InventoryMovement,
     OrdemServico,
@@ -133,6 +134,11 @@ def test_ajuste_de_estoque_exige_justificativa_e_gera_livro():
     with app.app_context():
         movement = InventoryMovement.query.filter_by(part_id=part_id, movement_type="adjustment").one()
         assert (movement.quantity_before, movement.quantity_after) == (2, 5)
+        event = EventoLog.query.filter_by(modulo="estoque", tipo="ajuste").one()
+        assert event.organization_id == 1
+        assert event.operacao == f"Estoque da peca #{part_id} ajustado"
+        assert event.descricao == "delta=3"
+        assert "Contagem de inventario" not in f"{event.operacao} {event.descricao}"
 
 
 def test_entrada_por_lote_calcula_custo_medio_e_registra_validade():
@@ -153,6 +159,38 @@ def test_entrada_por_lote_calcula_custo_medio_e_registra_validade():
     with app.app_context():
         movement = InventoryMovement.query.filter_by(movement_type="lot_receipt").one()
         assert movement.lot_id == payload["lote"]["id"]
+        event = EventoLog.query.filter_by(modulo="estoque", tipo="recebimento").one()
+        assert event.organization_id == 1
+        assert event.operacao == f"Lote #{payload['lote']['id']} recebido para peca #{part['id']}"
+        assert event.descricao == "quantidade=10"
+        assert "Compra fornecedor" not in f"{event.operacao} {event.descricao}"
+
+
+def test_crud_estoque_api_gera_eventos_gerais():
+    app, client = make_client()
+    created = request_json(client, "POST", "/api/pecas", {
+        "nome": "Bateria",
+        "quantidade": 0,
+        "custo": 80,
+    })
+    assert created.status_code == 201
+    part_id = created.get_json()["id"]
+    updated = request_json(client, "PUT", f"/api/pecas/{part_id}", {
+        "nome": "Bateria sigilosa",
+        "codigo": "BAT-1",
+    })
+    assert updated.status_code == 200
+    removed = request_json(client, "DELETE", f"/api/pecas/{part_id}")
+    assert removed.status_code == 200
+
+    with app.app_context():
+        events = EventoLog.query.filter_by(modulo="estoque").order_by(EventoLog.id).all()
+        assert [event.tipo for event in events] == ["criacao", "edicao", "exclusao"]
+        assert {event.organization_id for event in events} == {1}
+        assert events[1].operacao == f"Peca #{part_id} atualizada"
+        assert events[2].operacao == f"Peca #{part_id} removida"
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "Bateria sigilosa" not in combined
 
 
 def test_financeiro_parcela_concilia_calcula_dre_e_exporta():
@@ -178,6 +216,38 @@ def test_financeiro_parcela_concilia_calcula_dre_e_exporta():
     export = client.get("/api/transacoes/contabilidade.csv")
     assert export.status_code == 200
     assert b"extrato-001" in export.data
+
+
+def test_crud_financeiro_api_gera_evento_log_sem_descricao_livre():
+    app, client = make_client()
+    response = request_json(client, "POST", "/api/transacoes", {
+        "tipo": "despesa",
+        "valor": 50,
+        "status": "pendente",
+        "descricao": "Documento sensivel 123.456.789-09",
+    })
+    assert response.status_code == 201
+    transaction_id = response.get_json()["id"]
+
+    updated = request_json(client, "PUT", f"/api/transacoes/{transaction_id}", {
+        "status": "pago",
+        "descricao": "Token secreto atualizado",
+    })
+    assert updated.status_code == 200
+    removed = request_json(client, "DELETE", f"/api/transacoes/{transaction_id}")
+    assert removed.status_code == 200
+
+    with app.app_context():
+        events = EventoLog.query.order_by(EventoLog.id).all()
+        financial_events = [event for event in events if event.modulo == "financeiro"]
+        assert [event.tipo for event in financial_events] == ["criacao", "edicao", "exclusao"]
+        assert {event.organization_id for event in financial_events} == {1}
+        combined = " ".join(
+            f"{event.operacao or ''} {event.descricao or ''}" for event in financial_events
+        )
+        assert "Documento sensivel" not in combined
+        assert "123.456.789-09" not in combined
+        assert "Token secreto" not in combined
 
 
 def test_checklist_versionado_snapshot_e_aceite_da_os():
@@ -235,6 +305,7 @@ def test_convite_e_uso_unico_com_token_armazenado_por_hash():
         stored_invite = UserInvite.query.one()
         assert stored_invite.token_hash != token
         assert len(stored_invite.token_hash) == 64
+        invite_id = stored_invite.id
     invited = app.test_client()
     with invited.session_transaction() as current:
         current["_csrf_token"] = "invite-csrf"
@@ -246,6 +317,15 @@ def test_convite_e_uso_unico_com_token_armazenado_por_hash():
         user = Usuario.query.filter_by(email="convidado@example.com").one()
         assert user.organization_id == 1
         assert user.nivel == "operacional"
+        events = EventoLog.query.filter_by(modulo="usuarios", tipo="convite").order_by(EventoLog.id).all()
+        assert [event.operacao for event in events] == [
+            f"Convite #{invite_id} criado",
+            f"Convite #{invite_id} aceito por usuario #{user.id}",
+        ]
+        assert {event.organization_id for event in events} == {1}
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "convidado@example.com" not in combined
+        assert token not in combined
     assert invited.get(f"/convite/{token}").status_code == 410
 
 

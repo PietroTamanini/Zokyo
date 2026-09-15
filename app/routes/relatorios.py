@@ -8,7 +8,7 @@ from sqlalchemy import case, func, text
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
-from app.models import Cliente, OrdemServico, SavedReport, Transacao
+from app.models import Cliente, OrdemServico, SavedReport, Transacao, registrar
 from app.models.ordem_servico import STATUS_OS_LABELS
 from app.utils.permissions import permission_required
 from app.utils.sanitizers import sanitize_email, sanitize_text
@@ -139,6 +139,8 @@ def save_report():
         next_run_at=(now + timedelta(days=1)) if frequency else None,
     )
     db.session.add(report)
+    db.session.flush()
+    registrar("criacao", "relatorios", f"Relatorio salvo #{report.id} criado", f"frequencia={frequency or 'manual'}")
     db.session.commit()
     flash("Relatório salvo.", "success")
     return redirect(url_for("relatorios.index"))
@@ -149,6 +151,7 @@ def save_report():
 def delete_saved_report(report_id):
     report = SavedReport.query.filter_by(id=report_id, user_id=session["usuario_id"]).first_or_404()
     db.session.delete(report)
+    registrar("exclusao", "relatorios", f"Relatorio salvo #{report_id} removido")
     db.session.commit()
     flash("Relatório salvo removido.", "success")
     return redirect(url_for("relatorios.index"))

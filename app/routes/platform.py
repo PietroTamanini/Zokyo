@@ -13,7 +13,7 @@ from app.admin.organizations import (
 from app.admin.plans import assign_subscription_from_form, create_plan_from_form, plan_json
 from app.admin.security import global_admin_required
 from app.extensions import db
-from app.models import OrganizationSubscription, Plan, Usuario
+from app.models import OrganizationSubscription, Plan, Usuario, registrar
 from app.services.billing import process_asaas_event, process_sandbox_event
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
@@ -98,14 +98,24 @@ def sync_dns(organization_id):
 @platform_bp.route("/plans", methods=["POST"])
 @global_admin_required
 def create_plan():
-    create_plan_from_form(request.form)
+    plan = create_plan_from_form(request.form)
+    registrar("criacao", "platform", f"Plano #{plan.id} criado", f"code={plan.code}", organization_id=None)
+    db.session.commit()
     return redirect(url_for("platform.index", view="plans"))
 
 
 @platform_bp.route("/subscriptions", methods=["POST"])
 @global_admin_required
 def assign_subscription():
-    assign_subscription_from_form(request.form)
+    subscription = assign_subscription_from_form(request.form)
+    registrar(
+        "assinatura",
+        "platform",
+        f"Assinatura da organizacao #{subscription.organization_id} atualizada",
+        f"status={subscription.status}; plan_id={subscription.plan_id}",
+        organization_id=subscription.organization_id,
+    )
+    db.session.commit()
     return redirect(url_for("platform.index", view="organizations"))
 
 
@@ -165,6 +175,13 @@ def subscription_checkout():
             request.form.get("billing_type", "UNDEFINED"),
             request.form.get("trial_days", 7, type=int),
         )
+        registrar(
+            "assinatura",
+            "platform",
+            f"Checkout Asaas criado para organizacao #{user.organization_id}",
+            f"plan_id={plan.id}; status={subscription.status}",
+            organization_id=user.organization_id,
+        )
         db.session.commit()
     except AsaasSubscriptionError as exc:
         db.session.rollback()
@@ -182,6 +199,13 @@ def subscription_cancel():
     subscription = OrganizationSubscription.query.filter_by(organization_id=user.organization_id).first_or_404()
     try:
         cancel_subscription(subscription)
+        registrar(
+            "cancelamento",
+            "platform",
+            f"Assinatura da organizacao #{user.organization_id} cancelada",
+            f"provider={subscription.provider}",
+            organization_id=user.organization_id,
+        )
         db.session.commit()
     except AsaasSubscriptionError as exc:
         db.session.rollback()

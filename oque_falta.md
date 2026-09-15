@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-09-03 após auditoria e cobertura dedicada dos indicadores financeiros por OS.
+Atualizado em 2026-09-15 apos fechamento das lacunas automatizaveis da matriz central de auditoria.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -8,9 +8,11 @@ Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica traba
 
 O sistema está tecnicamente apto para um piloto controlado. Ainda não está liberado para produção comercial porque o ambiente real, os backups externos, as integrações e as políticas operacionais não foram configurados ou homologados.
 
+Em 2026-09-15, `production-check --strict-integrations` foi executado localmente e reprovou apenas por bloqueadores externos esperados: `FLASK_ENV`, MariaDB, segredos fortes, URL HTTPS publica, storage privado persistente, alertas, SMTP, WhatsApp automatico e Redis.
+
 - [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
-- [x] Schema atualizado até a migration `20260731_0012` e sem divergência detectada pelo Alembic.
-- [x] 215 testes Python aprovados.
+- [x] Schema gerenciado por Alembic até a migration `20260911_0024`.
+- [x] 223 testes Python aprovados em 2026-09-15.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
@@ -26,6 +28,8 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [ ] Configurar SMTP e `MAIL_FROM`, então testar recuperação de senha real.
 - [ ] Configurar `ALERT_EMAIL` ou `ALERT_WEBHOOK_URL` e confirmar o recebimento de um alerta de teste.
 - [ ] Configurar WhatsApp Cloud API ou aceitar formalmente a operação apenas com fallback manual.
+- [ ] Configurar Redis para sessões e rate limit distribuídos.
+- [ ] Definir `REPORTS_UPLOAD_FOLDER` em volume privado persistente.
 - [ ] Executar `flask --app wsgi:app production-check --strict-integrations` até não haver erros.
 - [ ] Executar o checklist de [go-live](docs/GO_LIVE.md).
 
@@ -100,9 +104,16 @@ O sistema está tecnicamente apto para um piloto controlado. Ainda não está li
 - [x] RBAC/ABAC, isolamento por empresa e restrições de financeiro/configuração testados.
 - [x] Administrador pode revisar usuários, sessões, eventos e configurações críticas.
 - [x] Ações centrais de clientes, OS, estoque, financeiro, usuários, privacidade e segurança geram auditoria.
+- [x] CRUD financeiro da API gera `EventoLog` para criacao, edicao e exclusao sem copiar a descricao livre da transacao.
+- [x] Fluxos centrais da API de OS geram `EventoLog` para criacao, edicao, exclusao, pecas e reservas sem copiar defeitos ou observacoes livres.
+- [x] API de estoque gera `EventoLog` para criacao, edicao, exclusao, ajuste e recebimento de lote, mantendo justificativas detalhadas no livro de estoque.
+- [x] Consentimento, exportacao, anonimizacao e relatorios salvos possuem `EventoLog` testado sem dados pessoais ou destinatarios.
+- [x] Planos, assinaturas, checkout, cancelamento e webhooks de billing possuem `EventoLog` testado sem payloads, documentos, tokens ou ids externos sensiveis.
+- [x] Recuperacao/reset de senha, aceite de convite, troca de senha pela API e regeneracao de token possuem `EventoLog` testado sem e-mail, token ou senha.
+- [x] Portal registra evento de seguranca para decisao publica negada com token valido, sem copiar token ou dados internos da OS.
 - [x] Exportação, consentimento, anonimização e retenção estão implementados.
 - [x] Criar uma [matriz formal das mutações](docs/AUDITORIA_MUTACOES.md), distinguindo `EventoLog` e trilhas especializadas.
-- [ ] Fechar as lacunas de auditoria rota por rota listadas na matriz e confirmar tenant, tipo, módulo e ausência de dados sensíveis com testes.
+- [x] Fechar as lacunas automatizaveis de auditoria rota por rota listadas na matriz e confirmar tenant, tipo, modulo e ausencia de dados sensiveis com testes.
 - [ ] Aprovar juridicamente os prazos de retenção antes de ativá-los.
 - [ ] Aprovar termos de uso, política de privacidade e natureza da assinatura eletrônica.
 

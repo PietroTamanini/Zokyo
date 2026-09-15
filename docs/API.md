@@ -1,6 +1,6 @@
 # API
 
-Estado revisado em 2026-08-27. As rotas documentadas possuem cobertura automatizada; integrações externas e consumidores reais ainda devem ser homologados antes de produção.
+Estado revisado em 2026-09-15. As rotas documentadas possuem cobertura automatizada e mutações auditadas nos fluxos centrais; integrações externas e consumidores reais ainda devem ser homologados antes de produção.
 
 As APIs autenticadas usam `/api/*` e retornam JSON. Requisicoes `POST`, `PUT`, `PATCH` e `DELETE` exigem CSRF.
 

@@ -2,7 +2,7 @@
 
 Este é o documento de continuidade do projeto. Toda IA que trabalhar neste repositório deve lê-lo antes de alterar código, banco, infraestrutura ou documentação. Ele não substitui os documentos especializados em `docs/`; serve como mapa, histórico curto e conjunto de invariantes para evitar retrabalho e regressões.
 
-Última atualização: 2026-09-10.
+Última atualização: 2026-09-15.
 
 ## Objetivo do produto
 
@@ -13,13 +13,15 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 ## Estado resumido
 
 - Aplicação Flask e site público executam em Docker com MariaDB.
-- Schema gerenciado por Alembic até a migration `20260910_0020`.
+- Schema gerenciado por Alembic até a migration `20260911_0024`.
 - O isolamento multiempresa usa escopo ORM, bloqueio de mutacoes cruzadas, filtros explicitos em SQL manual e integridade referencial; MariaDB nao possui RLS nativo.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
-- Ruff, compilação Python, validação JavaScript e auditorias de dependências passaram.
+- Em 2026-09-15, 223 testes Python, Ruff, compilação Python e validação JavaScript passaram.
+- Auditorias de dependências passaram na revisão anterior.
 - O código está apto para piloto controlado, mas o ambiente comercial ainda não foi homologado.
+- Em 2026-09-15, `production-check --strict-integrations` foi executado localmente e reprovou somente por configuração externa ausente: `FLASK_ENV=production`, MariaDB, segredos fortes, URL HTTPS pública, storage privado persistente, alertas, SMTP, WhatsApp automático e Redis.
 - Serviços Docker foram desligados preservando os volumes ao final da última sessão.
 
 Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](CHANGELOG.md) para a evolução versionada.
@@ -133,6 +135,20 @@ O scan seguinte expôs vulnerabilidades HIGH nas bibliotecas vendorizadas das fe
 O CI Python precisa instalar `requirements-prod.lock` e `requirements-dev.txt`: a suíte usa ferramentas de desenvolvimento, enquanto o smoke de carga valida o servidor Gunicorn real. A etapa confirma `/healthz` antes de iniciar carga e deve falhar cedo se o processo não subir.
 
 O `gunicorn.conf.py` aceita `GUNICORN_ACCESSLOG`, `GUNICORN_ERRORLOG` e `GUNICORN_PIDFILE`. A imagem usa diretórios persistentes preparados pelo Dockerfile; o CI usa stdout/stderr e `/tmp`.
+
+Em 2026-09-15, o CRUD financeiro da API passou a registrar `EventoLog` em criacao, edicao e exclusao. Os eventos usam o tenant autenticado e descrevem somente ids, tipo/status e operacao; nao copiar `Transacao.descricao` nem outros campos livres para evitar vazamento de documentos, tokens ou segredos digitados pelo usuario.
+
+Na mesma revisao, os fluxos centrais da API de OS passaram a espelhar eventos gerais em `EventoLog`: criacao, edicao, exclusao logica, vinculo/remocao de pecas e criacao/cancelamento de reservas. Manter os detalhes operacionais em `OSHistorico`, `InventoryMovement` e `StockReservation`; o log geral deve permanecer resumido e sem `defeito_alegado`, `observacoes` ou textos livres de servicos.
+
+A API de estoque tambem espelha `EventoLog` para edicao, exclusao direta, ajuste e recebimento de lote. Justificativas de inventario/compra continuam em `InventoryMovement`; no evento geral registrar apenas ids e quantidades para reduzir risco de dados sensiveis em auditoria ampla.
+
+Privacidade e relatorios salvos tambem foram cobertos em 2026-09-15. `ConsentRecord` e `DataSubjectRequest` seguem como trilhas de dominio, com espelho resumido em `EventoLog`; nao registrar nome, CPF/CNPJ, e-mail, nome livre de relatorio nem destinatario. Relatorios salvos registram apenas id e frequencia.
+
+Billing/plataforma tambem ganhou espelho administrativo em `EventoLog`: criacao de plano, atribuicao manual de assinatura, checkout/cancelamento Asaas e webhooks sandbox/Asaas processados. `BillingEvent.payload` permanece a trilha detalhada; `EventoLog` deve conter somente tipo, status, plan_id, event_id interno do evento e tenant afetado, sem documento do assinante, tokens, payload completo, checkout URL ou external_id de gateway.
+
+As lacunas automatizaveis da matriz central de auditoria foram fechadas em 2026-09-15. Recuperacao/reset de senha, aceite de convite, troca de senha pela API e regeneracao de token possuem eventos seguros; nao registrar e-mail, token bruto, senha, codigo de recuperacao ou nome livre nesses fluxos. As pendencias restantes da matriz sao homologacoes externas ou decisoes fora do repositorio.
+
+O portal publico registra evento de seguranca para decisao de orcamento negada quando o token e valido mas a acao nao pode ser aplicada. Nao registrar token bruto nem detalhes internos da OS; token inexistente/expirado continua retornando 404 sem evento por nao haver tenant confiavel.
 
 ## Como executar
 

@@ -4,6 +4,13 @@
 
 ### Corrigido
 
+- CRUD financeiro da API agora registra `EventoLog` em criação, edição e exclusão, com tenant correto e sem copiar a descrição livre da transação para a auditoria.
+- Fluxos centrais da API de OS agora registram `EventoLog` em criação, edição, exclusão, vínculo/remoção de peças e reservas, sem copiar defeitos ou observações livres.
+- API de estoque agora registra eventos gerais de edição, exclusão direta, ajuste e recebimento de lote, mantendo justificativas livres na trilha especializada de movimentações.
+- Privacidade e relatórios salvos ganharam cobertura de auditoria geral: consentimento, exportação, anonimização, criação e exclusão de relatório agora são validados sem copiar dados pessoais, nomes livres ou destinatários.
+- Planos, assinaturas, checkout/cancelamento Asaas e webhooks de billing agora possuem eventos administrativos resumidos, sem payloads, documentos, tokens ou identificadores externos sensíveis.
+- Recuperação/reset de senha, aceite de convite, troca de senha pela API e regeneração de token agora têm auditoria segura em `EventoLog`, sem registrar e-mail, token ou senha.
+- Portal público agora registra evento de segurança para decisão negada com token válido, sem gravar o token ou dados internos da OS.
 - Corrigida a regressao do CI no benchmark, mantendo o lint estrito sem ignorar o arquivo inteiro.
 - Corrigida a agregacao de ordens atrasadas que causava erro 500 no dashboard.
 - A contagem de pecas pendentes do dashboard agora filtra explicitamente a organizacao no SQL manual.
@@ -29,7 +36,7 @@
 
 ### Verificado
 
-- 215 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-03.
+- 223 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-15.
 - Indicadores de pagamento incompleto, custo de peças, custo de mão de obra, comissão, lucro e inadimplência por OS cobertos por testes dedicados.
 - Auditoria autenticada das telas em compact, mobile, tablet, desktop e wide, incluindo runtime, HTTP 500, overflow e WCAG.
 - Teste local com 150 requisições simultâneas sem erro após a correção de concorrência.

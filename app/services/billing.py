@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from app.extensions import db
-from app.models import BillingEvent, OrganizationSubscription, Plan
+from app.models import BillingEvent, OrganizationSubscription, Plan, registrar
 
 EVENT_STATUS = {
     "subscription.activated": "active",
@@ -61,6 +61,13 @@ def process_sandbox_event(raw_body: bytes, signature: str) -> tuple[BillingEvent
         organization_id=organization_id, payload=payload,
     )
     db.session.add(event)
+    registrar(
+        "billing",
+        "platform",
+        f"Webhook sandbox {event_type} processado",
+        f"event_id={event_id}",
+        organization_id=organization_id,
+    )
     return event, True
 
 
@@ -91,6 +98,13 @@ def process_asaas_event(payload: dict) -> tuple[BillingEvent, bool]:
         organization_id=subscription.organization_id, payload=payload,
     )
     db.session.add(event)
+    registrar(
+        "billing",
+        "platform",
+        f"Webhook Asaas {event_type} processado",
+        f"event_id={event_id}",
+        organization_id=subscription.organization_id,
+    )
     return event, True
 
 

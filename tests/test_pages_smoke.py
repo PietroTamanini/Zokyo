@@ -787,6 +787,13 @@ def test_api_v1_login_e_regeneracao_token_bearer(tmp_path):
 
     assert app.test_client().get("/api/v1/conta", headers=bearer).status_code == 401
     assert app.test_client().get("/api/v1/conta", headers={"Authorization": f"Bearer {new_token}"}).status_code == 200
+    with app.app_context():
+        token_event = EventoLog.query.filter_by(modulo="sessoes", tipo="seguranca").one()
+        assert token_event.organization_id == 1
+        assert token_event.operacao.startswith("Token API regenerado para usuario #")
+        combined = f"{token_event.operacao or ''} {token_event.descricao or ''}"
+        assert token not in combined
+        assert new_token not in combined
 
 
 def test_formularios_html_principais_executam_fluxos_de_mutacao(tmp_path):

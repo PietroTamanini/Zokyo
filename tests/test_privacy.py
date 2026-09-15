@@ -3,7 +3,7 @@ import zipfile
 
 from app import create_app
 from app.extensions import db
-from app.models import Cliente, ConsentRecord, DataSubjectRequest, OrdemServico, Organization, Usuario
+from app.models import Cliente, ConsentRecord, DataSubjectRequest, EventoLog, OrdemServico, Organization, Usuario
 from app.services.privacy import anonymize_client, export_subject_data, register_consent
 
 
@@ -44,6 +44,14 @@ def test_consentimento_exportacao_e_anonimizacao_auditaveis():
         assert client.nome.startswith("Titular anonimizado ")
         assert client.cpf is None and client.telefone is None and client.email is None
         assert client.ativo is False
+
+        events = EventoLog.query.filter_by(modulo="privacidade").order_by(EventoLog.id).all()
+        assert [event.tipo for event in events] == ["edicao", "sistema", "exclusao"]
+        assert {event.organization_id for event in events} == {1}
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "Titular" not in combined
+        assert "52998224725" not in combined
+        assert "titular@example.com" not in combined
 
 
 def test_anonimizacao_e_bloqueada_quando_existe_os():

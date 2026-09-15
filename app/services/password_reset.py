@@ -30,7 +30,14 @@ def criar_token(usuario: Usuario, ip: str) -> tuple[PasswordResetToken, str]:
         solicitado_ip_hash=_hash(ip or "unknown"),
     )
     db.session.add(token)
-    registrar("senha", "usuarios", "Recuperação de senha solicitada.", usuario_id=usuario.id, usuario_nome=usuario.nome)
+    registrar(
+        "senha",
+        "usuarios",
+        "Recuperacao de senha solicitada.",
+        usuario_id=usuario.id,
+        usuario_nome=usuario.nome,
+        organization_id=usuario.organization_id,
+    )
     return token, raw_token
 
 
@@ -53,7 +60,14 @@ def consumir_token(token: PasswordResetToken, nova_senha: str):
     from app.services.user_sessions import revoke_all
     revoke_all(token.usuario_id, "redefinicao de senha")
     PasswordResetToken.query.filter_by(usuario_id=token.usuario_id, usado_em=None).update({"usado_em": now})
-    registrar("senha", "usuarios", "Senha redefinida por token de recuperacao.", usuario_id=token.usuario_id, usuario_nome=token.usuario.nome)
+    registrar(
+        "senha",
+        "usuarios",
+        "Senha redefinida por token de recuperacao.",
+        usuario_id=token.usuario_id,
+        usuario_nome=token.usuario.nome,
+        organization_id=token.usuario.organization_id,
+    )
 
 
 def enviar_link(usuario: Usuario, raw_token: str):

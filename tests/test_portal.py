@@ -2,7 +2,7 @@ import hashlib
 
 from app import create_app
 from app.extensions import db
-from app.models import Cliente, OrdemServico, Organization, OSHistorico, PortalToken, Transacao, Usuario
+from app.models import Cliente, EventoLog, OrdemServico, Organization, OSHistorico, PortalToken, Transacao, Usuario
 from app.services.portal import criar_link_portal
 
 
@@ -84,6 +84,14 @@ def test_aprovacao_e_idempotente_e_registra_transicao():
         assert service_order.status == "em_reparo"
         assert token.usado_em is not None
         assert OSHistorico.query.filter_by(os_id=os_id, status_novo="em_reparo").count() == 1
+        denied_event = EventoLog.query.filter_by(modulo="portal", tipo="seguranca").one()
+        assert denied_event.organization_id == 1
+        assert denied_event.operacao == f"Decisao publica rejeitada na OS #{os_id}"
+        assert denied_event.descricao == "acao=orcamento"
+        combined = f"{denied_event.operacao or ''} {denied_event.descricao or ''}"
+        assert raw not in combined
+        assert "Cliente Sigiloso" not in combined
+        assert "DIAGNOSTICO INTERNO" not in combined
 
 
 def test_novo_link_revoga_o_anterior():

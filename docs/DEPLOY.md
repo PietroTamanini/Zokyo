@@ -1,6 +1,6 @@
 # Deploy
 
-Estado revisado em 2026-08-27: build, Compose, migrations, staging, produção e rollback estão automatizados. Nenhum host real foi homologado nesta revisão; execute o [checklist de go-live](GO_LIVE.md) antes da liberação.
+Estado revisado em 2026-09-15: build, Compose, migrations, staging, produção e rollback estão automatizados. Nenhum host real foi homologado nesta revisão; execute o [checklist de go-live](GO_LIVE.md) antes da liberação.
 
 ## Variaveis
 
@@ -10,6 +10,15 @@ Use `.env.production.example` como base. Em producao sao obrigatorias:
 - `SECRET_KEY`
 - `DATABASE_URL`
 - `ENCRYPTION_SALT`
+- `BLIND_INDEX_KEY`
+- `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL`
+- `METRICS_TOKEN`
+- `BACKUP_ENCRYPTION_KEY`
+- `REPORTS_UPLOAD_FOLDER`
+- `ALERT_EMAIL` ou `ALERT_WEBHOOK_URL`
+- `SMTP_HOST` e `MAIL_FROM`
+- `WHATSAPP_CLOUD_API_TOKEN`, `WHATSAPP_CLOUD_PHONE_NUMBER_ID` e `WHATSAPP_CLOUD_API_VERSION`
+- `REDIS_URL`
 
 ## Migracoes
 
@@ -34,7 +43,7 @@ python -m flask --app wsgi:app production-check --strict-integrations
 ```
 
 O comando reprova segredos fracos, banco nao produtivo, salt invalido, 2FA admin
-desligado e integracoes externas obrigatorias para operacao completa.
+desligado, storage inseguro e integracoes externas obrigatorias para operacao completa.
 
 ## Gunicorn
 

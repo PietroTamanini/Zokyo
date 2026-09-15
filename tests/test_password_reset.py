@@ -6,7 +6,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 from app import create_app
 from app.extensions import db
-from app.models import PasswordResetToken, Usuario
+from app.models import EventoLog, PasswordResetToken, Usuario
 
 
 def make_app():
@@ -59,6 +59,14 @@ def test_token_redefine_senha_uma_unica_vez():
         assert usuario.check_senha("Nova!Senha123")
         assert not usuario.check_senha("Senha!123")
         assert stored.usado_em is not None
+        events = EventoLog.query.filter_by(modulo="usuarios", tipo="senha").order_by(EventoLog.id).all()
+        assert [event.operacao for event in events] == [
+            "Recuperacao de senha solicitada.",
+            "Senha redefinida por token de recuperacao.",
+        ]
+        combined = " ".join(f"{event.operacao or ''} {event.descricao or ''}" for event in events)
+        assert "admin@example.com" not in combined
+        assert raw_token not in combined
 
     response = client.get(path)
     assert response.status_code == 302

@@ -8,7 +8,7 @@ from app.models import Organization, OrganizationSubscription, Plan
 from app.utils.sanitizers import sanitize_text
 
 
-def create_plan_from_form(form) -> None:
+def create_plan_from_form(form) -> Plan:
     code = sanitize_text(form.get("code"), max_length=50).lower().replace(" ", "-")
     name = sanitize_text(form.get("nome"), max_length=100)
     if not code or not name or Plan.query.filter_by(code=code).first():
@@ -21,11 +21,13 @@ def create_plan_from_form(form) -> None:
     price = form.get("preco_mensal", type=float) or 0
     if price < 0:
         abort(400)
-    db.session.add(Plan(code=code, nome=name, limites=limits, preco_mensal=price))
+    plan = Plan(code=code, nome=name, limites=limits, preco_mensal=price)
+    db.session.add(plan)
     db.session.commit()
+    return plan
 
 
-def assign_subscription_from_form(form) -> None:
+def assign_subscription_from_form(form) -> OrganizationSubscription:
     organization_id = form.get("organization_id", type=int)
     plan_id = form.get("plan_id", type=int)
     status = sanitize_text(form.get("status") or "trialing", max_length=30)
@@ -43,13 +45,15 @@ def assign_subscription_from_form(form) -> None:
         subscription.status = status
         subscription.provider = "sandbox"
     else:
-        db.session.add(OrganizationSubscription(
+        subscription = OrganizationSubscription(
             organization_id=organization.id,
             plan_id=plan.id,
             provider="sandbox",
             status=status,
-        ))
+        )
+        db.session.add(subscription)
     db.session.commit()
+    return subscription
 
 
 def plan_json(plan: Plan) -> dict:

@@ -198,6 +198,7 @@ def test_rate_limit_global_cobre_rotas_dinamicas_e_poupa_healthcheck():
     app_module._tem_usuarios = True
     user_id, _security_version = _seed_user(app)
     app.config.update(
+        RATE_LIMIT_ENABLED=True,
         RATE_LIMIT_GLOBAL_GET=50,
         RATE_LIMIT_GLOBAL_API=50,
         RATE_LIMIT_ENDPOINT_GET=2,

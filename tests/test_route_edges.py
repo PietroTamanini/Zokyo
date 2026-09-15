@@ -297,6 +297,11 @@ def test_rotas_usuarios_importacao_platform_privacidade_e_portal(monkeypatch):
     assert _json(browser, "POST", "/api/usuarios/alterar-senha", {"senha_atual": "Senha!123", "nova_senha": "fraca"}).status_code == 400
     assert _json(browser, "POST", "/api/usuarios/alterar-senha", {"senha_atual": "Senha!123", "nova_senha": "Senha!123"}).status_code == 400
     assert _json(browser, "POST", "/api/usuarios/alterar-senha", {"senha_atual": "Senha!123", "nova_senha": "Nova!456"}).status_code == 200
+    with app.app_context():
+        password_event = EventoLog.query.filter_by(modulo="usuarios", tipo="senha").one()
+        assert password_event.organization_id == 1
+        assert password_event.operacao == f"Senha alterada pelo usuario #{ids['admin']}"
+        assert "Nova!456" not in f"{password_event.operacao} {password_event.descricao or ''}"
     with browser.session_transaction() as session:
         session["usuario_id"] = ids["admin"]
         session["nivel"] = "admin"

@@ -1,6 +1,6 @@
 # Arquitetura
 
-Estado revisado em 2026-08-27 após execução completa em Docker, migrations no MariaDB, 201 testes Python e auditoria E2E autenticada.
+Estado revisado em 2026-09-15 após 223 testes Python, lint, compilação Python e validação JavaScript aprovados. A execução completa em Docker, migrations no MariaDB e auditoria E2E autenticada permanecem como evidência da revisão anterior.
 
 O Zokyo usa Flask com application factory em `app/__init__.py`.
 

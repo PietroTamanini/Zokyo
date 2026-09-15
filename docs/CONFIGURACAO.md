@@ -1,6 +1,6 @@
 # Configuracao
 
-Estado revisado em 2026-08-27. O ambiente Docker de desenvolvimento foi validado; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, HTTPS, SMTP, alertas e WhatsApp não forem configurados.
+Estado revisado em 2026-09-15. O ambiente Docker de desenvolvimento foi validado; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, MariaDB, HTTPS, storage privado, SMTP, alertas, WhatsApp e Redis não forem configurados.
 
 Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 
@@ -17,8 +17,9 @@ Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 O total potencial de conexoes e `(DB_POOL_SIZE + DB_MAX_OVERFLOW) * processos`. Dimensione esses valores abaixo do limite do MariaDB, reservando capacidade para migracoes, backup e administracao. O pool valida conexoes antes do uso e reaproveita primeiro as mais recentes.
 - `ENCRYPTION_SALT`: salt Base64 aleatorio de 32 bytes para segredos persistidos em `Configuracao`.
 - `BLIND_INDEX_KEY`: chave Base64 URL-safe de 32 bytes para buscas exatas em dados sensiveis criptografados.
+- `PUBLIC_BASE_URL`: URL publica HTTPS usada em links externos e validacoes de prontidao.
 
-Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no startup. O comando `production-check` tambem exige `BLIND_INDEX_KEY` e valida as integracoes operacionais.
+Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no startup. O comando `production-check` tambem exige `BLIND_INDEX_KEY`, `PUBLIC_BASE_URL` ou `HEALTHCHECK_URL`, `METRICS_TOKEN`, `BACKUP_ENCRYPTION_KEY`, storage privado, canal de alerta, SMTP, WhatsApp e Redis quando executado com `--strict-integrations`.
 
 ## Recomendadas
 
@@ -30,6 +31,10 @@ Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no s
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_STARTTLS`: servidor de e-mail.
 - `MAIL_FROM`: remetente usado na recuperacao de senha.
 - `METRICS_TOKEN`: token Bearer para coleta protegida de metricas Prometheus.
+- `BACKUP_ENCRYPTION_KEY`: chave Base64 URL-safe de 32 bytes usada para criptografar backups.
+- `ALERT_EMAIL` ou `ALERT_WEBHOOK_URL`: canal operacional para falhas criticas.
+- `ALERT_WEBHOOK_ALLOWED_HOSTS`: lista de hosts permitidos quando `ALERT_WEBHOOK_URL` estiver configurado.
+- `REDIS_URL`: Redis compartilhado para sessoes e rate limit distribuido em producao.
 - `SENTRY_DSN`: habilita Sentry opcional; vazio mantem a integracao desligada.
 - `SENTRY_TRACES_SAMPLE_RATE`: amostragem entre 0 e 1, padrao 0.
 - `ASAAS_API_KEY`: chave da API Asaas para gerar cobranças reais.
@@ -37,6 +42,7 @@ Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no s
 - `ASAAS_BASE_URL`: sobrescreve a URL da API Asaas somente quando necessário.
 - `ASAAS_TIMEOUT`: timeout HTTP das chamadas ao Asaas, em segundos.
 - `ASAAS_USER_AGENT`: identificação enviada ao Asaas nas chamadas HTTP.
+- `S3_BUCKET`, `S3_ENDPOINT_URL`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_SSE`: storage remoto S3 compatível opcional para fotos e PDFs de laudos.
 
 Sem `SMTP_HOST` e `MAIL_FROM`, nenhuma mensagem de recuperacao e enviada em producao e o erro operacional e registrado sem expor o token.
 
@@ -57,7 +63,7 @@ python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)
 
 ## Laudos
 
-Arquivos sensiveis de laudos nao devem ficar em `static/`. Use armazenamento privado no filesystem ou, futuramente, uma implementacao compativel com S3.
+Arquivos sensiveis de laudos nao devem ficar em `static/`. Use armazenamento privado no filesystem ou configure o backend S3 compativel com bucket, access key e secret key em conjunto.
 
 # Inicializacao idempotente
 

@@ -4,7 +4,7 @@ import io
 from flask import Blueprint, abort, make_response, redirect, render_template, request, send_file, session, url_for
 
 from app.extensions import db
-from app.models import OrdemServico, OSHistorico, Usuario
+from app.models import OrdemServico, OSHistorico, Usuario, registrar
 from app.models.ordem_servico import STATUS_OS_LABELS
 from app.services.portal import buscar_token_portal, criar_link_portal, decidir_orcamento
 from app.utils.auth import nivel_required
@@ -103,6 +103,14 @@ def publico(token):
             db.session.commit()
         except ValueError as exc:
             db.session.rollback()
+            registrar(
+                "seguranca",
+                "portal",
+                f"Decisao publica rejeitada na OS #{portal_token.os_id}",
+                "acao=orcamento",
+                organization_id=portal_token.organization_id,
+            )
+            db.session.commit()
             response = _public_response("pages/portal_os.html", **_portal_context(portal_token, erro=str(exc)))
             response.status_code = 409
             return response
