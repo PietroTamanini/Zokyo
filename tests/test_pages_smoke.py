@@ -898,10 +898,20 @@ def test_formularios_html_principais_executam_fluxos_de_mutacao(tmp_path):
         "garantia_dias": "90",
         "prio": "urgente",
         "status": "recepcao",
+        "opening_duration_seconds": "42",
+        "entrada_acessorios": "Carregador e capa",
+        "entrada_estado_visual": "Riscos na tampa",
+        "entrada_senha_padrao": "1234",
     })
     assert response.status_code == 302
     with app.app_context():
-        nova_os_id = OrdemServico.query.filter_by(tipo_aparelho="Desktop").one().id
+        nova_os = OrdemServico.query.filter_by(tipo_aparelho="Desktop").one()
+        nova_os_id = nova_os.id
+        assert "Acessorios recebidos: Carregador e capa" in nova_os.observacoes
+        assert "Estado visual: Riscos na tampa" in nova_os.observacoes
+        assert "Senha/padrao: 1234" in nova_os.observacoes
+        log = EventoLog.query.filter_by(modulo="os", tipo="criacao").order_by(EventoLog.id.desc()).first()
+        assert log.descricao == "tempo_abertura_segundos=42"
     assert _post(client, f"/os/{nova_os_id}/editar", {
         "tipo_aparelho": "Desktop",
         "marca": "Marca Editada",

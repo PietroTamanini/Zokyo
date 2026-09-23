@@ -1,7 +1,11 @@
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$PythonExe = Join-Path $RepoRoot "venv\Scripts\python.exe"
+$PythonCandidates = @(
+    (Join-Path $RepoRoot ".venv\Scripts\python.exe"),
+    (Join-Path $RepoRoot "venv\Scripts\python.exe")
+)
+$PythonExe = $PythonCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 $AppUrl = "http://127.0.0.1:8000"
 $HealthUrl = "$AppUrl/healthz"
 $ReadyUrl = "$AppUrl/readyz"
@@ -74,8 +78,8 @@ function Start-ZokyoFlask {
         Write-Host "Zokyo ja esta rodando em $AppUrl"
         return
     }
-    if (-not (Test-Path $PythonExe)) {
-        throw "Python do ambiente virtual nao encontrado em $PythonExe"
+    if (-not $PythonExe) {
+        throw "Python do ambiente virtual nao encontrado. Crie .venv ou venv e instale requirements-dev.txt."
     }
 
     $env:FLASK_ENV = "development"
@@ -110,8 +114,8 @@ function Start-DjTechSite {
         Write-Host "Site DJ Tech ja esta rodando em $DjTechUrl"
         return
     }
-    if (-not (Test-Path $PythonExe)) {
-        throw "Python do ambiente virtual nao encontrado em $PythonExe"
+    if (-not $PythonExe) {
+        throw "Python do ambiente virtual nao encontrado. Crie .venv ou venv e instale requirements-dev.txt."
     }
     if (-not (Test-Path (Join-Path $DjTechDir "server.py"))) {
         throw "Servidor do site DJ Tech nao encontrado em $DjTechDir"

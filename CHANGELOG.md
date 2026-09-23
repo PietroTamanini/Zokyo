@@ -2,8 +2,21 @@
 
 ## Unreleased
 
+### Alterado
+
+- O Compose de desenvolvimento agora sobe Redis 7 com volume persistente e configura `REDIS_URL` no app, aproximando o ambiente local do caminho de sessao e rate limit distribuido usado em producao.
+- O Compose de desenvolvimento agora define `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only validos, evitando falha local em `create-organization` e fluxos que geram indices cegos.
+- Adicionado gerador local de variaveis de producao com segredos fortes, imprimindo apenas em stdout para armazenamento fora do Git.
+- Formulario de OS ganhou sugestoes rapidas de defeito por tipo de equipamento para acelerar o atendimento de balcao.
+- Formulario de OS agora exibe o checklist ativo do tipo de equipamento antes de salvar e grava o snapshot na OS criada pelo painel.
+- A abertura de OS pelo painel agora mede o tempo do primeiro preenchimento ate o salvamento e registra apenas a duracao agregada no evento de criacao.
+- Formulario de OS ganhou campos especificos para acessorios recebidos, estado visual e senha/padrao, salvos em bloco estruturado nas observacoes da OS.
+- Formulario de OS ganhou barra compacta de abertura rapida com progresso, cronometro e atalho de salvamento.
+
 ### Corrigido
 
+- A seleção de peças no formulário de OS agora funciona também para resultados vindos da API, não apenas para a lista embutida na página; removido bloco JavaScript morto do fluxo de busca.
+- Checklists técnicos da API e do painel agora respeitam explicitamente o tenant e a versão ativa por tipo de equipamento.
 - CRUD financeiro da API agora registra `EventoLog` em criação, edição e exclusão, com tenant correto e sem copiar a descrição livre da transação para a auditoria.
 - Fluxos centrais da API de OS agora registram `EventoLog` em criação, edição, exclusão, vínculo/remoção de peças e reservas, sem copiar defeitos ou observações livres.
 - API de estoque agora registra eventos gerais de edição, exclusão direta, ajuste e recebimento de lote, mantendo justificativas livres na trilha especializada de movimentações.
@@ -36,6 +49,9 @@
 
 ### Verificado
 
+- Auditoria visual autenticada passou em 175 cenarios e 5 viewports em 2026-09-23.
+- Ambiente Docker local com MariaDB, Redis, painel e site publico saudavel em 2026-09-23.
+- 223 testes Python, lint, compilacao e validacao JavaScript aprovados em 2026-09-23.
 - 223 testes Python, lint, compilação e validação JavaScript aprovados em 2026-09-15.
 - Indicadores de pagamento incompleto, custo de peças, custo de mão de obra, comissão, lucro e inadimplência por OS cobertos por testes dedicados.
 - Auditoria autenticada das telas em compact, mobile, tablet, desktop e wide, incluindo runtime, HTTP 500, overflow e WCAG.
@@ -47,6 +63,8 @@
 - Adicionada matriz formal de auditoria das mutações, com mecanismos atuais e lacunas priorizadas por domínio.
 - Reescrita a lista de conclusão do produto para separar código, infraestrutura, homologação e decisões externas.
 - Adicionados checklist de go-live e política de suporte/operação.
+- Adicionado roteiro de homologacao e evidencias para fechar pendencias externas sem registrar segredos ou dados sensiveis.
+- Adicionado ao `oque_falta.md` um roadmap competitivo para priorizar OS rápida, WhatsApp/portal, lucro real por OS, produto premium e SaaS comercial.
 
 - Revisao geral removeu entrypoints, templates, assets e utilitarios sem uso comprovado.
 - PDFs de OS foram consolidados em ReportLab, com escape de conteudo; `pdfkit`/wkhtmltopdf foram removidos.

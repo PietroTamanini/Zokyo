@@ -1,6 +1,6 @@
 # Checklist de go-live
 
-Use este checklist em staging e novamente antes de liberar produção. Registre responsável, data e evidência para cada item; não marque por suposição.
+Use este checklist em staging e novamente antes de liberar produção. Registre responsável, data e evidência para cada item; não marque por suposição. O modelo de registro está em [Homologacao e evidencias](HOMOLOGACAO_EVIDENCIAS.md).
 
 ## Aprovação do produto
 
@@ -58,4 +58,4 @@ Use este checklist em staging e novamente antes de liberar produção. Registre 
 
 ## Evidência mínima
 
-Guarde a saída do production check, versão implantada, resultado das migrations, data do último backup/restore, testes das integrações e nome dos aprovadores. Não armazene senhas, tokens ou chaves nas evidências.
+Guarde a saída do production check, versão implantada, resultado das migrations, data do último backup/restore, testes das integrações e nome dos aprovadores. Não armazene senhas, tokens ou chaves nas evidências. Use `scripts/generate_production_env.py` apenas para gerar segredos iniciais e armazene o resultado fora do repositório.

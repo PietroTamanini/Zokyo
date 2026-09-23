@@ -1,10 +1,10 @@
 # Zokyo
 
-Sistema multiempresa para assistencias tecnicas, desenvolvido com Flask, SQLAlchemy e MariaDB. Inclui clientes, ordens de servico, estoque, financeiro, laudos tecnicos, PDFs, portal do cliente, relatorios, PWA, WhatsApp opcional, RBAC, 2FA, LGPD operacional e preparacao SaaS.
+Sistema multiempresa para assistencias tecnicas, desenvolvido com Flask, SQLAlchemy, MariaDB e Redis. Inclui clientes, ordens de servico, estoque, financeiro, laudos tecnicos, PDFs, portal do cliente, relatorios, PWA, WhatsApp opcional, RBAC, 2FA, LGPD operacional e preparacao SaaS.
 
 ## Inicio rapido com Docker
 
-Requisitos: Docker Desktop com Compose.
+Requisitos: Docker Desktop com Compose. O Compose local sobe MariaDB, Redis, painel Flask e site publico.
 
 ```bash
 docker compose up -d --build
@@ -65,7 +65,7 @@ Instalacoes novas executam a cadeia Alembic iniciada pela baseline consolidada e
 
 ## Testes e qualidade
 
-Estado verificado em 2026-09-15: 223 testes Python aprovados, lint, compilação Python e validação JavaScript aprovados. A auditoria Playwright mais recente executou 200 cenários nos projetos compact, mobile, tablet, desktop e wide; a auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
+Estado verificado em 2026-09-23: 223 testes Python aprovados, lint, compilação Python e validação JavaScript aprovados. A auditoria Playwright mais recente executou 200 cenários nos projetos compact, mobile, tablet, desktop e wide; a auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
 
 ```bash
 pytest -q
@@ -86,7 +86,7 @@ Os testes nunca devem usar credenciais ou mensagens reais.
 
 ## Producao
 
-O Compose de producao possui MariaDB, migracao controlada, Gunicorn, scheduler dedicado e Nginx. O WhatsApp usa link manual seguro ou a Meta WhatsApp Cloud API oficial.
+O Compose de producao possui MariaDB, Redis, migracao controlada, Gunicorn, scheduler dedicado e Nginx. O WhatsApp usa link manual seguro ou a Meta WhatsApp Cloud API oficial.
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
@@ -120,6 +120,7 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 - [Recuperação de desastre](docs/DISASTER_RECOVERY.md)
 - [Observabilidade](docs/OBSERVABILIDADE.md)
 - [Pendencias atuais](oque_falta.md)
+- [Homologacao e evidencias](docs/HOMOLOGACAO_EVIDENCIAS.md)
 - [Decisoes externas](docs/DECISOES_EXTERNAS.md)
 
 A licenca juridica ainda depende de decisao do proprietario. Nao presuma permissao de redistribuicao ate essa definicao.

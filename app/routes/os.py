@@ -13,8 +13,8 @@ import math
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from flask import Blueprint, jsonify, request, send_file, session
-from sqlalchemy import text
+from flask import Blueprint, g, jsonify, request, send_file, session
+from sqlalchemy import func, text
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -74,6 +74,19 @@ def _attendance_keys():
     return keys or {"balcao", "coleta"}
 
 def _now(): return datetime.now(timezone.utc)
+
+
+def _active_checklist_for_category(category, organization_id):
+    category = sanitize_text(category or "", max_length=100).lower()
+    if not category:
+        return None
+    return (
+        ServiceChecklistTemplate.query
+        .filter_by(organization_id=organization_id, active=True)
+        .filter(func.lower(ServiceChecklistTemplate.category) == category)
+        .order_by(ServiceChecklistTemplate.version.desc())
+        .first()
+    )
 
 def _parse_date(valor):
     if not valor:
@@ -285,9 +298,7 @@ def criar():
             return jsonify({"erro": f"{campo} excede {MAX_TEXT} caracteres"}), 400
 
     category = sanitize_text(data.get("tipo_aparelho", ""), max_length=100) or "geral"
-    checklist_template = ServiceChecklistTemplate.query.filter_by(category=category, active=True).order_by(
-        ServiceChecklistTemplate.version.desc(),
-    ).first()
+    checklist_template = _active_checklist_for_category(category, user.organization_id)
     os_obj = OrdemServico(
         numero=proximo_numero_os(user.organization_id),
         organization_id=user.organization_id,
@@ -333,7 +344,7 @@ def criar():
 @os_bp.route("/api/checklists", methods=["GET"])
 @nivel_required("admin", "operacional")
 def listar_checklists():
-    templates = ServiceChecklistTemplate.query.order_by(
+    templates = ServiceChecklistTemplate.query.filter_by(organization_id=g.organization_id).order_by(
         ServiceChecklistTemplate.category, ServiceChecklistTemplate.version.desc(),
     ).all()
     return jsonify([{
@@ -353,13 +364,13 @@ def criar_checklist():
     items = [sanitize_text(str(item), max_length=200) for item in raw_items]
     if any(len(item) < 2 for item in items):
         return jsonify({"erro": "Cada item deve ter pelo menos 2 caracteres"}), 400
-    previous = ServiceChecklistTemplate.query.filter_by(category=category).order_by(
+    previous = ServiceChecklistTemplate.query.filter_by(organization_id=g.organization_id, category=category).order_by(
         ServiceChecklistTemplate.version.desc(),
     ).first()
-    for old in ServiceChecklistTemplate.query.filter_by(category=category, active=True).all():
+    for old in ServiceChecklistTemplate.query.filter_by(organization_id=g.organization_id, category=category, active=True).all():
         old.active = False
     template = ServiceChecklistTemplate(
-        category=category, version=(previous.version + 1 if previous else 1), items=items,
+        organization_id=g.organization_id, category=category, version=(previous.version + 1 if previous else 1), items=items,
     )
     db.session.add(template)
     db.session.commit()

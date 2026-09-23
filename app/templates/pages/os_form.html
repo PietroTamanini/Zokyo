@@ -28,8 +28,24 @@
 </div>
 {% endif %}
 
-<form method="POST" action="{{ url_for('pages.os_atualizar', id=os.id) if os else url_for('pages.os_criar') }}">
+<form method="POST" action="{{ url_for('pages.os_atualizar', id=os.id) if os else url_for('pages.os_criar') }}" data-os-form>
 <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="opening_duration_seconds" id="opening-duration-seconds" value="">
+
+<div class="os-fastbar" data-fastbar>
+  <div class="fastbar-meter" aria-label="Progresso da abertura">
+    <button type="button" class="fastbar-step" data-fast-step="cliente" data-target="#os-step-cliente">Cliente</button>
+    <button type="button" class="fastbar-step" data-fast-step="equipamento" data-target="#os-step-equipamento">Equipamento</button>
+    <button type="button" class="fastbar-step" data-fast-step="defeito" data-target="#os-step-defeito">Defeito</button>
+    <button type="button" class="fastbar-step" data-fast-step="valor" data-target="#os-step-valores">Valor</button>
+  </div>
+  <div class="fastbar-side">
+    <span class="fastbar-time" id="fastbar-time">0s</span>
+    <button type="button" class="btn btn-primary btn-sm fastbar-submit" data-action="os-fast-submit">
+      {{ 'Salvar' if os else 'Criar OS' }}
+    </button>
+  </div>
+</div>
 
 <div class="g84">
 
@@ -37,7 +53,7 @@
   <div class="os-column">
 
     <!-- Cliente -->
-    <div class="card os-client-card">
+    <div class="card os-client-card" id="os-step-cliente">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg> Cliente</div></div>
       <div class="card-body os-client-body">
         <div class="form-group">
@@ -68,7 +84,7 @@
     </div>
 
     <!-- Equipamento -->
-    <div class="card">
+    <div class="card" id="os-step-equipamento">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-box"></use></svg> Equipamento</div></div>
       <div class="card-body">
         <div class="form-row fr4">
@@ -97,17 +113,19 @@
             <input type="text" name="numero_serie" value="{{ fd.get('numero_serie', os.numero_serie if os else '') }}" placeholder="Opcional">
           </div>
         </div>
+        <div id="entry-checklist-preview" class="entry-checklist-preview" aria-live="polite"></div>
       </div>
     </div>
 
     <!-- Diagnóstico -->
-    <div class="card">
+    <div class="card" id="os-step-defeito">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-wrench"></use></svg> Defeito e serviço</div></div>
       <div class="card-body">
         <div class="defect-grid">
           <div class="form-group form-group-compact">
             <label class="label-amber">1. Defeito informado pelo cliente <span class="req">*</span></label>
             <textarea name="defeito_alegado" rows="4" required placeholder="Escreva exatamente o que o cliente contou." class="{{ 'input-error' if fe.get('defeito_alegado') }}">{{ fd.get('defeito_alegado', os.defeito_alegado if os else '') }}</textarea>
+            <div id="defect-suggestions" class="defect-suggestions" aria-label="Sugestoes rapidas de defeito"></div>
           </div>
           <div class="form-group form-group-compact">
             <label class="label-sky">2. Defeito encontrado</label>
@@ -118,9 +136,23 @@
             <textarea name="solucao" rows="4" placeholder="Descreva o que foi feito no reparo.">{{ fd.get('solucao', os.solucao if os else '') }}</textarea>
           </div>
         </div>
+        <div class="reception-details">
+          <div class="form-group">
+            <label>Acessórios recebidos</label>
+            <input type="text" name="entrada_acessorios" value="{{ fd.get('entrada_acessorios', '') }}" maxlength="500" placeholder="Ex: carregador, capa, cabo, controle">
+          </div>
+          <div class="form-group">
+            <label>Estado visual</label>
+            <input type="text" name="entrada_estado_visual" value="{{ fd.get('entrada_estado_visual', '') }}" maxlength="500" placeholder="Ex: tela trincada, riscos na tampa, sem marcas">
+          </div>
+          <div class="form-group">
+            <label>Senha/padrão do aparelho</label>
+            <input type="text" name="entrada_senha_padrao" value="{{ fd.get('entrada_senha_padrao', '') }}" maxlength="120" autocomplete="off" placeholder="Opcional">
+          </div>
+        </div>
         <div class="form-group mb16">
-          <label>Observações e acessórios entregues</label>
-          <textarea name="observacoes" rows="2" placeholder="Ex: Sem carregador, capa entregue, tela rachada no canto.">{{ fd.get('observacoes', os.observacoes if os else '') }}</textarea>
+          <label>Observações internas</label>
+          <textarea name="observacoes" rows="2" placeholder="Ex: Combinações com o cliente, ressalvas ou detalhes extras.">{{ fd.get('observacoes', os.observacoes if os else '') }}</textarea>
         </div>
         <div class="form-row fr4">
           <div class="form-group">
@@ -193,7 +225,7 @@
   <div class="os-column">
 
     <!-- Financeiro -->
-    <div class="card">
+    <div class="card" id="os-step-valores">
       <div class="card-header card-header-gradient">
         <div class="card-title">Financeiro</div>
       </div>
@@ -307,7 +339,7 @@
     </div>
 
     <!-- Botão Salvar -->
-    <button type="submit" class="btn btn-primary submit-wide">
+    <button type="submit" class="btn btn-primary submit-wide" data-main-submit>
       {{ 'Salvar alterações' if os else 'Criar ordem de serviço' }}
     </button>
 
@@ -317,6 +349,7 @@
 
 <script nonce="{{ csp_nonce }}">
 const CLIENTES_DATA = {{ clientes_json | safe }};
+const CHECKLISTS_DATA = {{ checklist_templates_json | safe }};
 const PECAS_DATA = [
   {% for p in pecas_estoque or [] %}
   {

@@ -2,7 +2,7 @@
 
 Este é o documento de continuidade do projeto. Toda IA que trabalhar neste repositório deve lê-lo antes de alterar código, banco, infraestrutura ou documentação. Ele não substitui os documentos especializados em `docs/`; serve como mapa, histórico curto e conjunto de invariantes para evitar retrabalho e regressões.
 
-Última atualização: 2026-09-15.
+Última atualização: 2026-09-23.
 
 ## Objetivo do produto
 
@@ -12,17 +12,19 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 
 ## Estado resumido
 
-- Aplicação Flask e site público executam em Docker com MariaDB.
+- Aplicação Flask, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
 - Schema gerenciado por Alembic até a migration `20260911_0024`.
 - O isolamento multiempresa usa escopo ORM, bloqueio de mutacoes cruzadas, filtros explicitos em SQL manual e integridade referencial; MariaDB nao possui RLS nativo.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
-- Em 2026-09-15, 223 testes Python, Ruff, compilação Python e validação JavaScript passaram.
+- Em 2026-09-23, 223 testes Python, Ruff, compilação Python e validação JavaScript passaram.
 - Auditorias de dependências passaram na revisão anterior.
 - O código está apto para piloto controlado, mas o ambiente comercial ainda não foi homologado.
-- Em 2026-09-15, `production-check --strict-integrations` foi executado localmente e reprovou somente por configuração externa ausente: `FLASK_ENV=production`, MariaDB, segredos fortes, URL HTTPS pública, storage privado persistente, alertas, SMTP, WhatsApp automático e Redis.
-- Serviços Docker foram desligados preservando os volumes ao final da última sessão.
+- Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose local e reprovou somente por configuração externa ausente: `FLASK_ENV=production`, URL HTTPS pública, métricas, chave de backup, alertas, SMTP e WhatsApp automático. Redis, `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` locais já estão configurados com valores dev-only válidos; segredos reais de produção ainda precisam ser provisionados fora do Git.
+- Em 2026-09-23, o Compose de desenvolvimento passou a subir Redis (`redis://redis:6379/0`) para exercitar sessões e rate limit distribuído localmente.
+- Em 2026-09-23, o Compose de desenvolvimento passou a definir `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only válidos; sem isso, `create-organization` e fluxos que calculam índice cego falhavam no Gunicorn local.
+- Serviços Docker ficaram em execução ao final da última sessão com painel em `http://127.0.0.1:8000` e site em `http://127.0.0.1:5500`.
 
 Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](CHANGELOG.md) para a evolução versionada.
 
@@ -34,6 +36,7 @@ Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](
 - Flask 3, Flask-SQLAlchemy e SQLAlchemy 2.
 - Flask-Migrate/Alembic para schema.
 - MariaDB 11 em desenvolvimento integrado e produção.
+- Redis 7 em Docker local e produção para sessões e rate limit distribuído, com fallback seguro para MariaDB no rate limit.
 - SQLite em memória apenas nos testes unitários apropriados.
 - Gunicorn com workers síncronos em produção.
 - ReportLab para PDFs.
@@ -226,6 +229,7 @@ O production check precisa passar sem erro. Consulte [CONFIGURACAO.md](docs/CONF
 - [Backup e restore](docs/BACKUP_RESTORE.md) e [recuperação de desastre](docs/DISASTER_RECOVERY.md).
 - [Observabilidade](docs/OBSERVABILIDADE.md).
 - [Checklist de go-live](docs/GO_LIVE.md).
+- [Homologação e evidências](docs/HOMOLOGACAO_EVIDENCIAS.md).
 - [Suporte e operação](docs/SUPORTE_OPERACAO.md).
 - [Decisões externas](docs/DECISOES_EXTERNAS.md).
 

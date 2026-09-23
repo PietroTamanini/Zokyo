@@ -4,10 +4,33 @@ const hiddenId = document.getElementById('cliente_id');
 const partDropdown = document.getElementById('peca-dropdown');
 const partInput = document.getElementById('os-peca-busca');
 const partHiddenId = document.getElementById('os-peca-id');
+const orderForm = document.querySelector('[data-os-form]');
+const openingDurationInput = document.getElementById('opening-duration-seconds');
+const fastbarTime = document.getElementById('fastbar-time');
+const equipmentTypeSelect = document.querySelector('select[name="tipo_aparelho"]');
+const equipmentOtherInput = document.querySelector('input[name="tipo_aparelho_outro"]');
+const defectTextarea = document.querySelector('textarea[name="defeito_alegado"]');
+const defectSuggestions = document.getElementById('defect-suggestions');
+const entryChecklistPreview = document.getElementById('entry-checklist-preview');
 const clienteCache = new Map();
 const pecaCache = new Map();
+const pecaById = new Map((PECAS_DATA || []).map(item => [String(item.id), item]));
 let clienteTimer = null;
 let pecaTimer = null;
+let openingStartedAt = null;
+let fastbarInterval = null;
+
+const DEFECT_SUGGESTIONS = {
+  Notebook: ['Nao liga', 'Tela quebrada', 'Nao carrega', 'Lento', 'Esquenta muito', 'Teclado falhando'],
+  Smartphone: ['Tela quebrada', 'Nao carrega', 'Sem imagem', 'Bateria descarrega rapido', 'Molhou', 'Sem audio'],
+  Desktop: ['Nao liga', 'Reinicia sozinho', 'Sem video', 'Lento', 'Faz barulho', 'Travando'],
+  Tablet: ['Tela quebrada', 'Nao carrega', 'Nao liga', 'Touch falhando', 'Bateria ruim'],
+  TV: ['Sem imagem', 'Sem som', 'Nao liga', 'Imagem piscando', 'Controle nao funciona'],
+  Monitor: ['Sem imagem', 'Tela piscando', 'Manchas na tela', 'Fonte com falha', 'Cabo/conector danificado'],
+  Impressora: ['Nao imprime', 'Atolando papel', 'Falha na conexao', 'Impressao manchada', 'Nao puxa papel'],
+  Videogame: ['Nao liga', 'Sem imagem', 'Superaquecendo', 'Controle nao conecta', 'Leitor falhando'],
+  Outros: ['Nao liga', 'Nao funciona corretamente', 'Falha intermitente', 'Barulho anormal', 'Conector danificado']
+};
 
 function _soDigitos(v) { return (v || '').replace(/\D/g, ''); }
 function _formatDoc(c) {
@@ -64,8 +87,134 @@ async function buscarPecas(q) {
   if (pecaCache.has(q)) return pecaCache.get(q);
   const params = new URLSearchParams({ q, limit: '10' });
   const items = await fetchJson(`/api/pecas?${params.toString()}`);
+  items.forEach(item => pecaById.set(String(item.id), item));
   pecaCache.set(q, items);
   return items;
+}
+
+function tipoEquipamentoAtual() {
+  const selected = equipmentTypeSelect?.value || '';
+  if (selected === 'Outros') return equipmentOtherInput?.value.trim() || 'Outros';
+  return selected || 'Outros';
+}
+
+function sugestoesParaTipo(tipo) {
+  return DEFECT_SUGGESTIONS[tipo] || DEFECT_SUGGESTIONS.Outros;
+}
+
+function checklistParaTipo(tipo) {
+  const normalized = String(tipo || '').trim().toLowerCase();
+  return (CHECKLISTS_DATA || []).find(item => String(item.categoria || '').trim().toLowerCase() === normalized);
+}
+
+function renderDefectSuggestions() {
+  if (!defectSuggestions) return;
+  const tipo = tipoEquipamentoAtual();
+  defectSuggestions.innerHTML = sugestoesParaTipo(tipo).map(text => `
+    <button type="button" class="btn btn-ghost btn-xs defect-suggestion"
+            data-action="defect-suggestion-add" data-text="${_safe(text)}">
+      ${_safe(text)}
+    </button>
+  `).join('');
+}
+
+function renderEntryChecklistPreview() {
+  if (!entryChecklistPreview) return;
+  const tipo = tipoEquipamentoAtual();
+  const checklist = checklistParaTipo(tipo);
+  if (!checklist || !Array.isArray(checklist.itens) || !checklist.itens.length) {
+    entryChecklistPreview.innerHTML = `
+      <div class="entry-checklist-empty">
+        Nenhum checklist ativo para ${_safe(tipo)}.
+        <a href="/checklists">Cadastrar modelo</a>
+      </div>
+    `;
+    return;
+  }
+  entryChecklistPreview.innerHTML = `
+    <div class="entry-checklist-head">
+      <strong>Checklist de entrada</strong>
+      <span>${_safe(checklist.categoria)} v${_safe(checklist.versao)}</span>
+    </div>
+    <div class="entry-checklist-items">
+      ${checklist.itens.map(item => `<span>${_safe(item)}</span>`).join('')}
+    </div>
+  `;
+}
+
+function adicionarSugestaoDefeito(text) {
+  if (!defectTextarea || !text) return;
+  const current = defectTextarea.value.trim();
+  if (current.toLowerCase().includes(text.toLowerCase())) {
+    defectTextarea.focus();
+    return;
+  }
+  defectTextarea.value = current ?`${current}; ${text}` : text;
+  defectTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+  defectTextarea.focus();
+}
+
+function startOpeningTimer() {
+  if (openingStartedAt !== null) return;
+  openingStartedAt = Date.now();
+  updateFastbarTime();
+  fastbarInterval = setInterval(updateFastbarTime, 1000);
+}
+
+function finishOpeningTimer() {
+  if (!openingDurationInput) return;
+  startOpeningTimer();
+  const seconds = Math.max(0, Math.min(86400, Math.round((Date.now() - openingStartedAt) / 1000)));
+  openingDurationInput.value = String(seconds);
+}
+
+function updateFastbarTime() {
+  if (!fastbarTime) return;
+  const seconds = openingStartedAt === null ?0 : Math.max(0, Math.round((Date.now() - openingStartedAt) / 1000));
+  fastbarTime.textContent = seconds < 60 ?`${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
+
+function stepDone(step) {
+  if (step === 'cliente') return Boolean(hiddenId?.value);
+  if (step === 'equipamento') {
+    const marca = orderForm?.querySelector('[name="marca"]')?.value.trim();
+    const modelo = orderForm?.querySelector('[name="modelo"]')?.value.trim();
+    return Boolean(tipoEquipamentoAtual() && marca && modelo);
+  }
+  if (step === 'defeito') return Boolean(defectTextarea?.value.trim());
+  if (step === 'valor') return parseFloat(document.getElementById('f-mo')?.value || 0) > 0;
+  return false;
+}
+
+function updateFastbarProgress() {
+  document.querySelectorAll('[data-fast-step]').forEach(button => {
+    const step = button.getAttribute('data-fast-step');
+    button.classList.toggle('is-done', stepDone(step));
+  });
+}
+
+function setCurrentFastbarStep(target) {
+  if (!target?.name && !target?.id) return;
+  const map = [
+    ['cliente', ['cliente_id', 'cliente-busca']],
+    ['equipamento', ['tipo_aparelho', 'tipo_aparelho_outro', 'marca', 'modelo', 'numero_serie']],
+    ['defeito', ['defeito_alegado', 'defeito_encontrado', 'solucao', 'entrada_acessorios', 'entrada_estado_visual', 'entrada_senha_padrao', 'observacoes']],
+    ['valor', ['valor_servico', 'desconto', 'garantia_dias', 'status', 'prio', 'tecnico_nome', 'tipo_atendimento', 'data_entrada', 'data_prev']]
+  ];
+  const current = map.find(([, names]) => names.includes(target.name) || names.includes(target.id))?.[0];
+  document.querySelectorAll('[data-fast-step]').forEach(button => {
+    button.classList.toggle('is-current', button.getAttribute('data-fast-step') === current);
+  });
+}
+
+if (orderForm) {
+  ['focusin', 'input', 'change', 'click'].forEach(eventName => {
+    orderForm.addEventListener(eventName, startOpeningTimer, { once: true });
+  });
+  orderForm.addEventListener('submit', finishOpeningTimer);
+  orderForm.addEventListener('input', updateFastbarProgress);
+  orderForm.addEventListener('change', updateFastbarProgress);
+  orderForm.addEventListener('focusin', e => setCurrentFastbarStep(e.target));
 }
 
 document.querySelectorAll('[data-other-select]').forEach((select) => {
@@ -154,23 +303,6 @@ if (partInput && partDropdown) {
       </div>`).join('');
       partDropdown.classList.add('show');
     }, 180);
-    return;
-
-    const matches = (PECAS_DATA || []).filter(p => pecaMatches(p, q));
-    if (!matches.length) {
-      partDropdown.innerHTML = '<div class="dropdown-result dropdown-empty">Nenhuma peça encontrada</div>';
-      partDropdown.classList.add('show');
-      return;
-    }
-
-    partDropdown.innerHTML = matches.slice(0, 10).map(p => `
-      <div data-action="os-peca-select" data-id="${p.id}" class="dropdown-result">
-        <strong>${_safe(p.nome)}</strong>
-        <span class="dropdown-meta">
-          ${p.codigo ?_safe(p.codigo) + ' - ' : ''}Estoque: ${_safe(p.quantidade)} - R$ ${parseFloat(p.preco || 0).toFixed(2).replace('.', ',')}
-        </span>
-      </div>`).join('');
-    partDropdown.classList.add('show');
   });
 
   document.addEventListener('click', e => {
@@ -187,6 +319,7 @@ function selecionarCliente(id, nome, tel, doc) {
   document.getElementById('cliente-card').classList.remove('is-hidden');
   document.getElementById('cliente-info').innerHTML =
     `<strong>${_safe(nome)}</strong> - ${_safe(tel || '-')} - <span class="mono-inline">${_safe(doc || '')}</span>`;
+  updateFastbarProgress();
 }
 
 function trocarCliente() {
@@ -194,6 +327,7 @@ function trocarCliente() {
   input.value = '';
   document.getElementById('cliente-card').classList.add('is-hidden');
   input.focus();
+  updateFastbarProgress();
 }
 
 function preencherClienteSelecionadoInicial() {
@@ -327,6 +461,8 @@ document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const action = el.getAttribute('data-action');
+  if (action === 'defect-suggestion-add') return adicionarSugestaoDefeito(el.getAttribute('data-text') || '');
+  if (action === 'os-fast-submit') return orderForm?.requestSubmit();
   if (action === 'os-cliente-trocar') return trocarCliente();
   if (action === 'quick-client-open') return openModal('Cliente rapido', quickClientHtml());
   if (action === 'quick-client-save') return salvarClienteRapido();
@@ -343,7 +479,7 @@ document.addEventListener('click', (e) => {
   }
   if (action === 'os-peca-select') {
     const pecaId = parseInt(el.getAttribute('data-id'));
-    const peca = (PECAS_DATA || []).find(item => String(item.id) === String(pecaId));
+    const peca = pecaById.get(String(pecaId));
     if (peca) return selecionarPeca(peca);
   }
   if (action === 'os-peca-remover') {
@@ -355,5 +491,28 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('input', (e) => {
   if (e.target && e.target.matches('[data-action="os-total-recalc"]')) calcTotal();
+  if (e.target && e.target.matches('input[name="tipo_aparelho_outro"]')) {
+    renderDefectSuggestions();
+    renderEntryChecklistPreview();
+  }
 });
 document.addEventListener('DOMContentLoaded', preencherClienteSelecionadoInicial);
+document.addEventListener('DOMContentLoaded', renderDefectSuggestions);
+document.addEventListener('DOMContentLoaded', renderEntryChecklistPreview);
+document.addEventListener('DOMContentLoaded', () => {
+  updateFastbarTime();
+  updateFastbarProgress();
+});
+equipmentTypeSelect?.addEventListener('change', () => {
+  renderDefectSuggestions();
+  renderEntryChecklistPreview();
+  updateFastbarProgress();
+});
+
+document.querySelectorAll('[data-fast-step]').forEach(button => {
+  button.addEventListener('click', () => {
+    const target = document.querySelector(button.getAttribute('data-target'));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target?.querySelector('input, select, textarea, button')?.focus({ preventScroll: true });
+  });
+});

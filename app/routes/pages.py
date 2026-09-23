@@ -496,6 +496,7 @@ def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os",
     status_map = _configured_status_map()
     priority_options = _configured_priority_options()
     attendance_options = _configured_attendance_options()
+    checklist_templates = _active_checklist_templates()
     return dict(
         active=active,
         os=os_obj,
@@ -508,6 +509,15 @@ def _os_form_context(os_obj=None, form_data=None, form_errors=None, active="os",
         priority_map={item["key"]: item["label"] for item in priority_options},
         attendance_options=attendance_options,
         attendance_map={item["key"]: item["label"] for item in attendance_options},
+        checklist_templates_json=_safe_json([
+            {
+                "id": item.id,
+                "categoria": item.category,
+                "versao": item.version,
+                "itens": item.items or [],
+            }
+            for item in checklist_templates
+        ]),
         hoje_iso=_today(),
         pecas_usadas=os_obj.to_dict().get("pecas", []) if os_obj else [],
         nivel_usuario=session.get("nivel", "operacional"),
@@ -530,6 +540,61 @@ def _normalizar_tipo_aparelho(data):
     if tipo == "Outros":
         tipo = sanitize_text(data.get("tipo_aparelho_outro", ""), max_length=100)
     return tipo
+
+
+def _active_checklist_templates():
+    return (
+        ServiceChecklistTemplate.query
+        .filter_by(organization_id=g.organization_id, active=True)
+        .order_by(ServiceChecklistTemplate.category.asc(), ServiceChecklistTemplate.version.desc())
+        .all()
+    )
+
+
+def _active_checklist_for_category(category):
+    category = sanitize_text(category or "", max_length=100).lower()
+    if not category:
+        return None
+    return (
+        ServiceChecklistTemplate.query
+        .filter_by(organization_id=g.organization_id, active=True)
+        .filter(func.lower(ServiceChecklistTemplate.category) == category)
+        .order_by(ServiceChecklistTemplate.version.desc())
+        .first()
+    )
+
+
+def _opening_duration_seconds(data):
+    raw_value = str(data.get("opening_duration_seconds") or "").strip()
+    if not raw_value:
+        return None
+    try:
+        value = int(float(raw_value))
+    except (TypeError, ValueError):
+        return None
+    if value < 0 or value > 86400:
+        return None
+    return value
+
+
+def _observacoes_com_entrada(data, max_length=5000):
+    observacoes = sanitize_text(data.get("observacoes", ""), max_length=max_length) or ""
+    observacoes = _re.sub(r"\n*\[Entrada\][\s\S]*?\[/Entrada\]\n*", "\n", observacoes).strip()
+    detalhes = []
+    accessories = sanitize_text(data.get("entrada_acessorios", ""), max_length=500)
+    visual_state = sanitize_text(data.get("entrada_estado_visual", ""), max_length=500)
+    device_secret = sanitize_text(data.get("entrada_senha_padrao", ""), max_length=120)
+    if accessories:
+        detalhes.append(f"Acessorios recebidos: {accessories}")
+    if visual_state:
+        detalhes.append(f"Estado visual: {visual_state}")
+    if device_secret:
+        detalhes.append(f"Senha/padrao: {device_secret}")
+    if not detalhes:
+        return observacoes or None
+    entrada = "[Entrada]\n" + "\n".join(detalhes) + "\n[/Entrada]"
+    combined = f"{entrada}\n\n{observacoes}" if observacoes else entrada
+    return sanitize_text(combined, max_length=max_length) or None
 
 
 def _escape_like(q: str) -> str:
@@ -1703,6 +1768,7 @@ def bancada():
 def checklists_tecnicos():
     templates = (
         ServiceChecklistTemplate.query
+        .filter_by(organization_id=g.organization_id)
         .order_by(ServiceChecklistTemplate.category.asc(), ServiceChecklistTemplate.version.desc())
         .all()
     )
@@ -1720,11 +1786,11 @@ def checklist_criar_page():
         return redirect(url_for("pages.checklists_tecnicos"))
     previous = (
         ServiceChecklistTemplate.query
-        .filter_by(category=category)
+        .filter_by(organization_id=g.organization_id, category=category)
         .order_by(ServiceChecklistTemplate.version.desc())
         .first()
     )
-    for old in ServiceChecklistTemplate.query.filter_by(category=category, active=True).all():
+    for old in ServiceChecklistTemplate.query.filter_by(organization_id=g.organization_id, category=category, active=True).all():
         old.active = False
     template = ServiceChecklistTemplate(
         organization_id=g.organization_id,
@@ -1915,6 +1981,7 @@ def coleta_concluir_post(id):
         flash(str(exc), "error")
         return redirect(url_for("pages.coleta"))
 
+    checklist_template = _active_checklist_for_category(tipo_aparelho)
     os_obj = OrdemServico(
         numero=proximo_numero_os(g.organization_id),
         organization_id=g.organization_id,
@@ -1938,6 +2005,9 @@ def coleta_concluir_post(id):
         garantia_dias=garantia_dias,
         data_entrada=_now(),
         data_prev=_safe_date(data.get("data_prev")),
+        checklist_template_id=checklist_template.id if checklist_template else None,
+        checklist_snapshot=list(checklist_template.items) if checklist_template else [],
+        checklist_answers={},
     )
     db.session.add(os_obj)
     db.session.flush()
@@ -2013,6 +2083,7 @@ def os_criar():
     tipo_aparelho = _normalizar_tipo_aparelho(data)
     if not tipo_aparelho:
         return _render_os_form_error("Informe o tipo do equipamento.", "tipo_aparelho", data)
+    checklist_template = _active_checklist_for_category(tipo_aparelho)
     os_obj = OrdemServico(
         numero=proximo_numero_os(g.organization_id),
         organization_id=g.organization_id,
@@ -2025,7 +2096,7 @@ def os_criar():
         defeito_alegado=sanitize_text(data.get("defeito_alegado", ""), max_length=5000) or None,
         defeito_encontrado=sanitize_text(data.get("defeito_encontrado", ""), max_length=5000) or None,
         solucao=sanitize_text(data.get("solucao", ""), max_length=5000) or None,
-        observacoes=sanitize_text(data.get("observacoes", ""), max_length=5000) or None,
+        observacoes=_observacoes_com_entrada(data),
         valor_servico=valor_servico,
         valor_pecas=0,
         desconto=desconto,
@@ -2038,6 +2109,9 @@ def os_criar():
         garantia_dias=garantia_dias,
         data_entrada=(_safe_date(data.get("data_entrada")) or _now()),
         data_prev=_safe_date(data.get("data_prev")),
+        checklist_template_id=checklist_template.id if checklist_template else None,
+        checklist_snapshot=list(checklist_template.items) if checklist_template else [],
+        checklist_answers={},
     )
     db.session.add(os_obj)
     db.session.flush()
@@ -2047,8 +2121,12 @@ def os_criar():
         status_anterior=None,
         status_novo=os_obj.status,
     ))
-    registrar("criacao", "os", f"OS #{os_obj.id:04d} criada",
-              f"Cliente: {os_obj.cliente.nome}")
+    opening_duration = _opening_duration_seconds(data)
+    registrar_detail = (
+        f"tempo_abertura_segundos={opening_duration}"
+        if opening_duration is not None else "tempo_abertura_segundos=nao_informado"
+    )
+    registrar("criacao", "os", f"OS #{os_obj.id:04d} criada", registrar_detail)
     db.session.commit()
     from app.services.order_notifications import queue_order_event
     queue_order_event(os_obj, f"os_status_{os_obj.status}", f"os-created-{os_obj.id}")
@@ -2079,11 +2157,12 @@ def os_atualizar(id):
         return _render_os_form_error("Informe o tipo do equipamento.", "tipo_aparelho", data, os_obj)
     os_obj.tipo_aparelho = tipo_aparelho
     _CAMPOS_CURTOS = ("marca", "modelo", "numero_serie", "tecnico_nome")
-    _CAMPOS_LONGOS = ("defeito_alegado", "defeito_encontrado", "solucao", "observacoes")
+    _CAMPOS_LONGOS = ("defeito_alegado", "defeito_encontrado", "solucao")
     for campo in _CAMPOS_CURTOS:
         setattr(os_obj, campo, sanitize_text(data.get(campo, ""), max_length=120) or None)
     for campo in _CAMPOS_LONGOS:
         setattr(os_obj, campo, sanitize_text(data.get(campo, ""), max_length=5000) or None)
+    os_obj.observacoes = _observacoes_com_entrada(data)
     prio = data.get("prio", os_obj.prio)
     os_obj.prio = prio if prio in _configured_priority_keys() else os_obj.prio
     tipo_atendimento = data.get("tipo_atendimento", os_obj.tipo_atendimento)

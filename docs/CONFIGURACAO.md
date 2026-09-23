@@ -1,6 +1,8 @@
 # Configuracao
 
-Estado revisado em 2026-09-15. O ambiente Docker de desenvolvimento foi validado; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, MariaDB, HTTPS, storage privado, SMTP, alertas, WhatsApp e Redis não forem configurados.
+Estado revisado em 2026-09-23. O ambiente Docker de desenvolvimento foi validado com MariaDB e Redis; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, HTTPS, storage privado, SMTP, alertas, WhatsApp e Redis de producao não forem configurados.
+
+O Compose de desenvolvimento define `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only para permitir cadastro local, criptografia de campos e indices cegos. Nao reutilize esses valores fora do ambiente local.
 
 Copie `.env.example` para `.env` em desenvolvimento e ajuste os valores locais.
 
@@ -34,7 +36,7 @@ Em producao, `SECRET_KEY`, `DATABASE_URL` e `ENCRYPTION_SALT` sao validadas no s
 - `BACKUP_ENCRYPTION_KEY`: chave Base64 URL-safe de 32 bytes usada para criptografar backups.
 - `ALERT_EMAIL` ou `ALERT_WEBHOOK_URL`: canal operacional para falhas criticas.
 - `ALERT_WEBHOOK_ALLOWED_HOSTS`: lista de hosts permitidos quando `ALERT_WEBHOOK_URL` estiver configurado.
-- `REDIS_URL`: Redis compartilhado para sessoes e rate limit distribuido em producao.
+- `REDIS_URL`: Redis compartilhado para sessoes e rate limit distribuido. No Compose local, o padrao e `redis://redis:6379/0`.
 - `SENTRY_DSN`: habilita Sentry opcional; vazio mantem a integracao desligada.
 - `SENTRY_TRACES_SAMPLE_RATE`: amostragem entre 0 e 1, padrao 0.
 - `ASAAS_API_KEY`: chave da API Asaas para gerar cobranças reais.
@@ -60,6 +62,14 @@ O segredo TOTP e criptografado com uma chave derivada de `SECRET_KEY` e `ENCRYPT
 python -c "import secrets; print(secrets.token_hex(32))"
 python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
 ```
+
+Para gerar um bloco inicial de variaveis de producao com segredos fortes sem gravar nada no repositorio:
+
+```bash
+python scripts/generate_production_env.py --public-base-url https://zokyo.seudominio.com
+```
+
+Revise banco, SMTP, alertas, WhatsApp, DNS, storage e cobranca antes de usar o resultado. Salve os valores somente em cofre de segredos ou arquivo protegido fora do Git.
 
 ## Laudos
 

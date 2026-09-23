@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-09-15 apos fechamento das lacunas automatizaveis da matriz central de auditoria.
+Atualizado em 2026-09-23 apos validacao do ambiente Docker local com Redis.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -8,15 +8,74 @@ Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica traba
 
 O sistema está tecnicamente apto para um piloto controlado. Ainda não está liberado para produção comercial porque o ambiente real, os backups externos, as integrações e as políticas operacionais não foram configurados ou homologados.
 
-Em 2026-09-15, `production-check --strict-integrations` foi executado localmente e reprovou apenas por bloqueadores externos esperados: `FLASK_ENV`, MariaDB, segredos fortes, URL HTTPS publica, storage privado persistente, alertas, SMTP, WhatsApp automatico e Redis.
+Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose local e reprovou apenas por bloqueadores externos esperados: `FLASK_ENV`, URL HTTPS publica, metricas, chave de backup, alertas, SMTP e WhatsApp automatico. Redis, `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` locais ja estao configurados com valores dev-only validos; os segredos reais e Redis de producao continuam pendentes no ambiente real.
 
-- [x] Aplicação, MariaDB e site público executam em Docker com healthchecks saudáveis.
+Para preparar as pendencias externas, use `scripts/generate_production_env.py` para gerar segredos fortes fora do Git e [Homologacao e evidencias](docs/HOMOLOGACAO_EVIDENCIAS.md) para registrar aprovacoes, testes reais e responsaveis.
+
+- [x] Aplicação, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
 - [x] Schema gerenciado por Alembic até a migration `20260911_0024`.
-- [x] 223 testes Python aprovados em 2026-09-15.
+- [x] 223 testes Python aprovados em 2026-09-23.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
 - [x] Ruff, compilação Python, validação JavaScript e auditorias de dependências aprovados.
+
+## Roadmap para superar concorrentes
+
+Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente e lucro real por OS. Novos módulos só entram quando melhorarem esses três pontos sem deixar a operação mais pesada.
+
+### A. OS de balcão mais rápida do mercado
+
+- [x] Busca de cliente por nome, documento e telefone com API no formulário de OS.
+- [x] Cadastro rápido de cliente dentro da OS.
+- [x] Busca de peças por API no formulário de OS e seleção correta de resultados remotos.
+- [x] Medidor interno de tempo de abertura da OS, do primeiro campo ao salvamento.
+- [x] Sugestões rápidas de defeito por tipo de equipamento.
+- [x] Checklist dinâmico por tipo de equipamento logo na abertura.
+- [x] Campos específicos para acessórios recebidos, estado visual e senha/padrão do aparelho.
+- [x] Fluxo guiado compacto para abrir OS no balcão em até 60 segundos.
+
+### B. WhatsApp e portal que reduzem ligações
+
+- [x] Portal público de consulta de OS.
+- [x] Aprovação de orçamento por link.
+- [x] Fallback manual por `wa.me`.
+- [x] Fila idempotente de notificações por evento de OS.
+- [ ] WhatsApp Cloud API homologado em produção.
+- [ ] Histórico de mensagens visível dentro da OS.
+- [ ] Reenvio manual contextual a partir da OS.
+- [ ] Mensagens prontas para status, cobrança, garantia e retirada com revisão humana.
+
+### C. Financeiro e estoque com lucro real
+
+- [x] Lucro por OS com custo histórico de peças, mão de obra, comissão e desconto.
+- [x] Lista direta de OS com pagamento incompleto.
+- [x] Baixa automática de estoque por peça usada na OS.
+- [x] Sugestão de compra e estoque mínimo.
+- [ ] Fechamento de caixa homologado com responsável financeiro.
+- [ ] Inventário físico guiado com divergências e aprovação.
+- [ ] Alertas de OS com risco de prejuízo antes da entrega.
+- [ ] Dashboard do dono com margem, inadimplência, peças críticas e OS paradas.
+
+### D. Produto premium
+
+- [x] Laudos técnicos com PDF privado, hash e verificação.
+- [x] Auditoria e permissões multiempresa.
+- [x] PWA responsivo com auditoria visual em múltiplos viewports.
+- [ ] Templates de laudo por tipo de equipamento com fotos obrigatórias.
+- [ ] Assistente de texto para orçamento/laudo com revisão humana.
+- [ ] Busca operacional em linguagem natural sobre OS, clientes, peças e financeiro.
+- [ ] NFS-e/NF-e ou integração fiscal definida.
+
+### E. SaaS comercial
+
+- [x] Admin global, planos, assinaturas e limites implementados.
+- [x] Compose de produção com app, Redis, MariaDB, scheduler, migrate e Nginx.
+- [x] Gerador local de variáveis de produção com segredos fortes.
+- [ ] Trial, cobrança real e inadimplência homologados.
+- [ ] Onboarding guiado da primeira empresa.
+- [ ] Página de status/saúde operacional para suporte.
+- [ ] Materiais comerciais: demonstração, comparação com concorrentes, contrato e política de suporte.
 
 ## 1. Bloqueadores de produção
 
