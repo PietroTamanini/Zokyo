@@ -1,5 +1,6 @@
 """Entrega confiavel de notificacoes com idempotencia e retentativas."""
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 from sqlalchemy.exc import IntegrityError
 
@@ -13,7 +14,9 @@ def _now():
     return datetime.now(timezone.utc)
 
 
-def enqueue_notification(organization_id, channel, recipient, payload, event_type, idempotency_key):
+def enqueue_notification(
+    organization_id, channel, recipient, payload, event_type, idempotency_key, *, os_id=None,
+):
     existing = Notification.query.execution_options(include_all_tenants=True).filter_by(
         organization_id=organization_id, idempotency_key=idempotency_key
     ).first()
@@ -26,6 +29,7 @@ def enqueue_notification(organization_id, channel, recipient, payload, event_typ
         event_type=event_type,
         idempotency_key=idempotency_key,
         payload=payload,
+        os_id=os_id,
     )
     db.session.add(item)
     try:
@@ -38,15 +42,21 @@ def enqueue_notification(organization_id, channel, recipient, payload, event_typ
     return item, True
 
 
-def enqueue_whatsapp(organization_id, recipient, message, event_type, idempotency_key):
+def enqueue_whatsapp(
+    organization_id, recipient, message, event_type, idempotency_key, *, os_id=None,
+):
     return enqueue_notification(
         organization_id, "whatsapp", recipient, {"message": message}, event_type, idempotency_key,
+        os_id=os_id,
     )
 
 
-def enqueue_email(organization_id, recipient, subject, message, event_type, idempotency_key):
+def enqueue_email(
+    organization_id, recipient, subject, message, event_type, idempotency_key, *, os_id=None,
+):
     return enqueue_notification(
         organization_id, "email", recipient, {"subject": subject, "message": message}, event_type, idempotency_key,
+        os_id=os_id,
     )
 
 
@@ -109,4 +119,28 @@ def retry_notification(notification_id, organization_id):
     item.next_attempt_at = _now()
     item.last_error = None
     db.session.commit()
+    return item
+
+
+def resend_order_notification(notification_id, organization_id, os_id):
+    """Cria uma nova tentativa sem apagar o historico da notificacao original."""
+    source = Notification.query.filter_by(
+        id=notification_id,
+        organization_id=organization_id,
+        os_id=os_id,
+    ).first()
+    if not source:
+        raise LookupError("Notificação não encontrada para esta OS.")
+
+    payload = dict(source.payload or {})
+    payload.pop("last_result", None)
+    item, _created = enqueue_notification(
+        organization_id,
+        source.channel,
+        source.recipient,
+        payload,
+        source.event_type,
+        f"manual-resend-{source.id}-{uuid4().hex}",
+        os_id=os_id,
+    )
     return item

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app import create_app
 from app.extensions import db
 from app.models import Cliente, OrdemServico, Organization, Peca, Transacao, Usuario, os_pecas
-from app.services.financial_analytics import order_financial_rows, period_summary
+from app.services.financial_analytics import order_financial_rows, order_financial_snapshot, period_summary
 
 
 def _financial_app():
@@ -71,6 +71,7 @@ def test_consolida_pagamento_custos_lucro_e_inadimplencia_com_data_utc():
         assert row["labor_cost"] == 60
         assert row["commissions"] == 8
         assert row["profit"] == 92
+        assert order_financial_snapshot(row["order"], now=datetime(2026, 9, 3, tzinfo=timezone.utc))["profit"] == 92
 
 
 def test_resumo_reflete_apenas_as_linhas_do_periodo():

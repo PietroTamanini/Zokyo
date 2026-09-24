@@ -115,6 +115,7 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         order_indexes = {row[1] for row in connection.execute("PRAGMA index_list(ordens_servico)")}
         report_indexes = {row[1] for row in connection.execute("PRAGMA index_list(laudos_tecnicos)")}
         notification_indexes = {row[1] for row in connection.execute("PRAGMA index_list(notifications)")}
+        notification_columns = {row[1] for row in connection.execute("PRAGMA table_info(notifications)")}
         collection_indexes = {row[1] for row in connection.execute("PRAGMA index_list(coletas_agendadas)")}
         counter_foreign_keys = list(connection.execute("PRAGMA foreign_key_list(laudo_counters)"))
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
@@ -135,6 +136,8 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert {"ix_os_org_open_tecnico_prev", "ix_os_org_deleted_atualizado"} <= order_indexes
     assert {"ix_laudos_org_status_tipo_criado", "ix_laudos_org_cliente_criado"} <= report_indexes
     assert "ix_notifications_org_status_next" in notification_indexes
+    assert "ix_notifications_org_os_created" in notification_indexes
+    assert "os_id" in notification_columns
     assert "ix_coletas_org_status_agendada_criado" in collection_indexes
     assert any(row[2] == "organizations" and row[3] == "organization_id" for row in counter_foreign_keys)
-    assert revision == "20260911_0024"
+    assert revision == "20260924_0025"

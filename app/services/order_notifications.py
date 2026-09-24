@@ -61,6 +61,7 @@ def queue_order_event(order, event_type: str, idempotency_key: str) -> list:
             body,
             event_type,
             f"{idempotency_key}-email",
+            os_id=order.id,
         )
         queued.append(item)
     if customer.telefone and whatsapp_enabled:
@@ -75,6 +76,7 @@ def queue_order_event(order, event_type: str, idempotency_key: str) -> list:
             body,
             event_type,
             f"{idempotency_key}-whatsapp",
+            os_id=order.id,
         )
         queued.append(item)
     return queued

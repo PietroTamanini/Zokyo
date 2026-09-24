@@ -1,6 +1,6 @@
 # Matriz de auditoria das mutacoes
 
-Estado revisado em 2026-09-15. Esta matriz cobre rotas HTTP mutantes (`POST`, `PUT`, `PATCH` e `DELETE`) e diferencia o log geral `EventoLog` de trilhas especializadas do dominio.
+Estado revisado em 2026-09-24. Esta matriz cobre rotas HTTP mutantes (`POST`, `PUT`, `PATCH` e `DELETE`) e diferencia o log geral `EventoLog` de trilhas especializadas do dominio.
 
 ## Invariantes
 
@@ -18,7 +18,7 @@ Estado revisado em 2026-09-15. Esta matriz cobre rotas HTTP mutantes (`POST`, `P
 | Autenticacao e sessoes | login, 2FA, logout, revogacao, recuperacao de senha, renovacao de token e primeiro acesso | `EventoLog` para sucesso, falha de 2FA, seguranca e sessao | Coberto nos fluxos centrais |
 | Usuarios e permissoes | CRUD, convite, aceite, revogacao, troca de senha e matriz de permissao | `EventoLog` | Coberto nos fluxos centrais |
 | Clientes e fornecedores | CRUD e arquivamento HTML/API | `EventoLog` | Coberto |
-| OS pelo painel | criacao, edicao, itens, servicos, desconto, faturamento, pagamento, status, baixa e exclusao | `EventoLog` + `OSHistorico` | Coberto nos fluxos centrais |
+| OS pelo painel | criacao, edicao, itens, servicos, desconto, faturamento, pagamento, status, baixa, reenvio de mensagem e exclusao | `EventoLog` + `OSHistorico` + fila de notificacoes | Coberto nos fluxos centrais |
 | OS pela API | criacao, edicao, exclusao, itens, servicos, anotacoes e reservas | `EventoLog` + `OSHistorico`/movimentos | Coberto nos fluxos centrais |
 | Estoque | produto, ajuste, lote, reserva e consumo | `EventoLog` + `InventoryMovement` | Coberto nos fluxos centrais |
 | Financeiro | CRUD, pagamento, conciliacao, cobranca e gateway | `EventoLog` no painel, API e conciliacao | Coberto nos fluxos centrais; gateway ainda requer homologacao real |
@@ -46,6 +46,8 @@ Nenhuma lacuna automatizavel conhecida permanece na matriz central. As pendencia
 - `tests/test_billing.py` confirma eventos administrativos e de webhook para planos, assinaturas, checkout e cancelamento sem copiar documento, ids externos, tokens ou payloads.
 - `tests/test_password_reset.py`, `tests/test_core_api.py`, `tests/test_route_edges.py` e `tests/test_pages_smoke.py::test_api_v1_login_e_regeneracao_token_bearer` confirmam recuperacao/reset de senha, aceite de convite, troca de senha pela API e regeneracao de token sem copiar e-mail, token ou senha.
 - `tests/test_portal.py` confirma evento de seguranca para decisao publica negada com token valido, sem copiar token nem dados internos da OS.
+- `tests/test_pages_smoke.py::test_os_exibe_historico_de_mensagens_e_reenvia_preservando_original` confirma que o reenvio contextual preserva a tentativa anterior, valida OS/tenant e registra somente ids no `EventoLog`, sem destino ou conteúdo da mensagem.
+- `tests/test_pages_smoke.py::test_entrega_com_prejuizo_exige_confirmacao_consciente_no_painel_e_api` confirma bloqueio, confirmação e auditoria resumida da entrega com lucro projetado negativo no painel e na API.
 - Testes de laudos validam a trilha especializada `LaudoEvento`.
 
 A matriz central esta integralmente concluida para as lacunas automatizaveis conhecidas nesta revisao. Novas rotas mutantes devem acrescentar `EventoLog` ou trilha especializada equivalente e testes de modulo, tipo, tenant e ausencia de dados sensiveis.

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import Notification, Organization
+from app.models import Cliente, Notification, OrdemServico, Organization, Usuario
 from app.services import notifications
 
 
@@ -148,3 +148,50 @@ def test_email_transacional_usa_mesma_fila_auditavel():
         assert result.channel == "email"
         assert result.status == "sent"
         assert app.extensions["email_outbox"][0]["to"] == "cliente@example.com"
+
+
+def test_reenvio_de_os_preserva_tentativa_original_e_valida_vinculo():
+    app = _app()
+    with app.app_context():
+        user = Usuario(organization_id=1, nome="Admin", email="admin@example.test", nivel="admin")
+        user.set_senha("Senha!123")
+        customer = Cliente(organization_id=1, nome="Cliente", telefone="47999999999")
+        db.session.add_all([user, customer])
+        db.session.flush()
+        order = OrdemServico(
+            organization_id=1,
+            cliente_id=customer.id,
+            usuario_id=user.id,
+            status="pronto",
+        )
+        db.session.add(order)
+        db.session.commit()
+
+        source, _ = notifications.enqueue_whatsapp(
+            1,
+            customer.telefone,
+            "Mensagem original",
+            "os_status_pronto",
+            "original-order-message",
+            os_id=order.id,
+        )
+        source.status = "sent"
+        source.attempts = 1
+        source.payload = {"message": "Mensagem original", "last_result": {"sucesso": True}}
+        db.session.commit()
+
+        resent = notifications.resend_order_notification(source.id, 1, order.id)
+
+        assert resent.id != source.id
+        assert resent.os_id == order.id
+        assert resent.status == "pending"
+        assert resent.payload == {"message": "Mensagem original"}
+        assert db.session.get(Notification, source.id).status == "sent"
+        assert Notification.query.count() == 2
+
+        try:
+            notifications.resend_order_notification(source.id, 1, order.id + 999)
+        except LookupError:
+            pass
+        else:
+            raise AssertionError("reenvio com OS divergente deveria falhar")

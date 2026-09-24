@@ -15,10 +15,12 @@ class Notification(db.Model):
         db.Index("ix_notifications_org_status_next", "organization_id", "status", "next_attempt_at", "id"),
         db.Index("ix_notifications_org_status_created", "organization_id", "status", "created_at"),
         db.Index("ix_notifications_org_event_created", "organization_id", "event_type", "created_at"),
+        db.Index("ix_notifications_org_os_created", "organization_id", "os_id", "created_at"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
+    os_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), nullable=True)
     channel = db.Column(db.String(30), nullable=False, default="whatsapp")
     recipient = db.Column(db.String(80), nullable=False)
     event_type = db.Column(db.String(80), nullable=False)

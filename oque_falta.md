@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-09-23 apos validacao do ambiente Docker local com Redis.
+Atualizado em 2026-09-24 após implementação e validação local do histórico/reenvio de mensagens e do alerta de prejuízo por OS.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -13,8 +13,8 @@ Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose
 Para preparar as pendencias externas, use `scripts/generate_production_env.py` para gerar segredos fortes fora do Git e [Homologacao e evidencias](docs/HOMOLOGACAO_EVIDENCIAS.md) para registrar aprovacoes, testes reais e responsaveis.
 
 - [x] Aplicação, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
-- [x] Schema gerenciado por Alembic até a migration `20260911_0024`.
-- [x] 223 testes Python aprovados em 2026-09-23.
+- [x] Schema gerenciado por Alembic até a migration `20260924_0025`.
+- [x] 227 testes Python aprovados em 2026-09-24.
 - [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
@@ -42,8 +42,8 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 - [x] Fallback manual por `wa.me`.
 - [x] Fila idempotente de notificações por evento de OS.
 - [ ] WhatsApp Cloud API homologado em produção.
-- [ ] Histórico de mensagens visível dentro da OS.
-- [ ] Reenvio manual contextual a partir da OS.
+- [x] Histórico de mensagens visível dentro da OS, com canal, estado, destino mascarado e conteúdo enviado.
+- [x] Reenvio manual contextual a partir da OS, preservando a tentativa original na trilha.
 - [ ] Mensagens prontas para status, cobrança, garantia e retirada com revisão humana.
 
 ### C. Financeiro e estoque com lucro real
@@ -54,7 +54,7 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 - [x] Sugestão de compra e estoque mínimo.
 - [ ] Fechamento de caixa homologado com responsável financeiro.
 - [ ] Inventário físico guiado com divergências e aprovação.
-- [ ] Alertas de OS com risco de prejuízo antes da entrega.
+- [x] Alertas de OS com risco de prejuízo antes da entrega, com confirmação explícita e auditada no painel e na API.
 - [ ] Dashboard do dono com margem, inadimplência, peças críticas e OS paradas.
 
 ### D. Produto premium

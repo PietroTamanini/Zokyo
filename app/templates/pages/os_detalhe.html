@@ -36,6 +36,13 @@
 {% if os.baixada %}
 <div class="alert a-amber">Esta OS está arquivada e não aparece na lista principal.</div>
 {% endif %}
+{% if financial_snapshot.profit < 0 and os.status != 'entregue' %}
+<div class="alert a-red loss-risk-alert" role="alert">
+  <strong>Risco de prejuízo antes da entrega.</strong>
+  O total da OS não cobre o custo histórico das peças, mão de obra e comissões.
+  Resultado projetado: <strong>{{ financial_snapshot.profit | moeda }}</strong>.
+</div>
+{% endif %}
 
 <div class="g64">
 
@@ -214,6 +221,51 @@
       </div>
     </div>
 
+    <!-- Mensagens ao cliente -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-mail"></use></svg> Mensagens ao cliente</div>
+        <span class="muted-xs">Últimas 20</span>
+      </div>
+      <div class="card-body notification-history">
+        {% set notification_status = {
+          'pending': ('Pendente', 'b-amber'),
+          'retry': ('Nova tentativa', 'b-amber'),
+          'sent': ('Enviada', 'b-green'),
+          'manual_required': ('Envio manual', 'b-blue'),
+          'failed': ('Falhou', 'b-red')
+        } %}
+        {% for item in notificacoes %}
+        {% set status_label, status_class = notification_status.get(item.status, (item.status, 'b-gray')) %}
+        <article class="notification-history-item">
+          <div class="notification-history-head">
+            <div class="flex-gap">
+              <strong>{{ 'WhatsApp' if item.channel == 'whatsapp' else 'E-mail' }}</strong>
+              <span class="badge {{ status_class }}"><span class="dot"></span>{{ status_label }}</span>
+            </div>
+            <time class="muted-xs" datetime="{{ item.created_at.isoformat() if item.created_at else '' }}">
+              {{ item.created_at | fmtdata }} {{ item.created_at.strftime('%H:%M') if item.created_at else '' }}
+            </time>
+          </div>
+          {% if item.payload.get('subject') %}<div class="notification-subject">{{ item.payload.get('subject') }}</div>{% endif %}
+          <div class="notification-message">{{ item.payload.get('message', '') }}</div>
+          <div class="notification-history-foot">
+            <span class="muted-xs">Destino {{ item.recipient[-4:].rjust(item.recipient|length, '*') }} · {{ item.attempts }}/{{ item.max_attempts }} tentativa(s)</span>
+            {% if nivel_usuario in ('admin', 'operacional') %}
+            <form method="POST" action="{{ url_for('pages.os_notificacao_reenviar', id=os.id, notification_id=item.id) }}">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-ghost btn-xs" type="submit">Reenviar</button>
+            </form>
+            {% endif %}
+          </div>
+          {% if item.last_error %}<div class="notification-error">{{ item.last_error|truncate(180) }}</div>{% endif %}
+        </article>
+        {% else %}
+        <div class="td-empty">Nenhuma mensagem foi gerada para esta OS.</div>
+        {% endfor %}
+      </div>
+    </div>
+
     <!-- Histórico -->
     <div class="card">
       <div class="card-header"><div class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg> Histórico de status</div></div>
@@ -353,10 +405,11 @@
                   Entregar somente após pagamento total
                 </button>
               {% else %}
-                <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}">
+                <form method="POST" action="{{ url_for('pages.os_status', id=os.id) }}"{% if financial_snapshot.profit < 0 %} data-confirm="Esta OS tem prejuízo projetado de {{ financial_snapshot.profit | moeda }}. Confirmar a entrega mesmo assim?"{% endif %}>
                   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="status" value="{{ key }}">
-                  <button type="submit" class="btn btn-success btn-sm btn-full-start">{{ label }}</button>
+                  {% if financial_snapshot.profit < 0 %}<input type="hidden" name="confirm_loss_risk" value="yes">{% endif %}
+                  <button type="submit" class="btn btn-success btn-sm btn-full-start">{{ 'Confirmar entrega com prejuízo' if financial_snapshot.profit < 0 else label }}</button>
                 </form>
               {% endif %}
             {% elif key == 'cancelado' %}

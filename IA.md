@@ -2,7 +2,7 @@
 
 Este é o documento de continuidade do projeto. Toda IA que trabalhar neste repositório deve lê-lo antes de alterar código, banco, infraestrutura ou documentação. Ele não substitui os documentos especializados em `docs/`; serve como mapa, histórico curto e conjunto de invariantes para evitar retrabalho e regressões.
 
-Última atualização: 2026-09-23.
+Última atualização: 2026-09-24.
 
 ## Objetivo do produto
 
@@ -13,18 +13,19 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 ## Estado resumido
 
 - Aplicação Flask, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
-- Schema gerenciado por Alembic até a migration `20260911_0024`.
+- Schema gerenciado por Alembic até a migration `20260924_0025`.
 - O isolamento multiempresa usa escopo ORM, bloqueio de mutacoes cruzadas, filtros explicitos em SQL manual e integridade referencial; MariaDB nao possui RLS nativo.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
-- Em 2026-09-23, 223 testes Python, Ruff, compilação Python e validação JavaScript passaram.
+- Em 2026-09-24, 227 testes Python, Ruff, compilação Python e validação JavaScript passaram.
 - Auditorias de dependências passaram na revisão anterior.
 - O código está apto para piloto controlado, mas o ambiente comercial ainda não foi homologado.
 - Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose local e reprovou somente por configuração externa ausente: `FLASK_ENV=production`, URL HTTPS pública, métricas, chave de backup, alertas, SMTP e WhatsApp automático. Redis, `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` locais já estão configurados com valores dev-only válidos; segredos reais de produção ainda precisam ser provisionados fora do Git.
 - Em 2026-09-23, o Compose de desenvolvimento passou a subir Redis (`redis://redis:6379/0`) para exercitar sessões e rate limit distribuído localmente.
 - Em 2026-09-23, o Compose de desenvolvimento passou a definir `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only válidos; sem isso, `create-organization` e fluxos que calculam índice cego falhavam no Gunicorn local.
-- Serviços Docker ficaram em execução ao final da última sessão com painel em `http://127.0.0.1:8000` e site em `http://127.0.0.1:5500`.
+- Em 2026-09-24, após liberar espaço no host e reiniciar o WSL, o Compose de desenvolvimento foi reconstruído do zero. A cadeia Alembic completa passou no MariaDB 11 até `20260924_0025`; `flask db check` não encontrou operações pendentes, a coluna `notifications.os_id` e o índice `ix_notifications_org_os_created` foram confirmados no banco real.
+- Ao final da sessão de 2026-09-24, app, MariaDB, Redis e site público estavam saudáveis no Compose; `/healthz`, `/readyz`, o site público e `redis-cli ping` responderam com sucesso em `http://127.0.0.1:8000` e `http://127.0.0.1:5500`.
 
 Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](CHANGELOG.md) para a evolução versionada.
 
@@ -87,6 +88,7 @@ Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](
 - Agenda, coleta, entrega, múltiplos pontos, rota e comprovantes.
 - Portal do cliente e consulta pública integrada ao site.
 - Notificações, templates versionados, retry e fallback `wa.me`.
+- Histórico das mensagens de cada OS e reenvio contextual preservando as tentativas anteriores.
 - Logs de auditoria, métricas, healthchecks, alertas e retenção LGPD.
 - Importação de bancos externos, incluindo legado Firebird.
 
@@ -130,6 +132,10 @@ Ao alterar rate limit, middleware global, pool de conexões ou configuração Gu
 Em 2026-09-03, a consolidação financeira por OS foi coberta por testes dedicados. O lucro usa faturamento da OS menos custo histórico das peças, custo de mão de obra (`horas_trabalho * custo_hora`) e comissões pagas de receitas. Cobranças pendentes vencidas aceitam datas do banco sem fuso e horário atual UTC sem gerar erro de comparação. O resumo da tela acompanha o intervalo selecionado, não necessariamente o mês corrente.
 
 Eventos de OS são enfileirados por `app/services/order_notifications.py`. Criação pelo painel/API/coleta, mudança de status, aprovação de orçamento, faturamento pendente e retorno em garantia usam chaves idempotentes. Em rotas públicas, templates e configurações devem ser buscados pelo `organization_id` explícito da OS; nunca depender de tenant de sessão inexistente.
+
+Desde a migration `20260924_0025`, notificações originadas por eventos de OS carregam `os_id`. A tela da OS lista as 20 mensagens mais recentes e o reenvio contextual cria uma nova entrada na fila, sem sobrescrever a tentativa anterior. Toda busca e todo reenvio validam simultaneamente `organization_id` e `os_id`.
+
+O detalhe da OS reutiliza o mesmo cálculo financeiro consolidado da tela financeira para alertar lucro projetado negativo. A entrega com prejuízo exige confirmação explícita tanto no painel quanto na API (`confirm_loss_risk`), e essa confirmação é registrada de forma resumida no `EventoLog`. O alerta não substitui a regra de pagamento integral; ambas as validações permanecem obrigatórias.
 
 Em 2026-09-03, o CI falhava antes de testar o produto por dois erros de infraestrutura: importação do script concorrente fora da raiz e tag inexistente do Trivy. O workflow executa o script como módulo e fixa `trivy-action` por SHA. Ao atualizar Actions, confirmar a referência publicada e preferir SHA imutável para ferramentas de segurança.
 

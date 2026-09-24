@@ -147,6 +147,57 @@ def test_os_baixada_some_da_lista_principal_e_pode_restaurar(tmp_path):
     assert b"#0001" in client.get("/os").data
 
 
+def test_os_exibe_historico_de_mensagens_e_reenvia_preservando_original(tmp_path):
+    app, client, ordem_id = _make_pages_client(tmp_path)
+    with app.app_context():
+        notification = Notification(
+            organization_id=1,
+            os_id=ordem_id,
+            channel="whatsapp",
+            recipient="47999999999",
+            event_type="os_status_pronto",
+            idempotency_key="os-history-source",
+            payload={"message": "Seu equipamento está pronto."},
+            status="sent",
+            attempts=1,
+        )
+        unrelated = Notification(
+            organization_id=1,
+            channel="email",
+            recipient="outro@example.test",
+            event_type="test",
+            idempotency_key="unrelated-message",
+            payload={"message": "Não pertence à OS."},
+        )
+        db.session.add_all([notification, unrelated])
+        db.session.commit()
+        notification_id = notification.id
+        unrelated_id = unrelated.id
+
+    detail = client.get(f"/os/{ordem_id}")
+    page = detail.get_data(as_text=True)
+    assert detail.status_code == 200
+    assert "Mensagens ao cliente" in page
+    assert "Seu equipamento está pronto." in page
+    assert "Não pertence à OS." not in page
+
+    resend = _post(client, f"/os/{ordem_id}/notificacoes/{notification_id}/reenviar", {})
+    assert resend.status_code == 302
+    assert _post(client, f"/os/{ordem_id}/notificacoes/{unrelated_id}/reenviar", {}).status_code == 404
+    with app.app_context():
+        items = Notification.query.filter_by(os_id=ordem_id).order_by(Notification.id).all()
+        assert len(items) == 2
+        assert items[0].id == notification_id
+        assert items[0].status == "sent"
+        assert items[1].status == "pending"
+        assert items[1].payload == {"message": "Seu equipamento está pronto."}
+        event = EventoLog.query.filter_by(tipo="retry", modulo="notifications").one()
+        event_text = f"{event.operacao} {event.descricao}"
+        assert str(notification_id) in event_text
+        assert "47999999999" not in event_text
+        assert "Seu equipamento" not in event_text
+
+
 def test_os_so_entrega_quando_pagamento_estiver_completo(tmp_path):
     app, client, ordem_id = _make_pages_client(tmp_path)
 
@@ -222,6 +273,59 @@ def test_os_so_entrega_quando_pagamento_estiver_completo(tmp_path):
     assert api_entrega.status_code == 200
     with app.app_context():
         assert db.session.get(OrdemServico, ordem_id).status == "entregue"
+
+
+def test_entrega_com_prejuizo_exige_confirmacao_consciente_no_painel_e_api(tmp_path):
+    app, client, ordem_id = _make_pages_client(tmp_path)
+    with app.app_context():
+        ordem = db.session.get(OrdemServico, ordem_id)
+        ordem.horas_trabalho = 2
+        ordem.custo_hora = 75
+        db.session.commit()
+
+    assert _post(client, f"/os/{ordem_id}/pagamento-parcial", {
+        "valor": "100",
+        "forma_pagamento": "PIX",
+    }).status_code == 302
+
+    detail = client.get(f"/os/{ordem_id}").get_data(as_text=True)
+    assert "Risco de prejuízo antes da entrega" in detail
+    assert "-R$ 50,00" in detail or "R$ -50,00" in detail
+
+    unconfirmed = _post(client, f"/os/{ordem_id}/status", {"status": "entregue"})
+    assert unconfirmed.status_code == 302
+    with app.app_context():
+        assert db.session.get(OrdemServico, ordem_id).status == "recepcao"
+
+    api_unconfirmed = _json(client, "put", f"/api/v1/os/{ordem_id}", {"status": "entregue"})
+    assert api_unconfirmed.status_code == 409
+    assert api_unconfirmed.json["code"] == "loss_risk_confirmation_required"
+    assert api_unconfirmed.json["projected_profit"] == -50
+
+    confirmed = _post(client, f"/os/{ordem_id}/status", {
+        "status": "entregue",
+        "confirm_loss_risk": "yes",
+    })
+    assert confirmed.status_code == 302
+    with app.app_context():
+        assert db.session.get(OrdemServico, ordem_id).status == "entregue"
+        event = EventoLog.query.filter_by(tipo="status", modulo="os").order_by(EventoLog.id.desc()).first()
+        assert event.descricao == "loss_risk_confirmed=true"
+
+        db.session.get(OrdemServico, ordem_id).status = "recepcao"
+        db.session.commit()
+
+    api_confirmed = _json(client, "put", f"/api/v1/os/{ordem_id}", {
+        "status": "entregue",
+        "confirm_loss_risk": True,
+    })
+    assert api_confirmed.status_code == 200
+    with app.app_context():
+        event = EventoLog.query.filter_by(
+            tipo="edicao",
+            modulo="ordens_servico",
+        ).order_by(EventoLog.id.desc()).first()
+        assert "loss_risk_confirmed=true" in event.descricao
 
 
 def _post(client, path, data):

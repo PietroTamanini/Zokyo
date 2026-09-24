@@ -454,6 +454,7 @@ def atualizar(id):
               .first_or_404())
     data, _ = get_request_data()
     status_anterior = os_obj.status
+    loss_risk_confirmed = False
 
     _CAMPOS_CURTOS = ("tipo_aparelho", "marca", "modelo", "numero_serie", "tecnico_nome")
     _CAMPOS_LONGOS = ("defeito_alegado", "defeito_encontrado", "solucao", "observacoes")
@@ -517,6 +518,17 @@ def atualizar(id):
                 return jsonify({
                     "erro": "Esta OS ainda possui saldo em aberto. Registre o pagamento total antes de finalizar."
                 }), 400
+            from app.services.financial_analytics import order_financial_snapshot
+
+            financial_snapshot = order_financial_snapshot(os_obj)
+            confirm_loss_risk = data.get("confirm_loss_risk") in {True, "true", "yes", "1", 1}
+            if financial_snapshot["profit"] < 0 and not confirm_loss_risk:
+                return jsonify({
+                    "erro": "Esta OS tem risco de prejuízo. Confirme a entrega conscientemente.",
+                    "code": "loss_risk_confirmation_required",
+                    "projected_profit": financial_snapshot["profit"],
+                }), 409
+            loss_risk_confirmed = financial_snapshot["profit"] < 0
         os_obj.status = novo_status
 
         if novo_status == "entregue" and not os_obj.data_saida:
@@ -526,7 +538,10 @@ def atualizar(id):
             _registrar_historico(
                 os_obj.id, status_anterior, novo_status, session["usuario_id"])
 
-    registrar("edicao", "ordens_servico", f"OS #{os_obj.id} atualizada pela API", f"status={os_obj.status}")
+    audit_detail = f"status={os_obj.status}"
+    if loss_risk_confirmed:
+        audit_detail += ";loss_risk_confirmed=true"
+    registrar("edicao", "ordens_servico", f"OS #{os_obj.id} atualizada pela API", audit_detail)
     db.session.commit()
     if novo_status_raw and os_obj.status != status_anterior:
         from app.services.order_notifications import queue_order_event

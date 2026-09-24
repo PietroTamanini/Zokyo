@@ -10,35 +10,23 @@ from app.extensions import db
 from app.models import OrdemServico, Transacao
 
 
-def order_financial_rows(
-    now: datetime | None = None,
-    start: datetime | None = None,
-    end: datetime | None = None,
-) -> list[dict]:
-    """Consolida faturamento, recebimentos, custo e atraso por OS do tenant atual."""
+def _normalized_now(now: datetime | None = None) -> datetime:
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is not None:
-        now = now.astimezone(timezone.utc).replace(tzinfo=None)
-    query = OrdemServico.query.options(joinedload(OrdemServico.cliente)).filter(OrdemServico.deletado_em.is_(None))
-    if start is not None:
-        query = query.filter(OrdemServico.data_entrada >= start)
-    if end is not None:
-        query = query.filter(OrdemServico.data_entrada <= end)
-    orders = query.all()
+        return now.astimezone(timezone.utc).replace(tzinfo=None)
+    return now
+
+
+def _financial_rows_for_orders(orders: list[OrdemServico], now: datetime) -> list[dict]:
     if not orders:
         return []
 
+    organization_id = orders[0].organization_id
     order_ids = [item.id for item in orders]
     tx_rows = db.session.query(
         Transacao.os_id,
-        func.coalesce(func.sum(case((
-            (Transacao.tipo == "receita") & (Transacao.status == "pago"),
-            Transacao.valor,
-        ), else_=0)), 0).label("paid"),
-        func.coalesce(func.sum(case((
-            (Transacao.tipo == "receita") & (Transacao.status == "pendente"),
-            Transacao.valor,
-        ), else_=0)), 0).label("pending"),
+        func.coalesce(func.sum(case(((Transacao.tipo == "receita") & (Transacao.status == "pago"), Transacao.valor), else_=0)), 0).label("paid"),
+        func.coalesce(func.sum(case(((Transacao.tipo == "receita") & (Transacao.status == "pendente"), Transacao.valor), else_=0)), 0).label("pending"),
         func.coalesce(func.sum(case((
             (Transacao.tipo == "receita")
             & (Transacao.status == "pendente")
@@ -56,6 +44,7 @@ def order_financial_rows(
             Transacao.comissao_valor,
         ), else_=0)), 0).label("commissions"),
     ).filter(
+        Transacao.organization_id == organization_id,
         Transacao.os_id.in_(order_ids),
         Transacao.status != "cancelado",
     ).group_by(Transacao.os_id).all()
@@ -74,8 +63,11 @@ def order_financial_rows(
     cost_rows = db.session.execute(text(
         "SELECT op.os_id, SUM(op.quantidade * COALESCE(op.custo_unitario, p.custo, 0)) AS custo "
         "FROM os_pecas op JOIN pecas p ON p.id = op.peca_id "
-        "WHERE op.os_id IN :ids GROUP BY op.os_id"
-    ).bindparams(db.bindparam("ids", expanding=True)), {"ids": order_ids}).mappings()
+        "WHERE op.os_id IN :ids AND p.organization_id = :organization_id GROUP BY op.os_id"
+    ).bindparams(db.bindparam("ids", expanding=True)), {
+        "ids": order_ids,
+        "organization_id": organization_id,
+    }).mappings()
     for row in cost_rows:
         costs[row["os_id"]] = float(row["custo"] or 0)
 
@@ -102,7 +94,28 @@ def order_financial_rows(
             "commissions": round(commissions, 2),
             "profit": round(order.valor_total - part_cost - labor_cost - commissions, 2),
         })
+    return result
+
+
+def order_financial_rows(
+    now: datetime | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[dict]:
+    """Consolida faturamento, recebimentos, custo e atraso por OS do tenant atual."""
+    now = _normalized_now(now)
+    query = OrdemServico.query.options(joinedload(OrdemServico.cliente)).filter(OrdemServico.deletado_em.is_(None))
+    if start is not None:
+        query = query.filter(OrdemServico.data_entrada >= start)
+    if end is not None:
+        query = query.filter(OrdemServico.data_entrada <= end)
+    result = _financial_rows_for_orders(query.all(), now)
     return sorted(result, key=lambda row: (row["overdue"], row["pending"] + row["uncovered"]), reverse=True)
+
+
+def order_financial_snapshot(order: OrdemServico, now: datetime | None = None) -> dict:
+    """Calcula os mesmos indicadores da tela financeira para uma unica OS."""
+    return _financial_rows_for_orders([order], _normalized_now(now))[0]
 
 
 def period_summary(rows: list[dict], paid_revenue: float, paid_expenses: float) -> dict:

@@ -50,6 +50,8 @@ def test_evento_de_os_enfileira_canais_com_contexto_e_idempotencia():
         email = Notification.query.filter_by(channel="email").one()
         whatsapp = Notification.query.filter_by(channel="whatsapp").one()
         assert email.event_type == "os_status_pronto"
+        assert email.os_id == order.id
+        assert whatsapp.os_id == order.id
         assert "0012" in email.payload["subject"]
         assert "Ana" in email.payload["message"]
         assert "0012" in whatsapp.payload["message"]

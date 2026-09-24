@@ -713,6 +713,53 @@
   padding: 10px 16px;
 }
 
+.notification-history {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-history-item {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+}
+
+.notification-history-head,
+.notification-history-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notification-subject {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.notification-message {
+  margin-top: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.notification-history-foot {
+  margin-top: 12px;
+}
+
+.notification-error {
+  margin-top: 8px;
+  color: var(--red);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .os-fastbar {
     align-items: stretch;
@@ -871,5 +918,11 @@
   .kanban-board,
   .workbench-grid {
     grid-template-columns: 1fr;
+  }
+
+  .notification-history-head,
+  .notification-history-foot {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

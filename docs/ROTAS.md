@@ -1,6 +1,6 @@
 # Rotas
 
-Estado revisado em 2026-08-27. As páginas principais foram auditadas com Playwright em cinco tamanhos; aliases legados permanecem por compatibilidade e devem ser removidos somente com plano de migração.
+Estado revisado em 2026-09-24. As páginas principais foram auditadas com Playwright em cinco tamanhos; aliases legados permanecem por compatibilidade e devem ser removidos somente com plano de migração.
 
 ## HTML
 
@@ -10,7 +10,8 @@ Estado revisado em 2026-08-27. As páginas principais foram auditadas com Playwr
 - `/primeiro-acesso` - cadastro do primeiro administrador.
 - `/os` - listagem de ordens de servico.
 - `/os/nova` - abertura de OS.
-- `/os/<id>` - detalhe da OS.
+- `/os/<id>` - detalhe da OS, incluindo histórico contextual de mensagens.
+- `POST /os/<id>/notificacoes/<notification_id>/reenviar` - cria nova tentativa para uma mensagem vinculada à OS (administrador ou operacional).
 - `/clientes` - clientes.
 - `/estoque` - estoque.
 - `/fornecedores` - fornecedores.

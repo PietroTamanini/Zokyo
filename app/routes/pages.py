@@ -57,6 +57,7 @@ from app.models import (
     InventoryMovement,
     LaudoFoto,
     LaudoTecnico,
+    Notification,
     OrdemServico,
     OrderSignature,
     OSFoto,
@@ -72,6 +73,7 @@ from app.models import (
 from app.models.ordem_servico import STATUS_OS, STATUS_OS_LABELS
 from app.services.billing import assert_limit, assert_write_allowed
 from app.services.finance import create_installments
+from app.services.financial_analytics import order_financial_snapshot
 from app.services.inventory import record_movement
 from app.utils.auth import nivel_required, page_nivel_required
 from app.utils.blind_index import blind_index
@@ -2282,6 +2284,14 @@ def os_detalhe(id):
               .order_by(LaudoTecnico.criado_em.desc())
               .all())
     pagamentos_info = _os_pagamentos_info(os_obj)
+    financial_snapshot = order_financial_snapshot(os_obj)
+    notificacoes = (
+        Notification.query
+        .filter_by(os_id=os_obj.id, organization_id=g.organization_id)
+        .order_by(Notification.created_at.desc())
+        .limit(20)
+        .all()
+    )
 
     # Bug #8: nivel_usuario não era passado ao template → buttons admin sumiam
     nivel_usuario = session.get("nivel", "operacional")
@@ -2292,9 +2302,11 @@ def os_detalhe(id):
         pagamentos=pagamentos_info["pagamentos"],
         valor_pago=pagamentos_info["pago"],
         valor_restante=pagamentos_info["restante"],
+        financial_snapshot=financial_snapshot,
         priority_map=_configured_priority_map(),
         attendance_map=_configured_attendance_map(),
         nivel_usuario=nivel_usuario, laudos=laudos,
+        notificacoes=notificacoes,
         laudo_status_labels=LAUDO_STATUS_LABELS,
         laudo_tipo_labels=LAUDO_TIPOS_LABELS)
 
@@ -2656,6 +2668,7 @@ def os_status(id):
         OrdemServico.deletado_em.is_(None)).first_or_404()
     novo_st = request.form.get("status")
     antigo  = os_obj.status
+    loss_risk_confirmed = False
 
     # Bug #6: rejeitar status inválido
     if novo_st and novo_st not in _configured_status_keys():
@@ -2671,6 +2684,14 @@ def os_status(id):
                 "error",
             )
             return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
+        financial_snapshot = order_financial_snapshot(os_obj)
+        if financial_snapshot["profit"] < 0 and request.form.get("confirm_loss_risk") != "yes":
+            flash(
+                "Esta OS tem risco de prejuízo. Revise custos e valores ou confirme conscientemente a entrega.",
+                "warning",
+            )
+            return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
+        loss_risk_confirmed = financial_snapshot["profit"] < 0
 
     if novo_st and novo_st != antigo:
         os_obj.status = novo_st
@@ -2695,7 +2716,8 @@ def os_status(id):
                     p.quantidade += row.quantidade
 
         registrar("status", "os",
-                  f"OS #{os_obj.id:04d}: {antigo} → {novo_st}")
+                  f"OS #{os_obj.id:04d}: {antigo} → {novo_st}",
+                  "loss_risk_confirmed=true" if loss_risk_confirmed else "")
         db.session.commit()
 
         context = {
@@ -2721,6 +2743,7 @@ def os_status(id):
             email_notification, _ = enqueue_email(
                 os_obj.organization_id, os_obj.cliente.email, subject, body,
                 event_type, f"os-email-{os_obj.id}-{history_count}",
+                os_id=os_obj.id,
             )
             process_notification(email_notification.id)
 
@@ -2743,6 +2766,7 @@ def os_status(id):
                     whatsapp_message,
                     whatsapp_event,
                     f"{whatsapp_event}-{os_obj.id}-{history_count}",
+                    os_id=os_obj.id,
                 )
                 notification = process_notification(notification.id)
                 resultado = notification.payload.get("last_result", {})
@@ -2766,6 +2790,29 @@ def os_status(id):
             flash(f"Status: {STATUS_MAP.get(novo_st, novo_st)}", "success")
 
     return redirect(request.form.get("next") or url_for("pages.os_detalhe", id=id))
+
+
+@pages_bp.route("/os/<int:id>/notificacoes/<int:notification_id>/reenviar", methods=["POST"])
+@page_nivel_required("admin", "operacional")
+def os_notificacao_reenviar(id, notification_id):
+    os_obj = OrdemServico.query.filter_by(id=id).filter(
+        OrdemServico.deletado_em.is_(None),
+    ).first_or_404()
+    from app.services.notifications import resend_order_notification
+
+    try:
+        notification = resend_order_notification(notification_id, g.organization_id, os_obj.id)
+    except LookupError:
+        abort(404)
+    registrar(
+        "retry",
+        "notifications",
+        f"Reenvio da notificacao #{notification_id} solicitado na OS #{os_obj.id:04d}.",
+        f"Nova notificacao #{notification.id}.",
+    )
+    db.session.commit()
+    flash("Mensagem colocada novamente na fila; a tentativa anterior foi preservada.", "success")
+    return redirect(url_for("pages.os_detalhe", id=os_obj.id))
 
 
 @pages_bp.route("/os/<int:id>/pdf")
