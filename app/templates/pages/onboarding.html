@@ -41,7 +41,7 @@
     </div>
 
     <form id="onboarding-form" method="POST" action="{{ url_for('onboarding.step', step_name=step_name) }}">
-      {% csrf_token() if csrf_token else '' %}
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <!-- Dados específicos de cada etapa -->
       <div class="zokyo-onboarding-fields">
