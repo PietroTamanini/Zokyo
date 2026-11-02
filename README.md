@@ -2,7 +2,7 @@
 
 Sistema multiempresa para assistencias tecnicas, desenvolvido com Flask, SQLAlchemy, MariaDB e Redis. Inclui clientes, ordens de servico, estoque, financeiro, laudos tecnicos, PDFs, portal do cliente, relatorios, PWA, WhatsApp opcional, RBAC, 2FA, LGPD operacional e preparacao SaaS.
 
-## Inicio rapido com Docker
+## Inicio rapido com Docker (opcional)
 
 Requisitos: Docker Desktop com Compose. O Compose local sobe MariaDB, Redis, painel Flask e site publico.
 
@@ -22,21 +22,21 @@ curl http://127.0.0.1:8000/healthz
 curl http://127.0.0.1:8000/readyz
 ```
 
-## Desenvolvimento sem Docker
+## Desenvolvimento local no Windows
 
 Requisitos: Python 3.11+, MariaDB 11 e Node.js 20 apenas para WhatsApp/E2E.
 
 ```bash
-python -m venv .venv
-.venv/Scripts/activate
+py -3.15 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
 copy .env.example .env
-flask --app wsgi:app db upgrade
-flask --app wsgi:app seed-system
-flask --app wsgi:app run --debug
+python -m flask --app wsgi:app db upgrade
+python -m flask --app wsgi:app seed-system
+python -m flask --app wsgi:app run --debug
 ```
 
-No Linux/macOS, ative o ambiente com `source .venv/bin/activate` e copie o arquivo com `cp`.
+Ative o MySQL/MariaDB local antes das migrations. No Linux/macOS, use `source .venv/bin/activate` e copie o arquivo com `cp`.
 
 ## Configuracao
 
@@ -65,12 +65,11 @@ Instalacoes novas executam a cadeia Alembic iniciada pela baseline consolidada e
 
 ## Testes e qualidade
 
-Estado verificado em 2026-09-24: 227 testes Python aprovados, lint, compilação Python e validação JavaScript aprovados. A auditoria Playwright mais recente executou 200 cenários nos projetos compact, mobile, tablet, desktop e wide; a auditoria E2E autenticada exige uma conta fictícia no ambiente de teste.
+Estado verificado em 2026-11-02: 334 testes Python aprovados, Ruff, compilação Python, validação JavaScript e `flask db check` aprovados. A migration atual é `20261102_0038`. A homologação humana de produção ainda é necessária.
 
 ```bash
-pytest -q
-ruff check app tests scripts
-python -m compileall -q app tests scripts
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m compileall -q app migrations wsgi.py
 npm test
 ```
 
@@ -120,6 +119,8 @@ Configure HTTPS no proxy externo e segredos fora do reposititorio. Consulte [Dep
 - [Recuperação de desastre](docs/DISASTER_RECOVERY.md)
 - [Observabilidade](docs/OBSERVABILIDADE.md)
 - [Pendencias atuais](oque_falta.md)
+- [Estado atual](docs/ESTADO_ATUAL.md)
+- [Design system](DESIGN.md)
 - [Homologacao e evidencias](docs/HOMOLOGACAO_EVIDENCIAS.md)
 - [Decisoes externas](docs/DECISOES_EXTERNAS.md)
 

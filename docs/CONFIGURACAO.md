@@ -1,6 +1,6 @@
 # Configuracao
 
-Estado revisado em 2026-09-23. O ambiente Docker de desenvolvimento foi validado com MariaDB e Redis; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, HTTPS, storage privado, SMTP, alertas, WhatsApp e Redis de producao não forem configurados.
+Estado revisado em 2026-11-02. O ambiente Docker de desenvolvimento foi validado com MariaDB e Redis; o ambiente real continua reprovado pelo `production-check --strict-integrations` enquanto segredos, HTTPS, storage privado, SMTP, alertas, WhatsApp e Redis de producao não forem configurados.
 
 O Compose de desenvolvimento define `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only para permitir cadastro local, criptografia de campos e indices cegos. Nao reutilize esses valores fora do ambiente local.
 

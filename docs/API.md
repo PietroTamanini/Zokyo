@@ -1,8 +1,8 @@
 # API
 
-Estado revisado em 2026-09-24. As rotas documentadas possuem cobertura automatizada e mutações auditadas nos fluxos centrais; integrações externas e consumidores reais ainda devem ser homologados antes de produção.
+Estado revisado em 2026-11-02. As rotas documentadas possuem cobertura automatizada e mutações auditadas nos fluxos centrais; integrações externas e consumidores reais ainda devem ser homologados antes de produção.
 
-As APIs autenticadas usam `/api/*` e retornam JSON. Requisicoes `POST`, `PUT`, `PATCH` e `DELETE` exigem CSRF.
+As APIs autenticadas usam `/api/*` e retornam JSON. Requisições `POST`, `PUT`, `PATCH` e `DELETE` exigem CSRF, exceto os fluxos bearer documentados.
 
 ## Ordens de servico
 
@@ -23,10 +23,16 @@ Ao alterar uma OS para `entregue`, o pagamento integral deve estar registrado. S
 - Clientes: `/api/clientes`
 - Pecas: `/api/pecas`
 - Fornecedores: `/api/fornecedores`
-- Financeiro: `/api/transacoes`
+- Dashboard gerencial: indicators de faturamento, receitas, despesas, lucro/margem, contas a receber, inadimplência, OS status, tempo médio de atendimento, serviços mais realizados, desempenho por período. Filtros por período (?period=last_month, etc.), suporta multi-tenant.
+- Caixa / fechamento: `/api/cash/*` (sessoes, movimentos e relatorio)
+- Inventário físico: `/api/inventario/*` (sessões, contagens, aprovação, fechamento e histórico)
 - Usuarios: `/api/usuarios`
 - Defeitos padrao: `/api/defeitos`
 - Logs: `/api/logs`
+- Consulta pública de OS: `POST /api/public/os-consulta`
+- Portal bearer: `/api/v1/client/auth`, `/api/v1/client`, `/api/v1/client/os`, `/api/v1/client/compras`, `/api/v1/client/cobrancas`
+- Importação de banco: `/api/importacao/bancos/*`
+- Health e operação: `/healthz`, `/readyz`, `/metrics`, `/api/operations/status`
 
 ## Erros
 
@@ -39,3 +45,7 @@ APIs retornam:
 ## Laudos
 
 O modulo de laudos atual e deliberadamente HTML-first. Downloads e fotos usam rotas autenticadas HTML; uma API JSON dedicada so deve ser criada quando houver consumidor externo definido.
+
+## Tenancy e dados públicos
+
+Rotas públicas não confiam em `organization_id` enviado pelo cliente. A empresa é resolvida pelo host, domínio/subdomínio validado, identificador explícito permitido ou por uma correspondência única em fixtures de teste. Em produção, múltiplas empresas exigem host ou empresa explícita.

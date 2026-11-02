@@ -1,0 +1,33 @@
+<!-- Etapa 3: Configuração da Assistência -->
+<div class="field-group">
+  <label>Nome da Assistência <span class="required">*</span></label>
+  <input type="text" name="assistencia_nome" value="{{ current_step_data.assistencia_nome or '' }}" required>
+</div>
+
+<div class="field-group">
+  <label>Tipo de Assistência <span class="required">*</span></label>
+  <select name="assistencia_tipo" required>
+    <option value="">Selecione</option>
+    <option value="presencial" {% if current_step_data.assistencia_tipo == 'presencial' %}selected{% endif %}>Presencial</option>
+    <option value="coleta" {% if current_step_data.assistencia_tipo == 'coleta' %}selected{% endif %}>Coleta (Domicílio)</option>
+    <option value="retirada" {% if current_step_data.assistencia_tipo == 'retirada' %}selected{% endif %}>Retirada no Balcão</option>
+  </select>
+</div>
+
+<div class="field-group">
+  <label>Áreas de Atuação <span class="required">*</span></label>
+  <select name="areas_atuacao" multiple="multiple" size="3">
+    <option value="eletronicos" {% if 'eletronicos' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>Eletrônicos</option>
+    <option value="informatica" {% if 'informatica' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>Informática</option>
+    <option value="moveis" {% if 'moveis' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>Moveis e Eletrodomésticos</option>
+    <option value="automotivo" {% if 'automotivo' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>Automotivo</option>
+    <option value="hvac" {% if 'hvac' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>HVAC / Climatização</option>
+    <option value="outro" {% if 'outro' in current_step_data.get('areas_atuacao', []) %}selected{% endif %}>Outro</option>
+  </select>
+  <small>Segure Ctrl (ou Command no Mac) para selecionar múltiplas opções</small>
+</div>
+
+<div class="field-group">
+  <label>Horário de Funcionamento <span class="required">*</span></label>
+  <input type="text" name="horario_funcionamento" value="{{ current_step_data.horario_funcionamento or '' }}" placeholder="Ex: Seg-Sex 08:00-18:00, Sáb 09:00-12:00">
+</div>

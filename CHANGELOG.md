@@ -2,11 +2,19 @@
 
 ## Unreleased
 
+### Estado verificado em 2026-11-02
+
+- Suíte Python estabilizada com **334 testes aprovados**.
+- Migration head atualizado para `20261102_0038`, com alinhamento de defaults e validação limpa do schema local.
+- Adicionados configuração de domínio base, onboarding, caixa, inventário físico e landing pública por empresa.
+- Corrigidos isolamento multiempresa, resolução de domínios, dashboard, analytics, APIs públicas, autenticação e fluxo landing/dashboard.
+- Documentação central atualizada em `docs/ESTADO_ATUAL.md` e `DESIGN.md`.
+
 ### Alterado
 
 - A OS agora mostra as 20 mensagens mais recentes enviadas ao cliente, com canal, estado, destino mascarado, conteúdo e tentativas.
 - O reenvio contextual a partir da OS cria uma nova entrada na fila e preserva a tentativa anterior para auditoria.
-- Notificações de eventos de OS agora possuem vínculo explícito com a ordem por `os_id`, criado pela migration `20260924_0025`.
+- Notificações de eventos de OS possuem vínculo explícito com a ordem por `os_id`.
 - O detalhe da OS agora alerta quando o total não cobre peças, mão de obra e comissões; a entrega com prejuízo exige confirmação explícita no painel e na API.
 - A confirmação de entrega com prejuízo gera auditoria resumida, sem copiar dados financeiros para o log geral.
 - O Compose de desenvolvimento agora sobe Redis 7 com volume persistente e configura `REDIS_URL` no app, aproximando o ambiente local do caminho de sessao e rate limit distribuido usado em producao.
@@ -54,7 +62,7 @@
 
 ### Verificado
 
-- 227 testes Python, lint, compilação Python e validação JavaScript aprovados em 2026-09-24.
+- 334 testes Python, compilação Python e validação JavaScript aprovados em 2026-11-02.
 - Compose de desenvolvimento reconstruído e validado no MariaDB 11 após recuperação do WSL: migration `20260924_0025` aplicada, `flask db check` sem divergências, app/site saudáveis, Redis com `PONG` e endpoints `/healthz` e `/readyz` em HTTP 200.
 - Auditoria visual autenticada passou em 175 cenarios e 5 viewports em 2026-09-23.
 - Ambiente Docker local com MariaDB, Redis, painel e site publico saudavel em 2026-09-23.

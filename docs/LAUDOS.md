@@ -1,6 +1,6 @@
 # Modulo de laudos tecnicos
 
-Estado revisado em 2026-09-15: criação, rascunho, templates, PDF, storage privado local/S3 compatível e concorrência possuem cobertura automatizada e auditoria visual responsiva. A identidade final do PDF e eventual validade jurídica dependem de homologação externa.
+Estado revisado em 2026-11-02: criação, rascunho, templates, PDF, storage privado local/S3 compatível e concorrência possuem cobertura automatizada e auditoria visual responsiva. A identidade final do PDF e eventual validade jurídica dependem de homologação externa.
 
 O modulo de laudos cria documentos tecnicos vinculados a uma ordem de servico existente. O fluxo atual cobre:
 

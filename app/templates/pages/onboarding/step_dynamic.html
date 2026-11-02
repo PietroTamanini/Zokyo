@@ -1,0 +1,43 @@
+<!-- Dynamic onboarding step - rendered based on step number -->
+<!-- Uses step number to determine which fields to show -->
+
+{% set step = step|int %}
+{% set step_name_lower = step_name|lower %}
+
+{% if step == 1 %}
+<!-- Etapa 1: Cadastro da Empresa -->
+{% include "pages/onboarding/step_1.html" %}
+{% elif step == 2 %}
+<!-- Etapa 2: Dados Comerciais -->
+{% include "pages/onboarding/step_2.html" %}
+{% elif step == 3 %}
+<!-- Etapa 3: Configuração da Assistência -->
+{% include "pages/onboarding/step_3.html" %}
+{% elif step == 4 %}
+<!-- Etapa 4: Cadastro de Funcionários -->
+{% include "pages/onboarding/step_4.html" %}
+{% elif step == 5 %}
+<!-- Etapa 5: Configuração de Serviços -->
+{% include "pages/onboarding/step_5.html" %}
+{% elif step == 6 %}
+<!-- Etapa 6: Configuração Financeira -->
+{% include "pages/onboarding/step_6.html" %}
+{% elif step == 7 %}
+<!-- Etapa 7: Cadastro de Estoque -->
+{% include "pages/onboarding/step_7.html" %}
+{% elif step == 8 %}
+<!-- Etapa 8: Personalização do Site -->
+{% include "pages/onboarding/step_8.html" %}
+{% elif step == 9 %}
+<!-- Etapa 9: Configuração do Domínio -->
+{% include "pages/onboarding/step_9.html" %}
+{% elif step == 10 %}
+<!-- Etapa 10: Primeira Ordem de Serviço -->
+{% include "pages/onboarding/step_10.html" %}
+{% else %}
+<div class="zokyo-onboarding-error">
+  <h3>Etapa Inválida</h3>
+  <p>Etapa {{ step }} não encontrada. Por favor, comece do início.</p>
+  <a href="{{ url_for('onboarding.index') }}" class="btn">Voltar ao Início</a>
+</div>
+{% endif %}

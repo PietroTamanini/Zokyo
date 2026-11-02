@@ -105,7 +105,9 @@ def create_app(config_name="default"):
             try:
                 usuario = getattr(g, "current_user", None)
                 if usuario is None:
-                    usuario = db.session.get(Usuario, _s["usuario_id"])
+                    usuario = db.session.get(
+                        Usuario, _s["usuario_id"], execution_options={"include_all_tenants": True}
+                    )
                     g.current_user = usuario
             except Exception:
                 app.logger.debug("Não foi possível carregar usuário do contexto.", exc_info=True)
@@ -217,6 +219,10 @@ def create_app(config_name="default"):
             return
         if (request.path or "").startswith("/api/v1/") and request.headers.get("Authorization", "").lower().startswith("bearer "):
             return
+        if request.path.startswith("/api/") and "usuario_id" not in session:
+            return
+        if request.path.startswith("/api/") and session.get("nivel") == "consulta":
+            return _error_response(403, "Acesso negado")
         token    = session.get("_csrf_token")
         supplied = (
             request.form.get("_csrf_token")
@@ -245,9 +251,10 @@ def create_app(config_name="default"):
         if getattr(g, "organization_id", None):
             return
         try:
+            from app.services.platform_settings import get_base_domain
             from app.utils.tenancy import resolve_tenant_from_host
 
-            organization = resolve_tenant_from_host(request.host, app.config.get("TENANT_BASE_DOMAIN", ""))
+            organization = resolve_tenant_from_host(request.host, get_base_domain())
         except Exception:
             app.logger.debug("Resolucao de tenant por host ignorada.", exc_info=True)
             return
@@ -297,7 +304,7 @@ def create_app(config_name="default"):
 
         from app.models import Usuario
         try:
-            u = db.session.get(Usuario, uid)
+            u = db.session.get(Usuario, uid, execution_options={"include_all_tenants": True})
         except Exception:
             return
 
@@ -306,7 +313,17 @@ def create_app(config_name="default"):
             session.clear()
             return redirect(url_for("auth.login_page"))
 
-        if u.organization_id and (not u.organization or not u.organization.ativo):
+
+
+        organization = None
+        if u.organization_id:
+            from app.models import Organization
+            organization = (
+                Organization.query.execution_options(include_all_tenants=True)
+                .filter_by(id=u.organization_id)
+                .first()
+            )
+        if u.organization_id and (not organization or not organization.ativo):
             session.clear()
             return redirect(url_for("auth.login_page"))
         if not u.organization_id and not u.is_platform_admin:
@@ -332,9 +349,17 @@ def create_app(config_name="default"):
         if u.organization_id:
             g.organization_id = u.organization_id
             g.current_organization = u.organization
+        else:
+            # Platform admins are deliberately global. A tenant subdomain must
+            # never leave a stale tenant context on their requests.
+            g.organization_id = None
+            g.current_organization = None
 
-        # Sincroniza papel na sessão se foi alterado (promoção/rebaixamento)
-        if session.get("nivel") != u.nivel:
+        # Never turn a stale session into a privilege escalation. A session
+        # with a lower role remains restricted until the user signs in again.
+        role_rank = {"consulta": 0, "operacional": 1, "financeiro": 1, "admin": 2}
+        session_role = session.get("nivel")
+        if session_role not in role_rank or role_rank.get(session_role, 0) > role_rank.get(u.nivel, 0):
             session["nivel"] = u.nivel
 
         if (
@@ -344,6 +369,9 @@ def create_app(config_name="default"):
             and ep not in {"auth.two_factor_setup", "auth.logout"}
         ):
             return redirect(url_for("auth.two_factor_setup"))
+
+        if request.url_rule is None:
+            return
 
     @app.before_request
     def primeiro_acesso_redirect():
@@ -360,10 +388,13 @@ def create_app(config_name="default"):
         """
         global _tem_usuarios
 
-        # Fast path — sem DB após setup inicial
-        if _tem_usuarios:
+        if request.url_rule is None:
+            return
+        endpoint = request.endpoint or ""
+        if endpoint.startswith(("public_site.", "public_tracking.")) and getattr(g, "current_organization", None):
             return
 
+        # Fast path — sem DB após setup inicial
         skip = (
             (request.endpoint or "").startswith("static")
             or request.endpoint in (
@@ -372,6 +403,7 @@ def create_app(config_name="default"):
                 "auth.recuperar_senha", "auth.redefinir_senha",
                 "usuarios.aceitar_convite", "portal.publico", "laudos.verificar",
                 "client_api.consulta_os_publica",
+                "public_tracking.index",
                 "platform.sandbox_webhook", "platform.asaas_webhook",
                 "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
@@ -381,7 +413,7 @@ def create_app(config_name="default"):
 
         from app.models import Usuario
         try:
-            if not Usuario.query.first():
+            if not Usuario.query.execution_options(include_all_tenants=True).first():
                 return redirect(url_for("auth.primeiro_acesso_page"))
             # Marca para evitar queries futuras
             _tem_usuarios = True
@@ -527,6 +559,7 @@ def create_app(config_name="default"):
 
     # ── Blueprints ────────────────────────────────────────────────────────
     from app.routes.auth import auth_bp
+    from app.routes.cash import cash_bp
     from app.routes.client_api import client_api_bp
     from app.routes.clientes import clientes_bp
     from app.routes.configuracoes import cfg_bp
@@ -534,23 +567,28 @@ def create_app(config_name="default"):
     from app.routes.fornecedores import fornecedores_bp
     from app.routes.health import health_bp
     from app.routes.importacao import importacao_bp
+    from app.routes.inventario_fisico import inventario_bp
     from app.routes.laudos import laudos_bp
     from app.routes.logs import logs_bp
+    from app.routes.onboarding import onboarding_bp
     from app.routes.os import os_bp
     from app.routes.pages import pages_bp
     from app.routes.pecas import pecas_bp
     from app.routes.platform import platform_bp
     from app.routes.portal import portal_bp
     from app.routes.privacy import privacy_bp
+    from app.routes.public_site import public_site_bp
+    from app.routes.public_tracking import public_tracking_bp
     from app.routes.relatorios import relatorios_bp
+    from app.routes.site_config import site_config_bp
     from app.routes.transacoes import transacoes_bp
     from app.routes.usuarios import usuarios_bp
 
     for bp in (
-        auth_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
+        auth_bp, public_site_bp, pages_bp, clientes_bp, os_bp, pecas_bp,
         fornecedores_bp, transacoes_bp, usuarios_bp, defeitos_bp,
         cfg_bp, logs_bp, importacao_bp, laudos_bp, health_bp, portal_bp, relatorios_bp, platform_bp, privacy_bp,
-        client_api_bp,
+        client_api_bp, public_tracking_bp, site_config_bp, cash_bp, inventario_bp, onboarding_bp,
     ):
         app.register_blueprint(bp)
 

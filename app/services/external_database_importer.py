@@ -10,11 +10,11 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from flask import current_app, has_app_context
+from flask import current_app, g, has_app_context, has_request_context
+from sqlalchemy import text
 
 from app.extensions import db
-from app.models import Cliente, OrdemServico, OSHistorico, Peca, Transacao, proximo_numero_os
-from app.models.ordem_servico import os_pecas
+from app.models import Cliente, OrdemServico, OSHistorico, Peca, Transacao, Usuario, proximo_numero_os
 from app.utils.blind_index import blind_index
 from app.utils.sanitizers import sanitize_cep, sanitize_phone, sanitize_text
 from app.utils.validators import validar_cnpj, validar_cpf
@@ -617,6 +617,14 @@ class ExternalFirebirdImporter:
     def commit(self, admin_user: str | None = None, admin_user_id: int | None = None) -> dict[str, Any]:
         if not admin_user_id:
             raise ExternalImportError("Usuário admin da sessão não identificado.")
+        organization_id = getattr(g, "organization_id", None) if has_request_context() else None
+        if not organization_id:
+            admin_user_obj = db.session.get(
+                Usuario, admin_user_id, execution_options={"include_all_tenants": True}
+            )
+            organization_id = admin_user_obj.organization_id if admin_user_obj else None
+        if not organization_id:
+            raise ExternalImportError("Organização do usuário admin não identificada.")
         preview = self.preview()
         tables = set(preview.get("schema", {}).get("tables", {}))
         created = {"clientes": 0, "produtos": 0, "ordens_servico": 0, "financeiro": 0, "itens_os": 0}
@@ -688,7 +696,7 @@ class ExternalFirebirdImporter:
                     skipped["ordens_servico"] += 1
                     continue
                 os_obj = OrdemServico(
-                    numero=item["numero"] or proximo_numero_os(),
+                    numero=item["numero"] or proximo_numero_os(organization_id),
                     cliente_id=item["cliente"].id,
                     usuario_id=admin_user_id,
                     tipo_aparelho=item["tipo_aparelho"],
@@ -717,13 +725,29 @@ class ExternalFirebirdImporter:
                     item_type = str(item_row.get("TIPO") or "").upper()
                     peca = produto_by_source.get(source_prod)
                     if item_type == "P" and peca:
-                        db.session.execute(
-                            os_pecas.insert().values(
-                                os_id=os_obj.id,
-                                peca_id=peca.id,
-                                quantidade=int(qty or 1),
-                                valor_unitario=unit,
+                        if (
+                            os_obj.organization_id != organization_id
+                            or peca.organization_id != organization_id
+                        ):
+                            raise ExternalImportError(
+                                "Item de OS pertence a outra organização."
                             )
+                        db.session.execute(
+                            text(
+                                "INSERT INTO os_pecas "
+                                "(os_id, peca_id, quantidade, valor_unitario, "
+                                "custo_unitario, link_compra) "
+                                "SELECT :o, :p, :q, :v, NULL, NULL "
+                                "FROM ordens_servico o, pecas p "
+                                "WHERE o.id=:o AND p.id=:p "
+                                "AND o.organization_id=:org "
+                                "AND p.organization_id=:org"
+                            ),
+                            {
+                                "o": os_obj.id, "p": peca.id,
+                                "q": int(qty or 1), "v": unit,
+                                "org": organization_id,
+                            },
                         )
                         valor_pecas += total
                         created["itens_os"] += 1
@@ -844,8 +868,10 @@ class ExternalFirebirdImporter:
             return
         folder = Path(current_app.instance_path) / "import_logs"
         folder.mkdir(parents=True, exist_ok=True)
+        organization_id = getattr(g, "organization_id", None) if has_request_context() else None
         payload = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            "organization_id": organization_id,
             "admin_user": admin_user,
             "source_type": "firebird",
             "created": created,
@@ -854,5 +880,9 @@ class ExternalFirebirdImporter:
             "problematic_records": preview.get("invalid_records", {}),
             "probable_duplicates": preview.get("probable_duplicates", {}),
         }
-        path = folder / f"external_import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        org_suffix = f"org{organization_id}_" if organization_id else ""
+        path = folder / (
+            f"external_import_{org_suffix}"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")

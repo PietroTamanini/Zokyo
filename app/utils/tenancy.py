@@ -7,20 +7,15 @@ _registered = False
 
 
 def resolve_tenant_from_host(host: str, base_domain: str):
-    hostname = (host or "").split(":", 1)[0].strip().lower().rstrip(".")
-    base = (base_domain or "").strip().lower().rstrip(".")
-    if not hostname or not base or hostname == base or not hostname.endswith("." + base):
-        return None
-    subdomain = hostname[: -(len(base) + 1)]
-    if not subdomain or "." in subdomain:
-        return None
-    from app.models import Organization
+    """Resolve a organizacao pelo host da requisicao.
 
-    return (
-        Organization.query.execution_options(include_all_tenants=True)
-        .filter_by(subdomain=subdomain, ativo=True)
-        .first()
-    )
+    Delegacao para o servico centralizado de resolucao de dominio
+    (app/services/domain_resolution.py), que considera subdominio,
+    dominio customizado do tenant e dominio customizado do site publico.
+    """
+    from app.services.domain_resolution import resolve_organization_from_host
+
+    return resolve_organization_from_host(host, base_domain)
 
 
 def register_tenant_scope():
@@ -30,6 +25,8 @@ def register_tenant_scope():
     _registered = True
 
     from app.models import (
+        CaixaMovimento,
+        CaixaSessao,
         Cliente,
         ColetaAgendada,
         Configuracao,
@@ -59,12 +56,14 @@ def register_tenant_scope():
         StockReservation,
         Transacao,
         UserInvite,
+        Usuario,
     )
     tenant_models = (
-        Cliente, ColetaAgendada, Configuracao, ConsentRecord, DataSubjectRequest, DefeitoPadrao, EventoLog,
+        CaixaMovimento, CaixaSessao, Cliente, ColetaAgendada, Configuracao, ConsentRecord, DataSubjectRequest, DefeitoPadrao, EventoLog,
         Fornecedor, LaudoCounter, LaudoEvento, LaudoFoto, LaudoTemplate, LaudoTecnico, Notification, OrdemServico,
         OSFoto, OSHistorico, OrderSignature, Peca, PortalToken, RetentionPolicy, StockReservation, Transacao,
         InventoryLot, InventoryMovement, MessageTemplate, SavedReport, ServiceChecklistTemplate, UserInvite,
+        Usuario,
     )
 
     @event.listens_for(Session, "do_orm_execute")
@@ -85,7 +84,7 @@ def register_tenant_scope():
         if not organization_id:
             return
         for obj in session.new:
-            if isinstance(obj, tenant_models):
+            if isinstance(obj, tenant_models) and getattr(obj, "organization_id", None) is None:
                 obj.organization_id = organization_id
         for obj in session.dirty.union(session.deleted):
             if isinstance(obj, tenant_models) and obj.organization_id != organization_id:

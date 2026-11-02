@@ -1,4 +1,5 @@
 from .billing import BillingEvent, OrganizationSubscription, Plan
+from .cash import STATUS_CAIXA, TIPO_CAIXA_MOVIMENTO, CaixaMovimento, CaixaSessao
 from .cliente import Cliente
 from .coleta import STATUS_COLETA, STATUS_COLETA_LABELS, ColetaAgendada
 from .configuracao import Configuracao
@@ -6,6 +7,7 @@ from .defeito_padrao import DefeitoPadrao
 from .empresa import Organization
 from .evento_log import EventoLog, registrar
 from .fornecedor import Fornecedor
+from .inventario import InventarioAjuste, InventarioItem, InventarioSessao, pecas_inventario
 from .inventory import InventoryLot, InventoryMovement, StockReservation
 from .laudo import (
     LAUDO_FOTO_TIPOS,
@@ -29,11 +31,13 @@ from .os_foto import OSFoto
 from .os_historico import OSHistorico
 from .password_reset import PasswordResetToken
 from .peca import Peca
+from .platform_setting import PlatformSetting
 from .portal import PortalToken
 from .privacy import ConsentRecord, DataSubjectRequest
 from .retention import RetentionPolicy
 from .saved_report import SavedReport
 from .service_checklist import ServiceChecklistTemplate
+from .tenant_site import TenantSite
 from .transacao import Transacao
 from .user_invite import UserInvite
 from .user_session import UserSession
@@ -51,16 +55,20 @@ __all__ = [
     "PasswordResetToken",
     "Organization",
     "PortalToken",
+    "PlatformSetting",
     "BillingEvent","OrganizationSubscription","Plan",
     "ConsentRecord","DataSubjectRequest",
     "Notification",
     "RetentionPolicy",
     "UserSession",
     "InventoryLot","InventoryMovement","StockReservation",
+    "InventarioSessao","InventarioItem","InventarioAjuste","pecas_inventario",
     "ServiceChecklistTemplate",
     "MessageTemplate",
     "UserInvite",
     "SavedReport",
     "OperationalAlert","OperationalHeartbeat",
     "OrderSignature",
+    "TenantSite",
+    "CaixaSessao","CaixaMovimento","STATUS_CAIXA","TIPO_CAIXA_MOVIMENTO",
 ]

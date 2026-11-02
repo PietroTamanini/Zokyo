@@ -1,6 +1,6 @@
 # Preparacao SaaS
 
-Estado revisado em 2026-09-01: multiempresa, trial automático, planos, quotas, isolamento, sandbox e adapter de assinatura recorrente Asaas estão implementados. Preços, impostos, credenciais, licença, contratos e homologação comercial continuam externos.
+Estado revisado em 2026-11-02: multiempresa, trial automático, planos, quotas, isolamento, sandbox e adapter de assinatura recorrente Asaas estão implementados. Preços, impostos, credenciais, licença, contratos e homologação comercial continuam externos.
 
 ## Estado atual
 

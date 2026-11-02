@@ -140,4 +140,4 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert "os_id" in notification_columns
     assert "ix_coletas_org_status_agendada_criado" in collection_indexes
     assert any(row[2] == "organizations" and row[3] == "organization_id" for row in counter_foreign_keys)
-    assert revision == "20260924_0025"
+    assert revision == "20261102_0038"

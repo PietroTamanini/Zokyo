@@ -1,6 +1,6 @@
 # Matriz de auditoria das mutacoes
 
-Estado revisado em 2026-09-24. Esta matriz cobre rotas HTTP mutantes (`POST`, `PUT`, `PATCH` e `DELETE`) e diferencia o log geral `EventoLog` de trilhas especializadas do dominio.
+Estado revisado em 2026-11-02. Esta matriz cobre rotas HTTP mutantes (`POST`, `PUT`, `PATCH` e `DELETE`) e diferencia o log geral `EventoLog` de trilhas especializadas do dominio.
 
 ## Invariantes
 

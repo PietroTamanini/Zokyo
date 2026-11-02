@@ -65,7 +65,9 @@ def unique_slug_for_name(name: str) -> str:
 
 
 def tenant_hostname(slug: str, base_domain: str | None = None) -> str:
-    base = (base_domain or _config_value("TENANT_BASE_DOMAIN") or "tamanini.dev.br").strip().lower().strip(".")
+    from app.services.platform_settings import get_base_domain
+
+    base = (base_domain or get_base_domain()).strip().lower().strip(".")
     return f"{normalize_slug(slug)}.{base}"
 
 
@@ -188,6 +190,48 @@ def sync_tenant_dns(organization: Organization) -> bool:
     organization.dns_status = "active"
     organization.dns_last_error = None
     return True
+
+
+def verify_tenant_domain(organization: Organization, hostname: str | None = None) -> bool:
+    """Verifica se o dominio customizado da organizacao ja possui registro DNS (Cloudflare)."""
+    mode = (_config_value("TENANT_DNS_MODE") or "manual").strip().lower()
+    if mode == "wildcard":
+        organization.dns_status = "active"
+        organization.dns_last_error = None
+        return True
+    if mode not in {"cloudflare", "api"}:
+        organization.dns_status = "manual"
+        organization.dns_last_error = "Configure TENANT_DNS_MODE=wildcard ou Cloudflare para verificar dominios."
+        return False
+    token = _config_value("CLOUDFLARE_API_TOKEN")
+    zone_id = _config_value("CLOUDFLARE_ZONE_ID")
+    if not token or not zone_id:
+        organization.dns_status = "manual"
+        organization.dns_last_error = "Configure CLOUDFLARE_API_TOKEN e CLOUDFLARE_ZONE_ID para verificar dominios."
+        return False
+    target = _config_value("TENANT_DNS_TARGET") or ""
+    try:
+        record_type = _record_type(target)
+        base_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records"
+        response = requests.get(
+            base_url,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            params={"type": record_type, "name": hostname or organization.custom_domain or ""},
+            timeout=15,
+        )
+        response.raise_for_status()
+        records = (response.json().get("result") or [])
+        if not records:
+            organization.dns_status = "pending"
+            organization.dns_last_error = "Registro DNS do dominio ainda nao encontrado."
+            return False
+        organization.dns_status = "active"
+        organization.dns_last_error = None
+        return True
+    except requests.RequestException as exc:
+        organization.dns_status = "error"
+        organization.dns_last_error = str(exc)[:500]
+        return False
 
 
 def _record_type(target: str) -> str:

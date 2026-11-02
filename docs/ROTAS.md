@@ -1,10 +1,11 @@
 # Rotas
 
-Estado revisado em 2026-09-24. As páginas principais foram auditadas com Playwright em cinco tamanhos; aliases legados permanecem por compatibilidade e devem ser removidos somente com plano de migração.
+Estado revisado em 2026-11-02. As páginas principais foram auditadas com Playwright em cinco tamanhos; aliases legados permanecem por compatibilidade e devem ser removidos somente com plano de migração.
 
 ## HTML
 
-- `/` - dashboard.
+- `/` - dashboard gerencial com filtros por período, indicadores financeiros e operacionais.
+- `/dashboard` - alias para o dashboard principal.
 - `/ajuda` - onboarding, checklist e Central de Ajuda autenticada.
 - `/login` - login.
 - `/primeiro-acesso` - cadastro do primeiro administrador.
@@ -16,8 +17,12 @@ Estado revisado em 2026-09-24. As páginas principais foram auditadas com Playwr
 - `/estoque` - estoque.
 - `/fornecedores` - fornecedores.
 - `/financeiro` - financeiro.
+- `/financeiro/caixa` - fechamento de caixa (abertura, movimentacoes, conferencia e fechamento diario).
 - `/usuarios` - usuarios.
 - `/configuracoes` - configuracoes da empresa.
+- `/configuracoes/site/` - configuração da landing pública da empresa.
+- `/configuracoes/site/verify` - verificação do domínio customizado.
+- `/onboarding` - onboarding guiado da empresa.
 - `/configuracoes/notificacoes` - historico e retentativas de notificacoes (administrador).
 - `/privacidade/retencao` - prazos e ativacao aprovada da retencao operacional (administrador).
 - `/logs` - auditoria.
@@ -27,6 +32,9 @@ Estado revisado em 2026-09-24. As páginas principais foram auditadas com Playwr
 - `/laudos/<id>/editar` - edicao de rascunho.
 - `/laudos/<id>/pdf` - download autenticado do PDF.
 - `/laudos/verificar/<token>` - verificacao publica minima, se habilitada.
+- `/portal/os/<token>` - portal público da OS por token.
+- `/` em host público - landing da empresa resolvida pelo domínio.
+- `/` com usuário autenticado - dashboard da empresa.
 - `/healthz` - healthcheck do processo.
 - `/readyz` - readiness com verificacao do banco.
 
@@ -42,5 +50,11 @@ Estado revisado em 2026-09-24. As páginas principais foram auditadas com Playwr
 - `/api/logs`
 - `/api/whatsapp/status`
 - `/api/whatsapp/teste`
+- `/api/public/os-consulta`
+- `/api/cash/*`
+- `/api/inventario/*`
+- `/api/v1/client/*`
+- `/api/importacao/bancos/*`
+- `/healthz`, `/readyz`, `/metrics`
 
 Requisicoes mutantes exigem CSRF.

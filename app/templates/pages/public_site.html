@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ content.seo.title or (content.name ~ " - " ~ content.tagline) }}</title>
+  <meta name="description" content="{{ content.seo.description }}">
+  <link rel="canonical" href="{{ request.host_url }}">
+  <meta name="robots" content="{{ 'noindex, nofollow' if noindex else 'index, follow' }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ content.seo.title or content.name }}">
+  <meta property="og:description" content="{{ content.seo.description }}">
+  {% if content.seo.image %}<meta property="og:image" content="{{ content.seo.image }}">{% endif %}
+  <meta name="twitter:card" content="summary_large_image">
+  {% if content.seo.image %}<meta name="twitter:image" content="{{ content.seo.image }}">{% endif %}
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": {{ content.name | tojson }},
+  "description": {{ content.seo.description | tojson }},
+  "url": {{ request.host_url | tojson }},
+  "image": {{ (content.seo.image or site.cover_image or "") | tojson }},
+  "telephone": {{ (content.phone or "") | tojson }}
+}
+  </script>
+  {% if content.services and content.services|length > 0 %}
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "name": {{ (content.services[0].nome or content.services[0].name) | tojson }},
+  "description": {{ (content.services[0].descricao or content.services[0].description) | tojson }},
+  "provider": { "@type": "Organization", "name": {{ content.name | tojson }} }
+}
+  </script>
+  {% endif %}
+  <style>
+    :root { --p: {{ content.colors.primary }}; --s: {{ content.colors.secondary }}; --a: {{ content.colors.accent }}; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; background: #ffffff; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+    header { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid #e5e7eb; }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 0; gap: 1rem; flex-wrap: wrap; }
+    .brand { font-size: 1.35rem; font-weight: 800; color: var(--p); display: flex; align-items: center; gap: 0.55rem; }
+    .brand img { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; }
+    nav { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+    nav a { color: #4b5563; text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+    nav a:hover { color: var(--p); }
+    .hero { position: relative; padding: 4rem 0 3.5rem; overflow: hidden; }
+    .hero-bg { position: absolute; inset: 0; background: var(--p); opacity: 0.08; }
+    .hero-bg img { width: 100%; height: 100%; object-fit: cover; opacity: 0.25; }
+    .hero-inner { position: relative; text-align: center; max-width: 760px; margin: 0 auto; }
+    .hero-badge { display: inline-block; background: color-mix(in srgb, var(--p) 12%, white); color: var(--p); font-weight: 700; font-size: 0.8rem; padding: 0.35rem 0.9rem; border-radius: 999px; margin-bottom: 1.1rem; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3rem); color: #111827; margin-bottom: 0.9rem; }
+    .hero p { font-size: clamp(1rem, 2.4vw, 1.2rem); color: #4b5563; margin-bottom: 1.8rem; }
+    .hero-actions { display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-block; padding: 0.85rem 1.7rem; border-radius: 12px; font-weight: 700; text-decoration: none; border: none; cursor: pointer; font-size: 1rem; }
+    .btn-primary { background: var(--p); color: #fff; }
+    .btn-secondary { background: transparent; color: var(--p); border: 2px solid var(--p); }
+    main section { padding: 3.2rem 0; }
+    .section-title { font-size: clamp(1.5rem, 3.5vw, 2.1rem); color: #111827; margin-bottom: 1.6rem; text-align: center; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.2rem; }
+    .card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.4rem; }
+    .card img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 0.9rem; background: #e5e7eb; }
+    .card h3 { color: var(--p); margin-bottom: 0.4rem; }
+    .story { max-width: 760px; margin: 0 auto; font-size: 1.08rem; color: #374151; white-space: pre-line; }
+    .diferenciais .card h3 { color: var(--p); }
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.9rem; }
+    .gallery-grid img { width: 100%; height: 180px; object-fit: cover; border-radius: 12px; background: #e5e7eb; }
+    .contact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem; }
+    .contact-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.3rem; }
+    .contact-item h3 { color: var(--p); font-size: 1rem; margin-bottom: 0.4rem; }
+    footer { border-top: 1px solid #e5e7eb; padding: 2.2rem 0; text-align: center; color: #6b7280; font-size: 0.9rem; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    .hero-inner > * { animation: fadeUp 0.55s ease both; }
+    .hero-inner > *:nth-child(2) { animation-delay: 0.08s; }
+    .hero-inner > *:nth-child(3) { animation-delay: 0.16s; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+    .skip-link { position: absolute; left: -9999px; top: 0; background: #fff; padding: 0.5rem 1rem; z-index: 99; }
+  </style>
+</head>
+<body>
+  {% set whatsapp_href = content.whatsapp if content.whatsapp else '' %}
+  {% if whatsapp_href %}{% set wa = 'https://wa.me/' ~ content.whatsapp %}{% endif %}
+  <a href="#conteudo" class="skip-link">Ir para o conteúdo principal</a>
+  <header>
+    <div class="container header-inner">
+      <div class="brand">
+        {% if site.logo_url %}<img src="{{ site.logo_url }}" alt="{{ content.name }} logo" width="34" height="34">{% endif %}
+        {{ content.name }}
+      </div>
+      <nav aria-label="Navegação principal">
+        <a href="#servicos">Serviços</a>
+        {% if content.story %}<a href="#sobre">Sobre</a>{% endif %}
+        {% if content.diferenciais and content.diferenciais|length > 0 %}<a href="#diferenciais">Diferenciais</a>{% endif %}
+        <a href="#contato">Contato</a>
+      </nav>
+      {% if wa %}<a class="btn btn-primary" href="{{ wa }}" target="_blank" rel="noopener noreferrer nofollow">WhatsApp</a>{% endif %}
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero" style="--p: {{ content.colors.primary }};">
+      <div class="hero-bg">
+        {% if content.seo.image or site.cover_image %}<img src="{{ content.seo.image or site.cover_image }}" alt="{{ content.name }} - {{ content.tagline }}" loading="eager" fetchpriority="high">{% endif %}
+      </div>
+      <div class="container hero-inner">
+        {% if content.tagline %}<span class="hero-badge">{{ content.tagline }}</span>{% endif %}
+        <h1>{{ content.name }}</h1>
+        {% if content.description %}<p>{{ content.description }}</p>{% endif %}
+        <div class="hero-actions">
+          {% if wa %}<a class="btn btn-primary" href="{{ wa }}" target="_blank" rel="noopener noreferrer nofollow">Falar pelo WhatsApp</a>{% endif %}
+          {% if content.services and content.services|length > 0 %}<a class="btn btn-secondary" href="#servicos">Ver serviços</a>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    {% if content.services and content.services|length > 0 %}
+    <section id="servicos" aria-labelledby="servicos-title">
+      <div class="container">
+        <h2 class="section-title" id="servicos-title">Nossos serviços</h2>
+        <div class="card-grid">
+          {% for svc in content.services %}
+            {% set foto = svc.foto or svc.imagem or svc.image %}
+            <article class="card">
+              {% if foto %}<img src="{{ foto }}" alt="{{ svc.nome or svc.name }}" loading="lazy" width="240" height="150">{% endif %}
+              <h3>{{ svc.nome or svc.name }}</h3>
+              {% if svc.descricao or svc.description %}<p>{{ svc.descricao or svc.description }}</p>{% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if content.story %}
+    <section id="sobre" aria-labelledby="sobre-title">
+      <div class="container">
+        <h2 class="section-title" id="sobre-title">Sobre a empresa</h2>
+        <p class="story">{{ content.story }}</p>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if content.diferenciais and content.diferenciais|length > 0 %}
+    <section id="diferenciais" class="diferenciais" aria-labelledby="diferenciais-title">
+      <div class="container">
+        <h2 class="section-title" id="diferenciais-title">Diferenciais</h2>
+        <div class="card-grid">
+          {% for dif in content.diferenciais %}
+            <div class="card">
+              <h3>{{ dif.nome or dif.name }}</h3>
+              {% if dif.descricao or dif.description %}<p>{{ dif.descricao or dif.description }}</p>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if content.services and content.services|length > 0 %}
+    <section id="galeria" aria-labelledby="galeria-title">
+      <div class="container">
+        <h2 class="section-title" id="galeria-title">Galeria</h2>
+      </div>
+      <div class="container gallery-grid">
+        {% for svc in content.services %}
+          {% set foto = svc.foto or svc.imagem or svc.image %}
+          {% if foto %}<img src="{{ foto }}" alt="{{ svc.nome or svc.name }}" loading="lazy" width="400" height="225">{% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if content.phone or content.whatsapp or content.address or content.hours %}
+    <section id="contato" aria-labelledby="contato-title">
+      <div class="container">
+        <h2 class="section-title" id="contato-title">Contato</h2>
+        <div class="contact-grid">
+          {% if content.phone or content.whatsapp %}
+          <div class="contact-item">
+            <h3>Fale conosco</h3>
+            {% if content.phone %}<p>Telefone: {{ content.phone }}</p>{% endif %}
+            {% if content.whatsapp %}<p>WhatsApp: {{ content.whatsapp }}</p>{% endif %}
+          </div>
+          {% endif %}
+          {% if content.address or content.hours %}
+          <div class="contact-item">
+            <h3>Localização</h3>
+            {% if content.address %}<p>{{ content.address }}</p>{% endif %}
+            {% if content.hours %}<p>Horário: {{ content.hours }}</p>{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>{{ content.name }} © 2026. Todos os direitos reservados.</p>
+      {% if content.socials %}
+      <p style="margin-top: 0.5rem">
+        {% if content.socials.instagram %}<a href="{{ content.socials.instagram }}">Instagram</a>{% endif %}
+        {% if content.socials.facebook %}<a href="{{ content.socials.facebook }}">Facebook</a>{% endif %}
+        {% if content.socials.youtube %}<a href="{{ content.socials.youtube }}">YouTube</a>{% endif %}
+        {% if content.socials.site %}<a href="{{ content.socials.site }}">Site</a>{% endif %}
+      </p>
+      {% endif %}
+    </div>
+  </footer>
+</body>
+</html>

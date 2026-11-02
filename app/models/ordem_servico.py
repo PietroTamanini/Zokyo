@@ -37,6 +37,30 @@ STATUS_OS_LABELS = {
     "cancelado":            "Cancelado",
 }
 
+# Etapa 08: mapeamento visual de status para a consulta pública de OS.
+# Cada status real do banco ganha um "destino" operacional usado na linha do tempo.
+STATUS_OS_VISUAL = {
+    "recepcao":             {"label": "Recebida",         "etapa": 1, "destino": "recepcao"},
+    "em_analise":           {"label": "Em diagnóstico",   "etapa": 2, "destino": "diagnostico"},
+    "aguardando_aprovacao": {"label": "Aguardando aprovação", "etapa": 3, "destino": "aprovacao"},
+    "em_reparo":            {"label": "Em manutenção",     "etapa": 4, "destino": "reparo"},
+    "pronto":               {"label": "Pronta para retirada", "etapa": 5, "destino": "pronto"},
+    "entregue":             {"label": "Entregue",          "etapa": 6, "destino": "entregue"},
+    "cancelado":            {"label": "Cancelado",         "etapa": 0, "destino": "cancelado"},
+}
+
+
+def status_visual(status) -> dict:
+    """Retorna o mapeamento visual (label/etapa/destino) de um status real de OS."""
+    visual = STATUS_OS_VISUAL.get(status)
+    if visual:
+        return visual
+    return {
+        "label": STATUS_OS_LABELS.get(status, status or "Em análise"),
+        "etapa": 0,
+        "destino": status or "indefinido",
+    }
+
 
 def proximo_numero_os(organization_id: int = 1) -> int:
     ultimo = (
@@ -168,8 +192,15 @@ class OrdemServico(db.Model):
     def to_dict(self):
         # Fix #02: lê quantidade e valor_unitario reais da tabela os_pecas
         assoc = db.session.execute(
-            text("SELECT peca_id, quantidade, valor_unitario, link_compra FROM os_pecas WHERE os_id = :id"),
-            {"id": self.id}
+            text(
+                "SELECT op.peca_id, op.quantidade, op.valor_unitario, op.link_compra "
+                "FROM os_pecas op "
+                "JOIN ordens_servico o ON o.id = op.os_id "
+                "JOIN pecas p ON p.id = op.peca_id "
+                "WHERE op.os_id = :id AND o.organization_id = :org "
+                "AND p.organization_id = :org"
+            ),
+            {"id": self.id, "org": self.organization_id},
         ).fetchall()
         assoc_map = {row.peca_id: row for row in assoc}
 

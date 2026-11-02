@@ -1,6 +1,6 @@
 # O que falta para concluir o Zokyo
 
-Atualizado em 2026-09-24 após implementação e validação local do histórico/reenvio de mensagens e do alerta de prejuízo por OS.
+Atualizado em 2026-11-02 após a estabilização da suíte, migrations de onboarding/caixa/inventário e revisão de domínios e landing pages.
 
 Legenda: `[x]` indica implementação existente e verificada. `[ ]` indica trabalho ainda necessário. Itens de infraestrutura, credenciais, validação humana ou decisão comercial não podem ser concluídos somente no repositório.
 
@@ -13,9 +13,9 @@ Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose
 Para preparar as pendencias externas, use `scripts/generate_production_env.py` para gerar segredos fortes fora do Git e [Homologacao e evidencias](docs/HOMOLOGACAO_EVIDENCIAS.md) para registrar aprovacoes, testes reais e responsaveis.
 
 - [x] Aplicação, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
-- [x] Schema gerenciado por Alembic até a migration `20260924_0025`.
-- [x] 227 testes Python aprovados em 2026-09-24.
-- [x] 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
+- [x] Schema gerenciado por Alembic até a migration `20261102_0038`.
+- [x] 334 testes Python aprovados em 2026-11-02.
+- [x] Auditoria automatizada dos fluxos principais executada em múltiplos viewports.
 - [x] Auditoria de overflow, runtime, HTTP 500 e WCAG sem defeito reproduzível nas telas isoladas.
 - [x] Teste local de 150 requisições simultâneas aprovado sem erro após correção do rate limit.
 - [x] Ruff, compilação Python, validação JavaScript e auditorias de dependências aprovados.
@@ -52,8 +52,8 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 - [x] Lista direta de OS com pagamento incompleto.
 - [x] Baixa automática de estoque por peça usada na OS.
 - [x] Sugestão de compra e estoque mínimo.
-- [ ] Fechamento de caixa homologado com responsável financeiro.
-- [ ] Inventário físico guiado com divergências e aprovação.
+- [x] Fechamento de caixa implementado e coberto por testes; falta homologação com responsável financeiro.
+- [x] Inventário físico guiado com divergências e aprovação; falta homologação com dados reais.
 - [x] Alertas de OS com risco de prejuízo antes da entrega, com confirmação explícita e auditada no painel e na API.
 - [ ] Dashboard do dono com margem, inadimplência, peças críticas e OS paradas.
 
@@ -73,7 +73,7 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 - [x] Compose de produção com app, Redis, MariaDB, scheduler, migrate e Nginx.
 - [x] Gerador local de variáveis de produção com segredos fortes.
 - [ ] Trial, cobrança real e inadimplência homologados.
-- [ ] Onboarding guiado da primeira empresa.
+- [x] Onboarding guiado da primeira empresa implementado em 10 etapas; falta apenas homologação com usuários reais.
 - [ ] Página de status/saúde operacional para suporte.
 - [ ] Materiais comerciais: demonstração, comparação com concorrentes, contrato e política de suporte.
 
@@ -178,7 +178,7 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 
 ## 9. Experiência e homologação
 
-- [x] Auditoria automatizada em 320 px, Pixel 7, tablet, desktop e wide.
+- [x] Auditoria automatizada em viewports compact, mobile, tablet, desktop e wide.
 - [x] Tema, menu, foco, modal, tabelas e ausência de overflow crítico testados.
 - [x] Screenshots representativos revisados manualmente.
 - [ ] Revisar português de todas as telas com revisor humano.
@@ -210,3 +210,14 @@ Prioridade: vencer primeiro em velocidade de balcão, comunicação com cliente 
 7. Concluir decisões jurídicas e comerciais.
 8. Executar o checklist de go-live.
 9. Liberar produção gradualmente e monitorar.
+
+## Auditoria técnica e visual de 2026-11-02
+
+- [x] Suíte Python completa verde: 334 testes.
+- [x] JavaScript validado: 16 arquivos sem erro de sintaxe.
+- [x] Ruff, compilação Python e migrations verificadas.
+- [x] Comparar o schema MySQL local com `20261102_0038`; `flask db check` não detecta novas operações.
+- [ ] Fazer revisão visual humana em celular Android/iOS, dark mode, tabelas extensas e impressão de PDF.
+- [ ] Decidir se a faixa azul lateral do logo será mantida como assinatura visual ou removida.
+- [ ] Consolidar cores e tamanhos literais restantes no sistema de tokens CSS.
+- [ ] Validar todos os textos, acentos e mensagens de erro com revisão humana.

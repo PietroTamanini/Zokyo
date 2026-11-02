@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, g, jsonify, redirect, render_template, request, session, url_for
 
 from app.extensions import db
 from app.models import Usuario, registrar
@@ -108,14 +108,20 @@ def bancos_logs():
     if not folder.exists():
         return jsonify({"success": True, "logs": []})
     logs = []
+    organization_id = getattr(g, "organization_id", None)
     patterns = ("external_import_*.json",)
     for pattern in patterns:
-        for path in sorted(folder.glob(pattern), reverse=True)[:50]:
+        for path in sorted(folder.glob(pattern), reverse=True):
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 payload = {"erro": "Log inválido"}
+            payload_org = payload.get("organization_id") if isinstance(payload, dict) else None
+            if organization_id and payload_org != organization_id:
+                continue
             logs.append({"file": path.name, "payload": _public_log_payload(payload)})
+            if len(logs) >= 50:
+                break
     return jsonify({"success": True, "logs": logs[:50]})
 
 

@@ -145,6 +145,13 @@ class ProductionConfig(Config):
         "DJTECH_SITE_ORIGINS",
         "https://djtechinfo.com.br,https://www.djtechinfo.com.br,https://painel.djtechinfo.com.br",
     )
+    DJTECH_SITE_ORIGINS = ",".join(
+        origin.strip()
+        for origin in DJTECH_SITE_ORIGINS.split(",")
+        if origin.strip()
+        and "localhost" not in origin.lower()
+        and "127.0.0.1" not in origin
+    ) or "https://djtechinfo.com.br,https://www.djtechinfo.com.br,https://painel.djtechinfo.com.br"
 
     # C02: em produção, SECRET_KEY DEVE ser definida no ambiente
     @classmethod

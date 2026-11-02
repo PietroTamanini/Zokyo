@@ -173,6 +173,10 @@
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-settings"></use></svg></span>
           Dados da empresa
         </a>
+        <a class="nav-item {{ 'active' if nav_endpoint == 'site_config.index' or nav_endpoint == 'site_config.salvar' or nav_endpoint == 'site_config.toggle' or nav_endpoint == 'site_config.subdomain' or nav_endpoint == 'site_config.preview' }}" href="{{ url_for('site_config.index') }}">
+          <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-globe"></use></svg></span>
+          Meu Site
+        </a>
         <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-mail"></use></svg></span>
           Mensagens

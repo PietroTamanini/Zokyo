@@ -629,8 +629,14 @@ def adicionar_peca(id):
         return jsonify({"erro": "Peça não encontrada"}), 404
 
     existing = db.session.execute(
-        text("SELECT quantidade FROM os_pecas WHERE os_id=:o AND peca_id=:p"),
-        {"o": os_obj.id, "p": peca_id},
+        text(
+            "SELECT op.quantidade FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id=:o AND op.peca_id=:p "
+            "AND o.organization_id=:org AND p.organization_id=:org"
+        ),
+        {"o": os_obj.id, "p": peca_id, "org": g.organization_id},
     ).fetchone()
     own_reservation = StockReservation.query.filter_by(
         part_id=peca.id, order_id=os_obj.id, status="active",
@@ -652,10 +658,16 @@ def adicionar_peca(id):
         if diff > 0:
             consume_reservation(peca.id, os_obj.id, diff)
         db.session.execute(
-            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l "
-                 "WHERE os_id=:o AND peca_id=:p"),
+            text(
+                "UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l "
+                "WHERE os_id=:o AND peca_id=:p AND EXISTS ("
+                "SELECT 1 FROM ordens_servico o JOIN pecas p ON p.id=os_pecas.peca_id "
+                "WHERE o.id=os_pecas.os_id AND o.organization_id=:org "
+                "AND p.organization_id=:org)"
+            ),
             {"q": quantidade, "v": valor_unitario,
-             "l": link_compra or None, "o": os_obj.id, "p": peca_id},
+             "l": link_compra or None, "o": os_obj.id, "p": peca_id,
+             "org": g.organization_id},
         )
     else:
         if available_for_order < quantidade:
@@ -669,16 +681,29 @@ def adicionar_peca(id):
         )
         consume_reservation(peca.id, os_obj.id, quantidade)
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id,peca_id,quantidade,valor_unitario,custo_unitario,link_compra) "
-                 "VALUES (:o,:p,:q,:v,:c,:l)"),
+            text(
+                "INSERT INTO os_pecas "
+                "(os_id,peca_id,quantidade,valor_unitario,custo_unitario,link_compra) "
+                "SELECT :o,:p,:q,:v,:c,:l "
+                "FROM ordens_servico o, pecas p "
+                "WHERE o.id=:o AND p.id=:p AND o.organization_id=:org "
+                "AND p.organization_id=:org"
+            ),
             {"o": os_obj.id, "p": peca_id,
-             "q": quantidade, "v": valor_unitario, "c": float(peca.custo or 0), "l": link_compra or None},
+             "q": quantidade, "v": valor_unitario, "c": float(peca.custo or 0),
+             "l": link_compra or None, "org": g.organization_id},
         )
 
     total_pecas = db.session.execute(
-        text("SELECT COALESCE(SUM(quantidade*valor_unitario),0) "
-             "FROM os_pecas WHERE os_id=:o"),
-        {"o": os_obj.id},
+        text(
+            "SELECT COALESCE(SUM(op.quantidade*op.valor_unitario),0) "
+            "FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id=:o AND o.organization_id=:org "
+            "AND p.organization_id=:org"
+        ),
+        {"o": os_obj.id, "org": g.organization_id},
     ).scalar()
     os_obj.valor_pecas = total_pecas
     registrar("edicao", "ordens_servico", f"Peca #{peca.id} vinculada a OS #{os_obj.id}", f"quantidade={quantidade}")
@@ -695,8 +720,14 @@ def remover_peca(id, peca_id):
               .filter(OrdemServico.deletado_em.is_(None))
               .first_or_404())
     old_row = db.session.execute(
-        text("SELECT quantidade FROM os_pecas WHERE os_id=:o AND peca_id=:p"),
-        {"o": os_obj.id, "p": peca_id},
+        text(
+            "SELECT op.quantidade FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id=:o AND op.peca_id=:p "
+            "AND o.organization_id=:org AND p.organization_id=:org"
+        ),
+        {"o": os_obj.id, "p": peca_id, "org": g.organization_id},
     ).fetchone()
     if old_row:
         peca = db.session.get(Peca, peca_id)
@@ -709,13 +740,24 @@ def remover_peca(id, peca_id):
             )
 
     db.session.execute(
-        text("DELETE FROM os_pecas WHERE os_id=:o AND peca_id=:p"),
-        {"o": os_obj.id, "p": peca_id},
+        text(
+            "DELETE FROM os_pecas WHERE os_id=:o AND peca_id=:p AND EXISTS ("
+            "SELECT 1 FROM ordens_servico o JOIN pecas p ON p.id=os_pecas.peca_id "
+            "WHERE o.id=os_pecas.os_id AND o.organization_id=:org "
+            "AND p.organization_id=:org)"
+        ),
+        {"o": os_obj.id, "p": peca_id, "org": g.organization_id},
     )
     total_pecas = db.session.execute(
-        text("SELECT COALESCE(SUM(quantidade*valor_unitario),0) "
-             "FROM os_pecas WHERE os_id=:o"),
-        {"o": os_obj.id},
+        text(
+            "SELECT COALESCE(SUM(op.quantidade*op.valor_unitario),0) "
+            "FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id=:o AND o.organization_id=:org "
+            "AND p.organization_id=:org"
+        ),
+        {"o": os_obj.id, "org": g.organization_id},
     ).scalar()
     os_obj.valor_pecas = total_pecas
     registrar("edicao", "ordens_servico", f"Peca #{peca_id} removida da OS #{os_obj.id}")

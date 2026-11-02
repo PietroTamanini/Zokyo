@@ -2,7 +2,7 @@
 
 Este é o documento de continuidade do projeto. Toda IA que trabalhar neste repositório deve lê-lo antes de alterar código, banco, infraestrutura ou documentação. Ele não substitui os documentos especializados em `docs/`; serve como mapa, histórico curto e conjunto de invariantes para evitar retrabalho e regressões.
 
-Última atualização: 2026-09-24.
+Última atualização: 2026-11-02.
 
 ## Objetivo do produto
 
@@ -13,21 +13,21 @@ O objetivo atual não é acumular módulos. A prioridade é transformar a implem
 ## Estado resumido
 
 - Aplicação Flask, MariaDB, Redis e site público executam em Docker local com healthchecks saudáveis.
-- Schema gerenciado por Alembic até a migration `20260924_0025`.
+- Schema gerenciado por Alembic até a migration `20261102_0038`.
 - O isolamento multiempresa usa escopo ORM, bloqueio de mutacoes cruzadas, filtros explicitos em SQL manual e integridade referencial; MariaDB nao possui RLS nativo.
 - 200 cenários Playwright executados em compact, mobile, tablet, desktop e wide.
 - Auditoria visual cobre overflow, runtime, HTTP 500 e violações WCAG sérias.
 - Teste local de 150 requisições simultâneas passou após correção do rate limit persistente.
-- Em 2026-09-24, 227 testes Python, Ruff, compilação Python e validação JavaScript passaram.
+- Em 2026-11-02, 334 testes Python passaram; compilação Python e validação JavaScript também passaram.
 - Auditorias de dependências passaram na revisão anterior.
 - O código está apto para piloto controlado, mas o ambiente comercial ainda não foi homologado.
 - Em 2026-09-23, `production-check --strict-integrations` foi executado no Compose local e reprovou somente por configuração externa ausente: `FLASK_ENV=production`, URL HTTPS pública, métricas, chave de backup, alertas, SMTP e WhatsApp automático. Redis, `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` locais já estão configurados com valores dev-only válidos; segredos reais de produção ainda precisam ser provisionados fora do Git.
 - Em 2026-09-23, o Compose de desenvolvimento passou a subir Redis (`redis://redis:6379/0`) para exercitar sessões e rate limit distribuído localmente.
 - Em 2026-09-23, o Compose de desenvolvimento passou a definir `SECRET_KEY`, `ENCRYPTION_SALT` e `BLIND_INDEX_KEY` dev-only válidos; sem isso, `create-organization` e fluxos que calculam índice cego falhavam no Gunicorn local.
-- Em 2026-09-24, após liberar espaço no host e reiniciar o WSL, o Compose de desenvolvimento foi reconstruído do zero. A cadeia Alembic completa passou no MariaDB 11 até `20260924_0025`; `flask db check` não encontrou operações pendentes, a coluna `notifications.os_id` e o índice `ix_notifications_org_os_created` foram confirmados no banco real.
+- Em 2026-11-02, a cadeia Alembic foi aplicada até `20261102_0038`, incluindo configurações da plataforma, onboarding, caixa, inventário físico e alinhamento de defaults do schema.
 - Ao final da sessão de 2026-09-24, app, MariaDB, Redis e site público estavam saudáveis no Compose; `/healthz`, `/readyz`, o site público e `redis-cli ping` responderam com sucesso em `http://127.0.0.1:8000` e `http://127.0.0.1:5500`.
 
-Consulte [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](CHANGELOG.md) para a evolução versionada.
+Consulte [docs/ESTADO_ATUAL.md](docs/ESTADO_ATUAL.md), [oque_falta.md](oque_falta.md) para o checklist atual e [CHANGELOG.md](CHANGELOG.md) para a evolução versionada.
 
 ## Tecnologias
 

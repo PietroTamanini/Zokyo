@@ -1,0 +1,27 @@
+<!-- Etapa 1: Cadastro da Empresa -->
+<div class="field-group">
+  <label>Nome da Empresa <span class="required">*</span></label>
+  <input type="text" name="nome_empresa" value="{{ current_step_data.nome_empresa or '' }}" required>
+  
+  <label>CNPJ <span class="required">*</span></label>
+  <input type="text" name="cnpj" value="{{ current_step_data.cnpj or '' }}" placeholder="00.000.000/0000-00" required>
+  
+  <label>Telefone <span class="required">*</span></label>
+  <input type="text" name="telefone" value="{{ current_step_data.telefone or '' }}" placeholder="(00) 00000-0000" required>
+  
+  <label>E-mail <span class="required">*</span></label>
+  <input type="email" name="email" value="{{ current_step_data.email or '' }}" required>
+</div>
+
+<fieldset>
+  <legend>Dados do Proprietário</fieldset>
+  <label>Nome do Dono <span class="required">*</span></label>
+  <input type="text" name="owner_name" value="{{ current_step_data.owner_name or '' }}" required>
+  
+  <label>E-mail do Dono <span class="required">*</span></label>
+  <input type="email" name="owner_email" value="{{ current_step_data.owner_email or '' }}" required>
+  
+  <label>Senha do Dono <span class="required">*</span></label>
+  <input type="password" name="owner_password" required>
+  <small>Mínimo 8 caracteres</small>
+</fieldset>

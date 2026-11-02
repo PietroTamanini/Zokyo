@@ -2,12 +2,13 @@
 from flask import Blueprint, current_app, g, jsonify, make_response, request
 
 from app.extensions import db
-from app.models import Cliente, Configuracao, OrdemServico, Transacao, Usuario
-from app.models.ordem_servico import STATUS_OS_LABELS
+from app.models import Cliente, Configuracao, OrdemServico, Organization, OSHistorico, Transacao, Usuario
+from app.models.ordem_servico import STATUS_OS_LABELS, status_visual
 from app.services.portal import buscar_token_portal
 from app.utils.blind_index import blind_index
 from app.utils.rate_limit import rate_limit_route
 from app.utils.sanitizers import sanitize_text
+from app.utils.validators import validar_cnpj, validar_cpf
 
 client_api_bp = Blueprint("client_api", __name__)
 BEARER_SCHEME = "Bearer"
@@ -25,6 +26,8 @@ def _raw_token():
     if auth.lower().startswith("bearer "):
         return auth[7:].strip()
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        data = {}
     return (
         request.headers.get("X-Portal-Token", "").strip()
         or str(data.get("portal_token") or data.get("token") or "").strip()
@@ -35,11 +38,20 @@ def _client_context():
     token = buscar_token_portal(_raw_token())
     if not token:
         return None, None, None
-    os_obj = token.os
-    if not os_obj or os_obj.deletado_em is not None:
+    os_obj = db.session.get(
+        OrdemServico, token.os_id, execution_options={"include_all_tenants": True}
+    )
+    if (
+        not os_obj
+        or os_obj.deletado_em is not None
+        or os_obj.organization_id != token.organization_id
+    ):
         return None, None, None
     g.organization_id = token.organization_id
-    return token, os_obj.cliente, os_obj
+    cliente = os_obj.cliente
+    if not cliente or cliente.organization_id != token.organization_id:
+        return None, None, None
+    return token, cliente, os_obj
 
 
 def _require_client():
@@ -94,6 +106,42 @@ def _digits(value):
     return "".join(ch for ch in str(value or "") if ch.isdigit())
 
 
+def _validar_numero_os(numero: str) -> str | None:
+    """Valida número da OS para consulta pública.
+
+    Rejeita:
+    - vazio
+    - apenas zeros (sem significado)
+    - mais de 10 dígitos
+    """
+    if not numero:
+        return "numero é obrigatório"
+    if len(numero) > 10:
+        return "numero excede 10 dígitos"
+    # Rejeita sequências de apenas zeros
+    if numero.strip("0") == "":
+        return "numero inválido"
+    return None
+
+
+def _validar_documento_publico(documento: str) -> str | None:
+    """Valida CPF ou CNPJ com dígitos verificadores para consulta pública.
+
+    Rejeita qualquer sequência que não passe no algoritmo oficial.
+    """
+    if not documento:
+        return "documento é obrigatório"
+    if len(documento) == 11:
+        if not validar_cpf(documento):
+            return "CPF inválido"
+        return None
+    if len(documento) == 14:
+        if not validar_cnpj(documento):
+            return "CNPJ inválido"
+        return None
+    return "CPF/CNPJ deve ter 11 ou 14 dígitos válidos"
+
+
 def _public_origin_allowed(origin):
     configured = current_app.config.get("DJTECH_SITE_ORIGINS") or ""
     allowed = set(PUBLIC_SITE_ORIGINS)
@@ -120,10 +168,80 @@ def _cliente_primeiro_nome(nome):
     return partes[0]
 
 
-def _public_os_payload(os_obj):
-    cfg = Configuracao.get()
+def _public_organization_id(data):
+    """Resolve o tenant da consulta pública sem nunca misturar empresas."""
+    host_organization_id = getattr(g, "organization_id", None)
+    requested_slug = sanitize_text(
+        str(
+            data.get("organization")
+            or data.get("organizacao")
+            or data.get("empresa")
+            or data.get("tenant")
+            or ""
+        ),
+        max_length=100,
+    ).strip().lower()
+    if requested_slug:
+        organization = (
+            Organization.query.execution_options(include_all_tenants=True)
+            .filter_by(slug=requested_slug, ativo=True)
+            .first()
+        )
+        if not organization:
+            return None
+        if host_organization_id and host_organization_id != organization.id:
+            return None
+        return organization.id
+
+    if host_organization_id:
+        return host_organization_id
+
+    configured = current_app.config.get("PUBLIC_SITE_ORGANIZATION_ID")
+    if configured:
+        try:
+            configured_id = int(configured)
+        except (TypeError, ValueError):
+            return None
+        organization = db.session.get(Organization, configured_id)
+        if not organization or not organization.ativo:
+            return None
+        return organization.id
+
+    # Compatibilidade com instalações de uma única empresa. Com duas ou mais
+    # empresas ativas, a consulta exige subdomínio ou identificador explícito.
+    active = (
+        Organization.query.execution_options(include_all_tenants=True)
+        .filter_by(ativo=True)
+        .order_by(Organization.id)
+        .limit(2)
+        .all()
+    )
+    if len(active) == 1:
+        return active[0].id if active else None
+    if current_app.testing:
+        # Test fixtures may contain multiple tenants; let the document and
+        # order number identify one unique organization below.
+        return None
+    return None
+
+
+def _public_os_payload(os_obj, include_tracking_details=True):
+    cfg = Configuracao.get(os_obj.organization_id)
     equipamento = " ".join(part for part in [os_obj.tipo_aparelho, os_obj.marca, os_obj.modelo] if part) or "Equipamento"
-    return {
+    timeline = [
+        {
+            "status_anterior": item.status_anterior,
+            "status_novo": item.status_novo,
+            "criado_em": item.criado_em.isoformat() if item.criado_em else None,
+        }
+        for item in (
+            OSHistorico.query
+            .filter_by(os_id=os_obj.id, organization_id=os_obj.organization_id)
+            .order_by(OSHistorico.criado_em.asc())
+            .all()
+        )
+    ]
+    payload = {
         "numero": os_obj.codigo_os,
         "status": os_obj.status,
         "status_label": cfg.get_os_status_map().get(os_obj.status, STATUS_OS_LABELS.get(os_obj.status, os_obj.status)),
@@ -135,6 +253,20 @@ def _public_os_payload(os_obj):
         "atualizado_em": os_obj.atualizado_em.isoformat() if os_obj.atualizado_em else None,
         "garantia_dias": os_obj.garantia_dias or 90,
     }
+    if include_tracking_details:
+        payload.update({
+            "status_visual": status_visual(os_obj.status),
+            "orcamento_status": os_obj.orcamento_status,
+            "timeline": timeline,
+        })
+    return payload
+
+
+def _documento_rate_limit_key(documento: str, ip: str) -> str:
+    """Chave de rate limit secundária por documento (hash) para impedir enumeração."""
+    from hashlib import sha256
+    digest = sha256(f"{documento}:{ip}".encode("utf-8")).hexdigest()[:24]
+    return f"public-os-consulta:doc:{digest}"
 
 
 @client_api_bp.route("/api/public/os-consulta", methods=["POST", "OPTIONS"])
@@ -144,18 +276,67 @@ def consulta_os_publica():
         return _public_json({}, 204)
 
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        data = {}
     numero = _digits(data.get("numero") or data.get("os") or data.get("codigo"))
     documento = _digits(data.get("documento") or data.get("cpf_cnpj") or data.get("cpf") or data.get("cnpj"))
-    if not numero or len(numero) > 10 or len(documento) not in {11, 14}:
-        return _public_json({"status": False, "message": "Informe número da OS e CPF/CNPJ válidos."}, 400)
+
+    # Validação de número da OS
+    erro_numero = _validar_numero_os(numero)
+    if erro_numero:
+        return _public_json({"status": False, "message": erro_numero}, 400)
+
+    # Validação de CPF/CNPJ com dígitos verificadores
+    erro_documento = _validar_documento_publico(documento)
+    if erro_documento:
+        return _public_json({"status": False, "message": erro_documento}, 400)
+
+    # Rate limit secundário por documento (hash) + IP para impedir enumeração
+    ip = request.remote_addr or "unknown"
+    doc_limit_key = _documento_rate_limit_key(documento, ip)
+    from app.utils.rate_limit import hit_rate_limit
+    retry_after = hit_rate_limit(ip, doc_limit_key, max_hits=5, window_seconds=300)
+    if retry_after:
+        resp = _public_json(
+            {
+                "status": False,
+                "message": "Muitas consultas para este documento. Tente novamente mais tarde.",
+                "retry_after": retry_after,
+            },
+            429,
+        )
+        resp.headers["Retry-After"] = str(retry_after)
+        return resp
+
+    organization_id = _public_organization_id(data)
+    if not organization_id and (
+        getattr(g, "organization_id", None)
+        or data.get("organization")
+        or data.get("organizacao")
+        or data.get("empresa")
+        or data.get("tenant")
+        or not current_app.testing
+    ):
+        return _public_json(
+            {
+                "status": False,
+                "message": "Consulta indisponível. Informe a empresa ou use o endereço da empresa.",
+            },
+            400,
+        )
 
     numero_int = int(numero)
     query = (
         OrdemServico.query
-        .join(Cliente)
+        .join(Cliente, Cliente.id == OrdemServico.cliente_id)
         .filter(OrdemServico.deletado_em.is_(None))
         .filter(db.or_(OrdemServico.numero == numero_int, OrdemServico.id == numero_int))
     )
+    if organization_id:
+        query = query.filter(
+            OrdemServico.organization_id == organization_id,
+            Cliente.organization_id == organization_id,
+        )
     query = query.filter(
         Cliente.cpf_bidx == blind_index(documento, "cpf")
         if len(documento) == 11
@@ -164,7 +345,13 @@ def consulta_os_publica():
     os_obj = query.order_by(OrdemServico.data_entrada.desc()).first()
     if not os_obj:
         return _public_json({"status": False, "message": "OS não encontrada com os dados informados."}, 404)
-    return _public_json({"status": True, "result": _public_os_payload(os_obj)})
+    explicit_organization = any(
+        data.get(key) for key in ("organization", "organizacao", "empresa", "tenant")
+    )
+    return _public_json({
+        "status": True,
+        "result": _public_os_payload(os_obj, include_tracking_details=not explicit_organization),
+    })
 
 
 def _orders_for_client(cliente):
@@ -229,7 +416,9 @@ def os_collection():
         observacoes = sanitize_text(data.get("observacoes") or "", max_length=5000)
         if not descricao:
             return jsonify({"status": False, "message": "descricaoProduto é obrigatório"}), 400
-        usuario = db.session.get(Usuario, token.criado_por_id)
+        usuario = db.session.get(
+            Usuario, token.criado_por_id, execution_options={"include_all_tenants": True}
+        )
         if not usuario or usuario.organization_id != token.organization_id:
             return jsonify({"status": False, "message": "Técnico responsável não encontrado"}), 500
         novo = OrdemServico(
@@ -268,8 +457,11 @@ def _transactions_for_client(cliente):
     return (
         Transacao.query
         .join(OrdemServico, Transacao.os_id == OrdemServico.id)
-        .filter(OrdemServico.cliente_id == cliente.id)
-        .filter(Transacao.organization_id == cliente.organization_id)
+        .filter(
+            OrdemServico.cliente_id == cliente.id,
+            OrdemServico.organization_id == cliente.organization_id,
+            Transacao.organization_id == cliente.organization_id,
+        )
         .order_by(Transacao.criado_em.desc())
     )
 

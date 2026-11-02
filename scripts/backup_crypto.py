@@ -22,7 +22,7 @@ def key_from_env() -> bytes:
     except Exception as exc:
         raise ValueError("BACKUP_ENCRYPTION_KEY deve ser base64 URL-safe.") from exc
     if len(key) != 32:
-        raise ValueError("BACKUP_ENCRYPTION_KEY deve representar exatamente 32 bytes.")
+        raise ValueError("BACKUP_ENCRYPTION_KEY deve ser uma chave base64 que represente exatamente 32 bytes.")
     return key
 
 

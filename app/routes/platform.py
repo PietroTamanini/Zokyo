@@ -1,6 +1,8 @@
 """Rotas do admin global, webhooks de billing e assinatura do tenant."""
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, session, url_for
+import re
+
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 
 from app.admin.dashboard import admin_dashboard_context
 from app.admin.organizations import (
@@ -13,8 +15,9 @@ from app.admin.organizations import (
 from app.admin.plans import assign_subscription_from_form, create_plan_from_form, plan_json
 from app.admin.security import global_admin_required
 from app.extensions import db
-from app.models import OrganizationSubscription, Plan, Usuario, registrar
+from app.models import OrganizationSubscription, Plan, PlatformSetting, Usuario, registrar
 from app.services.billing import process_asaas_event, process_sandbox_event
+from app.services.tenant_site_service import TenantSiteError, verify_custom_domain
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
 
@@ -69,8 +72,13 @@ def create_organization():
 @platform_bp.route("/organizations/<int:organization_id>", methods=["POST"])
 @global_admin_required
 def update_organization(organization_id):
-    update_organization_from_form(organization_id, request.form)
-    flash("Empresa e assinatura atualizadas.", "success")
+    try:
+        update_organization_from_form(organization_id, request.form)
+    except TenantSiteError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        flash("Empresa e assinatura atualizadas.", "success")
     return redirect(url_for("platform.index", view="company", organization_id=organization_id))
 
 
@@ -95,11 +103,42 @@ def sync_dns(organization_id):
     return redirect(url_for("platform.index", view="domains"))
 
 
+@platform_bp.route("/organizations/<int:organization_id>/site-domain/verify", methods=["POST"])
+@global_admin_required
+def verify_site_domain(organization_id):
+    ok = verify_custom_domain(organization_id)
+    db.session.commit()
+    flash(
+        "Domínio verificado. A landing page está liberada."
+        if ok
+        else "Domínio ainda não aponta para o servidor configurado.",
+        "success" if ok else "warning",
+    )
+    return redirect(url_for("platform.index", view="company", organization_id=organization_id))
+
+
+@platform_bp.route("/settings/domain", methods=["POST"])
+@global_admin_required
+def update_base_domain():
+    value = (request.form.get("base_domain") or "").strip().lower().strip(".")
+    if not value or len(value) > 253 or not re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*",
+        value,
+    ):
+        flash("Domínio base inválido. Use somente domínio sem http://, porta ou caminho.", "error")
+        return redirect(url_for("platform.index", view="domains"))
+    PlatformSetting.set_value("tenant_base_domain", value)
+    current_app.config["TENANT_BASE_DOMAIN"] = value
+    db.session.commit()
+    flash(f"Domínio base atualizado para {value}.", "success")
+    return redirect(url_for("platform.index", view="domains"))
+
+
 @platform_bp.route("/plans", methods=["POST"])
 @global_admin_required
 def create_plan():
     plan = create_plan_from_form(request.form)
-    registrar("criacao", "platform", f"Plano #{plan.id} criado", f"code={plan.code}", organization_id=None)
+    registrar("criacao", "platform", f"Plano #{plan.id} criado", f"code={plan.code}")
     db.session.commit()
     return redirect(url_for("platform.index", view="plans"))
 

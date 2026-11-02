@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Site - {{ organization.nome }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Meu Site</h1>
+    <div class="flex gap-2">
+      <a class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300" href="{{ url_for('public_site.index') }}">Ver site publico</a>
+      <a class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" href="{{ url_for('site_config.preview') }}">Visualizar previa</a>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="mb-4 p-4 rounded {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
+    <h2 class="text-lg font-semibold mb-4">Publicação</h2>
+    <div class="flex items-center gap-3 mb-4">
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="site_enabled" value="1" {{ 'checked' if site.site_enabled else '' }}>
+        <span class="text-sm text-gray-700">Habilitar site publico para esta empresa</span>
+      </label>
+      <span class="text-sm text-gray-500">Endpoint publico: /</span>
+    </div>
+    <p class="text-sm text-gray-600 mb-4">Subdominio: <code>{{ organization.subdomain }}</code></p>
+    <p class="text-sm text-gray-600 mb-4">Dominio atual: {{ site.custom_domain or "Nao definido" }}</p>
+    <p class="text-sm text-gray-600 mb-4">Status do dominio: <strong>{{ domain_status }}</strong></p>
+    {% if site.custom_domain_validated %}
+      <span class="text-green-600 font-medium">✓ Dominio validado</span>
+    {% elif site.custom_domain %}
+      <span class="text-yellow-600 font-medium">⚠ Dominio pendente validacao</span>
+    {% endif %}
+  </div>
+
+  <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
+    {{ csrf_token() if csrf_token else '' }}
+
+    <h2 class="text-lg font-semibold mb-4">Identidade</h2>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Nome publico da assistencia</label>
+        <input type="text" name="site_name" value="{{ content.name or organization.nome }}" class="w-full border rounded p-2" max_length="200">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Nome do site (hero)</label>
+        <input type="text" name="site_title" value="{{ site.site_title or organization.nome }}" class="w-full border rounded p-2" max_length="200">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Tagline</label>
+        <input type="text" name="tagline" value="{{ site.tagline or content.tagline or '' }}" class="w-full border rounded p-2" max_length="300">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Subtitulo (hero)</label>
+        <input type="text" name="site_subtitle" value="{{ site.site_subtitle or '' }}" class="w-full border rounded p-2" max_length="300">
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Descricao da empresa</label>
+      <textarea name="description" class="w-full border rounded p-2" rows="3">{{ content.description or '' }}</textarea>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Historia / apresentacao</label>
+      <textarea name="story" class="w-full border rounded p-2" rows="4">{{ content.story or '' }}</textarea>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Cor primaria</label>
+        <input type="color" name="primary_color" value="{{ site.primary_color or '#2563eb' }}" class="w-full h-10 border rounded p-1">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Cor secundaria</label>
+        <input type="color" name="secondary_color" value="{{ site.secondary_color or '#6b7280' }}" class="w-full h-10 border rounded p-1">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Cor de destaque</label>
+        <input type="color" name="accent_color" value="{{ site.accent_color or '#6366f1' }}" class="w-full h-10 border rounded p-1">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Imagem de capa (URL)</label>
+        <input type="url" name="cover_image" value="{{ site.cover_image or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/capa.png">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">URL do logo</label>
+        <input type="url" name="logo_url" value="{{ site.logo_url or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/logo.png">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">URL do favicon</label>
+        <input type="url" name="favicon_url" value="{{ site.favicon_url or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/favicon.ico">
+      </div>
+    </div>
+
+    <h2 class="text-lg font-semibold mb-4 mt-8">Servicos</h2>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Lista de servicos (JSON)</label>
+      <textarea name="services_json" class="w-full border rounded p-2" rows="6" placeholder='[{"nome":"Troca de tela","descricao":"..."}]'>{{ site.services_json or '' }}</textarea>
+    </div>
+
+    <h2 class="text-lg font-semibold mb-4 mt-8">Contato</h2>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
+        <input type="text" name="phone" value="{{ site.phone or '' }}" class="w-full border rounded p-2" max_length="20">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
+        <input type="text" name="whatsapp" value="{{ site.whatsapp or '' }}" class="w-full border rounded p-2" max_length="20">
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Endereco</label>
+      <textarea name="address" class="w-full border rounded p-2" rows="2">{{ content.address or '' }}</textarea>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Horario de funcionamento</label>
+      <textarea name="hours" class="w-full border rounded p-2" rows="2">{{ content.hours or '' }}</textarea>
+    </div>
+
+    <h2 class="text-lg font-semibold mb-4 mt-8">Redes sociais e SEO</h2>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">Redes sociais (JSON)</label>
+      <textarea name="socials_json" class="w-full border rounded p-2" rows="4" placeholder='{"instagram":"https://instagram.com/..."}'>{{ site.socials_json or '' }}</textarea>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">SEO - titulo</label>
+        <input type="text" name="seo_title" value="{{ content.seo.title or '' }}" class="w-full border rounded p-2" max_length="200">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">SEO - imagem de compartilhamento (URL)</label>
+        <input type="url" name="seo_image" value="{{ content.seo.image or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/og.png">
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">SEO - descricao</label>
+      <textarea name="seo_description" class="w-full border rounded p-2" rows="2">{{ content.seo.description or '' }}</textarea>
+    </div>
+
+    <div class="flex gap-2 mt-8">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar configuracoes</button>
+      <form method="POST" action="{{ url_for('site_config.toggle') }}" style="display: inline;">
+        {{ csrf_token() if csrf_token else '' }}
+        <button type="submit" class="bg-{{ 'green' if not site.site_enabled else 'red' }}-600 text-white px-4 py-2 rounded hover:bg-{{ 'green' if not site.site_enabled else 'red' }}-700">
+          {{ 'Ativar site' if not site.site_enabled else 'Desativar site' }}
+        </button>
+      </form>
+    </div>
+  </form>
+
+  <form method="POST" action="{{ url_for('site_config.subdomain') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
+    {{ csrf_token() if csrf_token else '' }}
+    <h2 class="text-lg font-semibold mb-4">Subdominio</h2>
+    <div class="flex gap-2">
+      <input type="text" name="subdomain" value="{{ organization.subdomain or '' }}" class="w-full border rounded p-2" max_length="63">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar subdominio</button>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">Subdominio identifica a empresa no dominio raiz (ex: alpha.tamanini.dev.br).</p>
+  </form>
+
+  <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
+    {{ csrf_token() if csrf_token else '' }}
+    <h2 class="text-lg font-semibold mb-4">Dominio personalizado</h2>
+    <div class="flex gap-2">
+      <input type="text" name="custom_domain" value="{{ site.custom_domain or '' }}" class="w-full border rounded p-2" placeholder="exemplo.empresa.com.br">
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar dominio</button>
+    </div>
+    <p class="text-xs text-gray-500 mt-2">Configure o DNS para apontar para este servidor antes de validar o dominio.</p>
+  </form>
+
+  <form method="POST" action="{{ url_for('site_config.verify') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
+    {{ csrf_token() if csrf_token else '' }}
+    <h2 class="text-lg font-semibold mb-4">Verificacao de dominio</h2>
+    <p class="text-sm text-gray-600 mb-4">Verifica o registro DNS configurado para o dominio personalizado (integracao Cloudflare).</p>
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Verificar agora</button>
+  </form>
+</div>
+{% endblock %}

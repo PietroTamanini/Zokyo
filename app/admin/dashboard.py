@@ -19,6 +19,7 @@ from app.models import (
     OrganizationSubscription,
     OSFoto,
     Plan,
+    TenantSite,
     Usuario,
 )
 
@@ -32,6 +33,10 @@ def admin_dashboard_context() -> dict:
     owners = _owners_by_organization(options)
     subscriptions = OrganizationSubscription.query.options(joinedload(OrganizationSubscription.plan)).all()
     subscriptions_by_org = {item.organization_id: item for item in subscriptions}
+    sites_by_org = {
+        item.organization_id: item
+        for item in TenantSite.query.execution_options(include_all_tenants=True).all()
+    }
     dns = _dns_context()
 
     return {
@@ -39,6 +44,7 @@ def admin_dashboard_context() -> dict:
         "plans": Plan.query.order_by(Plan.nome).all(),
         "subscriptions": subscriptions,
         "subscriptions_by_org": subscriptions_by_org,
+        "sites_by_org": sites_by_org,
         "usage": usage,
         "summary": _summary(organizations, subscriptions, usage),
         "owners": owners,
@@ -107,7 +113,9 @@ def _summary(organizations, subscriptions, usage: dict[int, dict]) -> dict:
 def _dns_context() -> dict:
     mode = (current_app.config.get("TENANT_DNS_MODE") or "manual").lower()
     target = current_app.config.get("TENANT_DNS_TARGET") or ""
-    base_domain = current_app.config.get("TENANT_BASE_DOMAIN", "tamanini.dev.br")
+    from app.services.platform_settings import get_base_domain
+
+    base_domain = get_base_domain()
     ready = mode == "wildcard" or (
         mode in {"cloudflare", "api"}
         and bool(current_app.config.get("CLOUDFLARE_API_TOKEN"))

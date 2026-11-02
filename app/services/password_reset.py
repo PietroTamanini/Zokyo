@@ -5,7 +5,7 @@ import smtplib
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
-from flask import current_app, url_for
+from flask import current_app, g, url_for
 
 from app.extensions import db
 from app.models import PasswordResetToken, Usuario, registrar
@@ -50,13 +50,23 @@ def localizar_token(raw_token: str) -> PasswordResetToken | None:
     expires = token.expira_em
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
-    return token if expires > _now() and token.usuario.ativo else None
+    usuario = db.session.get(
+        Usuario, token.usuario_id, execution_options={"include_all_tenants": True}
+    )
+    return token if expires > _now() and usuario and usuario.ativo else None
 
 
 def consumir_token(token: PasswordResetToken, nova_senha: str):
     now = _now()
-    token.usuario.set_senha(nova_senha)
-    token.usuario.security_version += 1
+    usuario = db.session.get(
+        Usuario, token.usuario_id, execution_options={"include_all_tenants": True}
+    )
+    if not usuario or not usuario.ativo:
+        raise ValueError("Token de redefinição inválido.")
+    g.organization_id = usuario.organization_id
+    g.current_organization = usuario.organization
+    usuario.set_senha(nova_senha)
+    usuario.security_version += 1
     from app.services.user_sessions import revoke_all
     revoke_all(token.usuario_id, "redefinicao de senha")
     PasswordResetToken.query.filter_by(usuario_id=token.usuario_id, usado_em=None).update({"usado_em": now})
@@ -65,8 +75,8 @@ def consumir_token(token: PasswordResetToken, nova_senha: str):
         "usuarios",
         "Senha redefinida por token de recuperacao.",
         usuario_id=token.usuario_id,
-        usuario_nome=token.usuario.nome,
-        organization_id=token.usuario.organization_id,
+        usuario_nome=usuario.nome,
+        organization_id=usuario.organization_id,
     )
 
 

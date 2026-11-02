@@ -1,0 +1,310 @@
+{
+  "report_id": "producao_zokyo_etapa_16",
+  "data_execucao": "2026-11-02T17:39:25.532461",
+  "versao_projeto": "Zokyo v1.0 - 15 Etapas + Producao",
+  "ambiente_execucao": {
+    "sistema_operacional": "Linux",
+    "python": "3.13.12",
+    "docker": "Docker Engine presente",
+    "ambiente": "Linux (sem Docker rodando neste momento)"
+  },
+  "etapas_anteriores": 15,
+  "checklist_infraestrutura": {
+    "servidor_producao": {
+      "docker": true,
+      "gunicorn": true,
+      "nginx": true,
+      "https_ssl": false,
+      "domínio_propio": false,
+      "wsgi": true
+    },
+    "banco_dados": {
+      "mariadb": true,
+      "redis": true,
+      "pool_conexoes": true,
+      "isolamento": "READ COMMITTED",
+      "migracoes": 4
+    },
+    "monitoramento": {
+      "prometheus": true,
+      "alertas": 10,
+      "health_checks": [
+        "/healthz",
+        "/readyz"
+      ],
+      "entrega_alerta": false
+    }
+  },
+  "checklist_integracoes": {
+    "smtp_email": {
+      "host": false,
+      "username": false,
+      "password": false,
+      "mail_from": false,
+      "status": "NAO CONFIGURADO - necessario para emails, reset senha, alertas"
+    },
+    "asaas": {
+      "api_key": false,
+      "base_url": false,
+      "webhook_token": false,
+      "sandbox": true,
+      "status": "NAO CONFIGURADO - necessario para cobrancas e inadimplencia"
+    },
+    "cloudflare_dns": {
+      "api_token": false,
+      "zone_id": false,
+      "dns_modal_wildcard": true,
+      "status": "CONFIGURACAO PENDENTE - necessario para dominios personalizados por tenant"
+    },
+    "whatsapp": {
+      "cloud_api_token": false,
+      "phone_number_id": false,
+      "api_version": false,
+      "status": "NAO CONFIGURADO - funcionalidade de teste implementada"
+    }
+  },
+  "checklist_legal_compliance": {
+    "lgpd": {
+      "privacy_model": true,
+      "privacy_routes": true,
+      "right_to_export": true,
+      "right_to_anonymize": true,
+      "consent_management": true,
+      "retention_policy": true,
+      "politica_privacidade_documentada": false,
+      "termos_uso_documentados": false,
+      "mapeamento_agencia_nacional": false,
+      "status": "IMPLEMENTACAO CONCEITUAL - faltam documentos legais"
+    },
+    "planos_assinaturas": {
+      "plan_model": true,
+      "plan_codes": [
+        "starter"
+      ],
+      "limites_planos": true,
+      "trial": true,
+      "inadimplencia": true,
+      "definicao_planos_oficiais": false,
+      "limites_por_plano_oficiais": false,
+      "status": "FUNCIONALIDADE EXISTENTE - necessario definir planos oficiais"
+    }
+  },
+  "checklist_operacional": {
+    "backups": {
+      "criptografado": true,
+      "backup_database": true,
+      "restore_validado": true,
+      "offsite": true,
+      "encryption_key": true,
+      "rotacao": true,
+      "execucao_real": false,
+      "storage_externo": false
+    },
+    "rate_limiting": {
+      "nginx_zones": 3,
+      "limites_global": {
+        "get": 1000,
+        "write": 300,
+        "api": 600
+      },
+      "limites_endpoint": {
+        "get": 300,
+        "write": 120,
+        "api": 240
+      },
+      "login": {
+        "rate": 5,
+        "burst": 5,
+        "janela": "1 min"
+      },
+      "redis_distribuido": true,
+      "status": "CONFIGURADO - nginx + flask com redis backend"
+    },
+    "segretos_rotacao": {
+      "baseline": true,
+      "detect_secrets": true,
+      "generate_env": true,
+      "politica_rotacao": false,
+      "gerenciador_externo": false
+    },
+    "faa_ administrativo": {
+      "pyotp": true,
+      "qrcode": true,
+      "require_admin_2fa": true,
+      "setup_totp": false,
+      "status": "CONFIGURADO - necessario registrar TOTP"
+    }
+  },
+  "gaps_identificados": [
+    "Certificado SSL/TLS para HTTPS dominio proprio",
+    "Credenciais provedores externos (ASAAS, WhatsApp Cloud API, Cloudflare DNS)",
+    "SMTP configurado para envio de emails",
+    "Termos de uso e Politica de privacidade documentados",
+    "Planos e precosoficiais definidos (starter, professional, enterprise)",
+    "Destino de storage externo para backups (S3, etc via rclone)",
+    "Execucao real de backup e restore com dados de producao",
+    "Mapeamento LGPD completo com agencia nacional",
+    "Canal de suporte e SLA definidos",
+    "Mecanismo de limpeza automática de retention policy",
+    "Extensao de trial mechanism",
+    "Formato de log estruturado (JSON) para estruturas de monitoramento"
+  ],
+  "itens_dependem_de_proprietario": {
+    "certificado_ssl": "Necessario comprar/gerar certificado SSL para dominio proprio (ex: Let's Encrypt)",
+    "dns_wildcard": "Configurar DNS wildcard *.seudominio.com e definir TENANT_DNS_MODE=wildcard",
+    "credenciais_asaas": "Obter ASAAS_API_KEY, ASAAS_BASE_URL, ASAAS_WEBHOOK_TOKEN da conta ASAAS",
+    "credenciais_whatsapp": "Obter WHATSAPP_CLOUD_API_TOKEN, WHATSAPP_CLOUD_PHONE_NUMBER_ID da Meta",
+    "credenciais_cloudflare": "Obter CLOUDFLARE_API_TOKEN e CLOUDFLARE_ZONE_ID da conta Cloudflare",
+    "smtp_config": "Configurar SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM para envio de emails",
+    "planos_oficiais": "Definir nomes, limites e precos dos planos (starter, professional, enterprise)",
+    "termos_uso": "Redigir e documentar Termos de Uso para operacao SaaS",
+    "politica_privacidade": "Redigir e documentar Politica de Privacidade LGPD compliance",
+    "canal_suporte": "Definir canal de suporte (email, chat, ticket system) e SLA",
+    "storage_externo": "Definir e configurar destino (S3 bucket, caminho de rede, etc) via rclone"
+  },
+  "go_live_checklist": {
+    "criticos": [
+      {
+        "item": "HTTPS/SSL certificate ativo para dominio proprio",
+        "status": "NAO",
+        "descricao": "Certificado SSL/TLS valido para o dominio do Zokyo (Let's Encrypt ou adquirido)"
+      },
+      {
+        "item": "Credenciais ASAAS ativas",
+        "status": "NAO",
+        "descricao": "ASAAS_API_KEY, ASAAS_BASE_URL, ASAAS_WEBHOOK_TOKEN configurados com ASAAS_SANDBOX=false"
+      },
+      {
+        "item": "SMTP configurado para emails",
+        "status": "NAO",
+        "descricao": "SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, MAIL_FROM configurados e testados"
+      },
+      {
+        "item": "Dominio proprio com DNS wildcard",
+        "status": "NAO",
+        "descricao": "TENANT_BASE_DOMAIN configurado com DNS wildcard operante"
+      },
+      {
+        "item": "Termos de uso e Politica de privacidade",
+        "status": "NAO",
+        "descricao": "Documentos legais redigidos e disponiveis aos usuarios"
+      }
+    ],
+    "importantes": [
+      {
+        "item": "Planos e limites definidos",
+        "status": "NAO",
+        "descricao": "Planos (starter, professional, enterprise) com limites de open_orders, storage_mb, etc."
+      },
+      {
+        "item": "Backup restore testado com dados reais",
+        "status": "NAO",
+        "descricao": "Executar backup_database.py + restore_database.py com dados de producao e validar"
+      },
+      {
+        "item": "Integracao WhatsApp configurada",
+        "status": "NAO",
+        "descricao": "WHATSAPP_CLOUD_API_TOKEN e phone_number_id operacionais"
+      },
+      {
+        "item": "Alertas de monitoramento operacionais",
+        "status": "NAO",
+        "descricao": "ALERT_EMAIL e ALERT_WEBHOOK_URL configurados e testados"
+      },
+      {
+        "item": "2FA administrativo setup",
+        "status": "NAO",
+        "descricao": "Todos os admins terem TOTP configurado no sistema"
+      }
+    ],
+    "necessarios": [
+      {
+        "item": "Definir politica de rotacao de segredos",
+        "status": "PENDENTE",
+        "descricao": "Politica de rotacao periodica de BACKUP_ENCRYPTION_KEY, METRICS_TOKEN, ASAAS_WEBHOOK_TOKEN"
+      },
+      {
+        "item": "Configurar storage externo rclone",
+        "status": "PENDENTE",
+        "descricao": "Definir destino (s3:zokyo/producao ou outro) e testar sync"
+      },
+      {
+        "item": "Mapeamento LGPD completo",
+        "status": "PENDENTE",
+        "descricao": "Documentar todos os pontos de coleta, processamento e exercicios de direitos do titular"
+      },
+      {
+        "item": "SLA e canal de suporte",
+        "status": "PENDENTE",
+        "descricao": "Definir tempos de resposta e canal (email/chat/ticket) para clientes SaaS"
+      },
+      {
+        "item": "Teste de carga e performance",
+        "status": "PENDENTE",
+        "descricao": "Testar com volume esperado de dados e requests simultaneos"
+      }
+    ],
+    "opcionais": [
+      {
+        "item": "Monitoramento com Grafana",
+        "status": "OPCIONAL",
+        "descricao": "Importar rules Prometheus em Grafana para visualizacao"
+      },
+      {
+        "item": "Sentry para rastreamento de erros",
+        "status": "OPCIONAL",
+        "descricao": "Configurar SENTRY_DSN para producao"
+      },
+      {
+        "item": "Integracao SMS alternativa",
+        "status": "OPCIONAL",
+        "descricao": "Backup de envio de notificacoes via SMS"
+      }
+    ]
+  },
+  "separacao_decisoes": {
+    "tecnicas_completas": [
+      "Infraestrutura Docker (compose, Dockerfile, volumes)",
+      "Configuracao Nginx (rate limit, security headers, probes)",
+      "Modelos de banco e migracoes (14 etapas + MariaDB + Redis)",
+      "Autenticacao e autorizacao (RBAC/ABAC, 2FA, permissões por tenant)",
+      "Backup e restore (criptografado, validado, portabilidade)",
+      "Monitoramento e alerts (Prometheus + 10 alerts definidos)",
+      "Rate limiting (Nginx + Flask com Redis backend)",
+      "LGPD/privacy features (modelos, rotas, consentimento, anonymizacao)",
+      "Onboarding SaaS (10 etapas flow, dados persistidos por etapa)"
+    ],
+    "dependem_de_proprietario": [
+      "Certificado SSL/TLS e dominio proprio",
+      "Credenciais de provedores externos (ASAAS, WhatsApp, Cloudflare)",
+      "Documentos legais (Termos de uso, Politica de privacidade)",
+      "Planos e precos comerciais",
+      "Canal de suporte e SLA",
+      "Destino de storage externo para backups",
+      "Estrutura de logs formatada (JSON)",
+      "Mapeamento LGPD completo com agencia nacional"
+    ]
+  },
+  "recomendacao_final": {
+    "status": "PARA_AGRUPAMENTO",
+    "mensagem": "O sistema Zokyo tem a base tecnica completa para operacao SaaS (15 etapas implementadas, infraestrutura Docker, MariaDB, Redis, Nginx com rate limiting, backup criptografado, LGPD conceitual, onboarding de 10 etapas). No entanto, nao pode ser considerado pronto para producao comercial ate que os seguintes itens sejam resolvidos:",
+    "proximos_passos": [
+      "1. Obter e configurar credenciais de provedores externos (ASAAS, WhatsApp Cloud API, Cloudflare DNS)",
+      "2. Gerar/obter certificado SSL/TLS para dominio proprio",
+      "3. Configurar SMTP para envio de emails operacionais",
+      "4. Definir planos comerciais (starter/professional/enterprise) com limites",
+      "5. Redigir Termos de Uso e Politica de Privacidade LGPD",
+      "6. Configurar storage externo para backups (rclone destino)",
+      "7. Testar backup e restore com dados de producao reais",
+      "8. Definir canal de suporte e SLA para clientes",
+      "9. Executar restore_database.py com backup real e validar",
+      "10. Configurar politica de rotacao de segredos e gerenciador externo"
+    ]
+  },
+  "assinatura": {
+    "gerador": "OpenCode AI Agent",
+    "data": "2026-11-02",
+    "versao_relatorio": "1.0",
+    "sistema": "Zokyo Production Check v16"
+  }
+}

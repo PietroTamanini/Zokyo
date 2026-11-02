@@ -1,6 +1,6 @@
 # Deploy
 
-Estado revisado em 2026-09-15: build, Compose, migrations, staging, produção e rollback estão automatizados. Nenhum host real foi homologado nesta revisão; execute o [checklist de go-live](GO_LIVE.md) antes da liberação.
+Estado revisado em 2026-11-02: build, Compose, migrations, staging, produção e rollback estão automatizados. Nenhum host real foi homologado nesta revisão; execute o [checklist de go-live](GO_LIVE.md) antes da liberação.
 
 ## Variaveis
 

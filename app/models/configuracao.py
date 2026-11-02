@@ -109,6 +109,15 @@ class Configuracao(db.Model):
     alerta_caixa_minimo   = db.Column(db.Float, default=500)
     alerta_estoque_minimo = db.Column(db.Integer, default=5)
     alerta_vencimento_dias= db.Column(db.Integer, default=5)
+    onboarding_step = db.Column(
+        db.Integer, nullable=False, default=1, server_default=db.text("1")
+    )
+    onboarding_completed = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default=db.text("0"),
+    )
 
     dashboard_widgets = db.Column(
         db.Text,
@@ -156,10 +165,15 @@ class Configuracao(db.Model):
         self.entry_checklist_options = _options_to_json(options)
 
     @classmethod
-    def get(cls):
-        cfg = cls.query.first()
+    def get(cls, organization_id=None):
+        query = cls.query
+        if organization_id is not None:
+            query = query.execution_options(include_all_tenants=True).filter_by(
+                organization_id=organization_id
+            )
+        cfg = query.first()
         if not cfg:
-            cfg = cls()
+            cfg = cls(organization_id=organization_id) if organization_id is not None else cls()
             from app.extensions import db as _db
             _db.session.add(cfg)
             _db.session.flush()

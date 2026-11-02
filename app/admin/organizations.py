@@ -7,6 +7,7 @@ from app.admin.security import temporary_password
 from app.extensions import db
 from app.models import Organization, OrganizationSubscription, Plan, Usuario
 from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant, sync_tenant_dns, tenant_hostname
+from app.services.tenant_site_service import set_custom_domain
 from app.utils.sanitizers import sanitize_text
 from app.utils.validators import validar_email
 
@@ -44,6 +45,8 @@ def update_organization_from_form(organization_id: int, form) -> None:
     name = sanitize_text(form.get("name", ""), max_length=200)
     if name:
         organization.nome = name
+    if "custom_domain" in form:
+        set_custom_domain(organization.id, form.get("custom_domain", ""))
     organization.ativo = form.get("active") == "on"
     _apply_subscription(organization, form)
     if form.get("sync_dns") == "on":

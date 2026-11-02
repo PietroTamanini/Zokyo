@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Onboarding Zokyo - Configuração da Empresa{% endblock %}
+{% block breadcrumb %}Onboarding{% endblock %}
+
+{% block content %}
+<div class="zokyo-onboarding-container">
+  <!-- Progresso -->
+  <div class="zokyo-onboarding-progress">
+    <div class="zokyo-progress-bar" style="width: {{ progress_percentage }}%"></div>
+    <span class="zokyo-progress-text">{{ step_name|capitalize }} ({{ step }}/{{ total_steps }})</span>
+  </div>
+
+  <!-- Mensagem de conclusão -->
+  {% if onboarding_completed %}
+  <div class="zokyo-onboarding-completed">
+    <h2>Onboarding Concluído! (concluido)</h2>
+    <p>Sua assistência está pronta para operar no Zokyo. Acesse o painel para começar a registrar ordens de serviço, consultar estoque e muito mais.</p>
+    <div class="buttons">
+      <a href="{{ url_for('pages.dashboard') }}" class="btn btn-primary">Ir ao Dashboard</a>
+      <a href="{{ url_for('onboarding.concluir') }}" class="btn btn-secondary">Reiniciar onboarding</a>
+    </div>
+  </div>
+  {% else %}
+  <!-- Etapa atual -->
+  <div class="zokyo-onboarding-step">
+    <h2>Etapa {{ step }}: {{ step_name|capitalize }}</h2>
+    
+    {% if step > 1 %}
+    <p>Você está retornando ao onboarding. Suas configurações anteriores foram salvas.</p>
+    {% endif %}
+
+    {% if step > 1 %}
+    <div class="zokyo-onboarding-navigation">
+      <a href="{{ url_for('onboarding.step', step_name=ONBOARDING_STEPS[step-3]|lower if step > 1 else '') }}" class="btn btn-secondary">Anterior</a>
+      <button type="submit" form="onboarding-form" name="step" value="{{ step-1 }}" class="btn btn-primary">Concluir Etapa</button>
+    </div>
+    {% else %}
+    <button type="submit" form="onboarding-form" name="step" value="{{ step-1 }}" class="btn btn-primary">Concluir Etapa {% if step > 1 %}({{ step-1 }} concluídas{% endif %})</button>
+    {% endif %}
+    </div>
+    </div>
+
+    <form id="onboarding-form" method="POST" action="{{ url_for('onboarding.step', step_name=step_name) }}">
+      {% csrf_token() if csrf_token else '' %}
+
+      <!-- Dados específicos de cada etapa -->
+      <div class="zokyo-onboarding-fields">
+        {% include "pages/onboarding/step_{{ step }}.html" %}
+      </div>
+    </form>
+
+    {% if step < total_steps %}
+    <div class="zokyo-onboarding-navigation-bottom">
+      <a href="{{ url_for('onboarding.step', step_name=ONBOARDING_STEPS[step-1]|lower if step < total_steps else '') }}" class="btn btn-secondary">Próxima Etapa</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

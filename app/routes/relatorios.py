@@ -3,7 +3,7 @@ import csv
 import io
 from datetime import date, datetime, time, timedelta
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, Response, flash, g, redirect, render_template, request, send_file, session, url_for
 from sqlalchemy import case, func, text
 from sqlalchemy.orm import joinedload
 
@@ -89,9 +89,14 @@ def _dados():
     if order_ids:
         parts_cost = float(db.session.execute(text(
             "SELECT COALESCE(SUM(op.quantidade * COALESCE(op.custo_unitario, p.custo, 0)), 0) AS custo "
-            "FROM os_pecas op JOIN pecas p ON p.id = op.peca_id "
-            "WHERE op.os_id IN :ids"
-        ).bindparams(db.bindparam("ids", expanding=True)), {"ids": order_ids}).scalar() or 0)
+            "FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id IN :ids AND o.organization_id = :organization_id "
+            "AND p.organization_id = :organization_id"
+        ).bindparams(db.bindparam("ids", expanding=True)), {
+            "ids": order_ids, "organization_id": g.organization_id,
+        }).scalar() or 0)
     return {
         "inicio": start, "fim": end, "ordens": orders,
         "receitas": revenues, "despesas": expenses, "saldo": revenues - expenses,

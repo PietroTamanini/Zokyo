@@ -73,7 +73,13 @@ from app.models import (
 from app.models.ordem_servico import STATUS_OS, STATUS_OS_LABELS
 from app.services.billing import assert_limit, assert_write_allowed
 from app.services.finance import create_installments
-from app.services.financial_analytics import order_financial_snapshot
+from app.services.financial_analytics import (
+    _period_date_range,
+    average_attendance_time,
+    most_performed_services,
+    order_financial_snapshot,
+    period_financial_summary,
+)
 from app.services.inventory import record_movement
 from app.utils.auth import nivel_required, page_nivel_required
 from app.utils.blind_index import blind_index
@@ -237,9 +243,11 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if "usuario_id" not in session:
             return redirect(url_for("auth.login_page"))
-        if not Usuario.query.first():
+        if not Usuario.query.execution_options(include_all_tenants=True).first():
             return redirect(url_for("auth.primeiro_acesso_page"))
-        g.usuario = db.session.get(Usuario, session["usuario_id"])
+        g.usuario = db.session.get(
+            Usuario, session["usuario_id"], execution_options={"include_all_tenants": True}
+        )
         return f(*args, **kwargs)
     return decorated
 
@@ -674,17 +682,16 @@ def _caixa_expression():
 @pages_bp.route("/")
 @login_required
 def dashboard():
+    period = request.args.get("period", "this_month")
     cfg  = Configuracao.get()
-    hoje = _now()
-
-    agora_db = hoje.replace(tzinfo=None)
-    mes_inicio = agora_db.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    if mes_inicio.month == 12:
-        mes_fim = mes_inicio.replace(year=mes_inicio.year + 1, month=1)
-    else:
-        mes_fim = mes_inicio.replace(month=mes_inicio.month + 1)
+    now = datetime.now(timezone.utc)
+    hoje = now.replace(tzinfo=None)
+    agora_db = now.replace(tzinfo=None)
     dia_inicio = agora_db.replace(hour=0, minute=0, second=0, microsecond=0)
     dia_fim = dia_inicio + timedelta(days=1)
+    start, end = _period_date_range(request.args.get("period", "this_month"), now)
+    if request.args.get("period") == "hoje":
+        end = now.replace(tzinfo=None) + timedelta(days=1)
 
     open_order_filter = (
         OrdemServico.deletado_em.is_(None),
@@ -704,85 +711,28 @@ def dashboard():
     os_prontas = int(order_counts.prontas or 0)
     os_atrasadas = int(order_counts.atrasadas or 0)
     os_aprovacao = int(order_counts.aprovacao or 0)
-    coletas_abertas = ColetaAgendada.query.filter(
-        ColetaAgendada.status.in_(["agendada", "em_coleta"])
-    ).count()
-    pecas_compra_pendentes = db.session.execute(
-        text(
-            "SELECT COUNT(*) FROM os_pecas op "
-            "JOIN ordens_servico os ON os.id = op.os_id "
-            "WHERE os.organization_id = :organization_id "
-            "AND os.deletado_em IS NULL AND os.baixada_em IS NULL "
-            "AND os.status NOT IN ('entregue', 'cancelado') "
-            "AND (op.link_compra IS NOT NULL OR op.quantidade > 0)"
-        ),
-        {"organization_id": g.organization_id},
-    ).scalar() or 0
+    finance = period_financial_summary(g.organization_id or 1, start, end)
+    receitas_mes = finance["receitas"]
+    despesas_mes = finance["despesas"]
+    lucro_bruto = finance["lucro_bruto"]
+    margem = finance["margem"]
+    a_receber = finance["a_receber"]
 
-    transaction_totals = db.session.query(
-        _coalesce_sum(case((
-            (Transacao.tipo == "receita")
-            & (Transacao.status == "pago")
-            & (Transacao.criado_em >= mes_inicio)
-            & (Transacao.criado_em < mes_fim),
-            Transacao.valor,
-        ), else_=0)).label("receitas_mes"),
-        _coalesce_sum(case((
-            (Transacao.tipo == "despesa")
-            & (Transacao.status == "pago")
-            & (Transacao.criado_em >= mes_inicio)
-            & (Transacao.criado_em < mes_fim),
-            Transacao.valor,
-        ), else_=0)).label("despesas_mes"),
+    vendas_dia = float(db.session.query(
         _coalesce_sum(case((
             (Transacao.tipo == "receita")
             & (Transacao.status == "pago")
             & (Transacao.criado_em >= dia_inicio)
             & (Transacao.criado_em < dia_fim),
             Transacao.valor,
-        ), else_=0)).label("vendas_dia"),
-        _coalesce_sum(case((
-            (Transacao.tipo == "receita")
-            & (Transacao.status == "pendente")
-            & (Transacao.criado_em >= mes_inicio)
-            & (Transacao.criado_em < mes_fim),
-            Transacao.valor,
-        ), else_=0)).label("a_receber"),
-        _coalesce_sum(case((
-            (Transacao.tipo == "despesa")
-            & (Transacao.status == "pendente")
-            & (Transacao.criado_em >= mes_inicio)
-            & (Transacao.criado_em < mes_fim),
-            Transacao.valor,
-        ), else_=0)).label("a_pagar"),
-        _coalesce_sum(case((
-            (Transacao.status == "pago") & (Transacao.tipo == "receita"),
-            Transacao.valor,
-        ), (
-            (Transacao.status == "pago") & (Transacao.tipo == "despesa"),
-            -Transacao.valor,
-        ), else_=0)).label("caixa"),
-        func.count(Transacao.id).label("total_transacoes"),
-    ).one()
-    receitas_mes = float(transaction_totals.receitas_mes or 0)
-    despesas_mes = float(transaction_totals.despesas_mes or 0)
-    vendas_dia = float(transaction_totals.vendas_dia or 0)
-    saldo_mes    = receitas_mes - despesas_mes
-    a_receber = float(transaction_totals.a_receber or 0)
-    a_pagar = float(transaction_totals.a_pagar or 0)
-    caixa = float(transaction_totals.caixa or 0)
+        ), else_=0))
+    ).scalar() or 0)
 
-    total_clientes     = Cliente.query.filter_by(ativo=True).count()
-    total_fornecedores = Fornecedor.query.filter_by(ativo=True).count()
-    total_usuarios     = Usuario.query.filter_by(ativo=True).count()
-    total_pecas        = _pecas_ativas_query().count()
+    caixa = receitas_mes - despesas_mes
+
     estoque_critico    = _pecas_ativas_query().filter(
         Peca.quantidade <= Peca.estoque_minimo).count()
-    total_transacoes = int(transaction_totals.total_transacoes or 0)
-
-    valor_estoque = float(db.session.query(
-        _coalesce_sum(Peca.custo * Peca.quantidade)
-    ).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).scalar() or 0)
+    os_paradas = 0
 
     alertas = []
     if cfg.alerta_caixa_minimo and caixa < cfg.alerta_caixa_minimo:
@@ -821,6 +771,18 @@ def dashboard():
         .all()
     })
 
+    tm = average_attendance_time(
+        OrdemServico.query.filter(*open_order_filter).options(joinedload(OrdemServico.cliente)).all(),
+        now,
+    )
+    dias_medio = tm["dias_medio"]
+    os_com_tempo = tm["total"]
+
+    servicos_top = most_performed_services(
+        OrdemServico.query.filter(*open_order_filter).options(joinedload(OrdemServico.cliente)).all(),
+        limit=5,
+    )
+
     ultimas_os = (OrdemServico.query
                   .filter(OrdemServico.deletado_em.is_(None))
                   .filter(OrdemServico.baixada_em.is_(None))
@@ -830,22 +792,34 @@ def dashboard():
 
     return render_template("pages/dashboard.html",
         active="dashboard",
-        hoje=hoje.strftime("%A, %d de %B de %Y"),
+        hoje=now.strftime("%A, %d de %B de %Y"),
+        period=period,
+        periodos_disponiveis=["hoje", "this_month", "last_month", "this_quarter", "last_quarter", "this_year", "last_year"],
         os_abertas=os_abertas, os_prontas=os_prontas,
         os_atrasadas=os_atrasadas, os_aprovacao=os_aprovacao,
-        coletas_abertas=coletas_abertas,
-        pecas_compra_pendentes=pecas_compra_pendentes,
+        os_paradas=os_paradas,
+        coletas_abertas=ColetaAgendada.query.filter(
+            ColetaAgendada.status.in_(["agendada", "em_coleta"])
+        ).count(),
         receitas_mes=receitas_mes, despesas_mes=despesas_mes,
-        saldo_mes=saldo_mes, vendas_dia=vendas_dia,
-        a_receber=a_receber, a_pagar=a_pagar, caixa=caixa,
-        total_clientes=total_clientes, total_fornecedores=total_fornecedores,
-        total_usuarios=total_usuarios, total_pecas=total_pecas,
-        estoque_critico=estoque_critico, valor_estoque=valor_estoque,
-        total_transacoes=total_transacoes,
+        lucro_bruto=lucro_bruto, margem=margem,
+        saldo_mes=receitas_mes - despesas_mes, vendas_dia=vendas_dia,
+        a_receber=a_receber, a_pagar=finance.get("a_pagar", 0), caixa=caixa,
+        total_clientes=Cliente.query.filter_by(ativo=True).count(),
+        total_fornecedores=Fornecedor.query.filter_by(ativo=True).count(),
+        total_usuarios=Usuario.query.filter_by(ativo=True).count(),
+        total_pecas=_pecas_ativas_query().count(),
+        estoque_critico=_pecas_ativas_query().filter(
+            Peca.quantidade <= Peca.estoque_minimo).count(),
+        valor_estoque=float(db.session.query(
+            _coalesce_sum(Peca.custo * Peca.quantidade)
+        ).filter(Peca.ativo.is_(True), Peca.deletado_em.is_(None)).scalar() or 0),
+        total_transacoes=int(db.session.query(func.count(Transacao.id)).scalar() or 0),
         alertas=alertas, pct_meta=pct_meta,
-        meta_receita_mensal=cfg.meta_receita_mensal,
         pipeline_counts=pipeline_counts,
         ultimas_os=ultimas_os, status_map=STATUS_MAP,
+        dias_medio=dias_medio, os_com_tempo=os_com_tempo,
+        servicos_top=servicos_top,
     )
 
 
@@ -1265,20 +1239,28 @@ def zokyo_excluir_email(id=None):
 @pages_bp.route("/backup")
 @page_nivel_required("admin")
 def zokyo_backup():
+    organization_id = getattr(g, "organization_id", None)
+    if not organization_id:
+        abort(403, description="Backup disponível apenas no contexto de uma empresa.")
+
+    # Estas consultas são SQL manual, portanto não passam pelo listener ORM de
+    # tenancy. O filtro explícito por organization_id é obrigatório.
     tabelas = {
-        "clientes": text("SELECT COUNT(*) FROM clientes"),
-        "fornecedores": text("SELECT COUNT(*) FROM fornecedores"),
-        "pecas": text("SELECT COUNT(*) FROM pecas"),
-        "ordens_servico": text("SELECT COUNT(*) FROM ordens_servico"),
-        "transacoes": text("SELECT COUNT(*) FROM transacoes"),
-        "usuários": text("SELECT COUNT(*) FROM usuarios"),
-        "eventos_log": text("SELECT COUNT(*) FROM eventos_log"),
-        "configuracoes": text("SELECT COUNT(*) FROM configuracoes"),
+        "clientes": text("SELECT COUNT(*) FROM clientes WHERE organization_id=:organization_id"),
+        "fornecedores": text("SELECT COUNT(*) FROM fornecedores WHERE organization_id=:organization_id"),
+        "pecas": text("SELECT COUNT(*) FROM pecas WHERE organization_id=:organization_id"),
+        "ordens_servico": text("SELECT COUNT(*) FROM ordens_servico WHERE organization_id=:organization_id"),
+        "transacoes": text("SELECT COUNT(*) FROM transacoes WHERE organization_id=:organization_id"),
+        "usuários": text("SELECT COUNT(*) FROM usuarios WHERE organization_id=:organization_id"),
+        "eventos_log": text("SELECT COUNT(*) FROM eventos_log WHERE organization_id=:organization_id"),
+        "configuracoes": text("SELECT COUNT(*) FROM configuracoes WHERE organization_id=:organization_id"),
     }
     contagens = {}
     for tabela, consulta in tabelas.items():
         try:
-            contagens[tabela] = db.session.execute(consulta).scalar() or 0
+            contagens[tabela] = db.session.execute(
+                consulta, {"organization_id": organization_id}
+            ).scalar() or 0
         except Exception:
             contagens[tabela] = "-"
     db_url = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
@@ -1352,6 +1334,9 @@ def zokyo_permissoes():
 @page_nivel_required("admin")
 def zokyo_permissoes_editar(id):
     usuario = db.get_or_404(Usuario, id)
+    organization_id = getattr(g, "organization_id", None)
+    if organization_id and usuario.organization_id != organization_id:
+        abort(404)
     extras = sorted(set(request.form.getlist("permissoes_extra")) & set(KNOWN_PERMISSIONS))
     negadas = sorted(set(request.form.getlist("permissoes_negadas")) & set(KNOWN_PERMISSIONS))
     usuario.permissoes_extra = extras
@@ -1677,7 +1662,8 @@ def compras_pecas():
         "JOIN pecas p ON p.id = op.peca_id "
         "JOIN ordens_servico o ON o.id = op.os_id "
         "JOIN clientes c ON c.id = o.cliente_id "
-        "WHERE o.deletado_em IS NULL AND o.baixada_em IS NULL AND p.organization_id=:org "
+        "WHERE o.deletado_em IS NULL AND o.baixada_em IS NULL "
+        "AND p.organization_id=:org AND o.organization_id=:org AND c.organization_id=:org "
         "AND p.ativo = 1 AND p.deletado_em IS NULL "
         "ORDER BY o.data_prev IS NULL, o.data_prev ASC, o.data_entrada ASC"
     ), {"org": g.organization_id}).fetchall()
@@ -2242,8 +2228,14 @@ def os_atualizar(id):
         ))
         if os_obj.status == "cancelado":
             rows = db.session.execute(
-                text("SELECT peca_id, quantidade FROM os_pecas WHERE os_id=:id"),
-                {"id": os_obj.id},
+                text(
+                    "SELECT op.peca_id, op.quantidade FROM os_pecas op "
+                    "JOIN ordens_servico o ON o.id = op.os_id "
+                    "JOIN pecas p ON p.id = op.peca_id "
+                    "WHERE op.os_id=:id AND o.organization_id=:org "
+                    "AND p.organization_id=:org"
+                ),
+                {"id": os_obj.id, "org": g.organization_id},
             ).fetchall()
             for row in rows:
                 part = db.session.get(Peca, row.peca_id)
@@ -2377,8 +2369,10 @@ def _recalcular_valor_pecas(os_obj):
         text(
             "SELECT COALESCE(SUM(op.quantidade*op.valor_unitario),0) "
             "FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
             "JOIN pecas p ON p.id = op.peca_id "
-            "WHERE op.os_id=:o AND p.organization_id=:org"
+            "WHERE op.os_id=:o AND o.organization_id=:org "
+            "AND p.organization_id=:org"
         ),
         {"o": os_obj.id, "org": g.organization_id},
     ).scalar()
@@ -2446,8 +2440,10 @@ def os_adicionar_produto_alias():
     existente = db.session.execute(
         text(
             "SELECT op.quantidade FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
             "JOIN pecas p ON p.id = op.peca_id "
-            "WHERE op.os_id=:o AND op.peca_id=:p AND p.organization_id=:org"
+            "WHERE op.os_id=:o AND op.peca_id=:p "
+            "AND o.organization_id=:org AND p.organization_id=:org"
         ),
         {"o": os_obj.id, "p": peca.id, "org": g.organization_id},
     ).fetchone()
@@ -2469,13 +2465,33 @@ def os_adicionar_produto_alias():
         )
     if existente:
         db.session.execute(
-            text("UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l WHERE os_id=:o AND peca_id=:p"),
-            {"q": quantidade, "v": valor_unitario, "l": link_compra or None, "o": os_obj.id, "p": peca.id},
+            text(
+                "UPDATE os_pecas SET quantidade=:q, valor_unitario=:v, link_compra=:l "
+                "WHERE os_id=:o AND peca_id=:p AND EXISTS ("
+                "SELECT 1 FROM ordens_servico o JOIN pecas p ON p.id=os_pecas.peca_id "
+                "WHERE o.id=os_pecas.os_id AND o.organization_id=:org "
+                "AND p.organization_id=:org)"
+            ),
+            {
+                "q": quantidade, "v": valor_unitario, "l": link_compra or None,
+                "o": os_obj.id, "p": peca.id, "org": g.organization_id,
+            },
         )
     else:
         db.session.execute(
-            text("INSERT INTO os_pecas (os_id, peca_id, quantidade, valor_unitario, custo_unitario, link_compra) VALUES (:o, :p, :q, :v, :c, :l)"),
-            {"o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario, "c": float(peca.custo or 0), "l": link_compra or None},
+            text(
+                "INSERT INTO os_pecas "
+                "(os_id, peca_id, quantidade, valor_unitario, custo_unitario, link_compra) "
+                "SELECT :o, :p, :q, :v, :c, :l "
+                "FROM ordens_servico o, pecas p "
+                "WHERE o.id=:o AND p.id=:p AND o.organization_id=:org "
+                "AND p.organization_id=:org"
+            ),
+            {
+                "o": os_obj.id, "p": peca.id, "q": quantidade, "v": valor_unitario,
+                "c": float(peca.custo or 0), "l": link_compra or None,
+                "org": g.organization_id,
+            },
         )
     os_obj.desconto = 0
     _recalcular_valor_pecas(os_obj)
@@ -2495,8 +2511,10 @@ def os_excluir_produto_alias():
     linha = db.session.execute(
         text(
             "SELECT op.quantidade FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
             "JOIN pecas p ON p.id = op.peca_id "
-            "WHERE op.os_id=:o AND op.peca_id=:p AND p.organization_id=:org"
+            "WHERE op.os_id=:o AND op.peca_id=:p "
+            "AND o.organization_id=:org AND p.organization_id=:org"
         ),
         {"o": os_obj.id, "p": peca_id, "org": g.organization_id},
     ).fetchone()
@@ -2506,7 +2524,15 @@ def os_excluir_produto_alias():
     antes = peca.quantidade
     peca.quantidade += linha.quantidade
     record_movement(peca, session["usuario_id"], "order_return", antes, peca.quantidade, f"Produto removido da OS #{os_obj.id}", order_id=os_obj.id)
-    db.session.execute(text("DELETE FROM os_pecas WHERE os_id=:o AND peca_id=:p"), {"o": os_obj.id, "p": peca_id})
+    db.session.execute(
+        text(
+            "DELETE FROM os_pecas WHERE os_id=:o AND peca_id=:p AND EXISTS ("
+            "SELECT 1 FROM ordens_servico o JOIN pecas p ON p.id=os_pecas.peca_id "
+            "WHERE o.id=os_pecas.os_id AND o.organization_id=:org "
+            "AND p.organization_id=:org)"
+        ),
+        {"o": os_obj.id, "p": peca_id, "org": g.organization_id},
+    )
     os_obj.desconto = 0
     _recalcular_valor_pecas(os_obj)
     registrar("edicao", "os", f"Produto {peca.nome} removido da OS #{os_obj.id:04d}")
@@ -2707,8 +2733,14 @@ def os_status(id):
         if novo_st == "cancelado":
             from sqlalchemy import text as sqla_text
             rows = db.session.execute(
-                sqla_text("SELECT peca_id, quantidade FROM os_pecas WHERE os_id=:id"),
-                {"id": os_obj.id},
+                sqla_text(
+                    "SELECT op.peca_id, op.quantidade FROM os_pecas op "
+                    "JOIN ordens_servico o ON o.id = op.os_id "
+                    "JOIN pecas p ON p.id = op.peca_id "
+                    "WHERE op.os_id=:id AND o.organization_id=:org "
+                    "AND p.organization_id=:org"
+                ),
+                {"id": os_obj.id, "org": g.organization_id},
             ).fetchall()
             for row in rows:
                 p = db.session.get(Peca, row.peca_id)
@@ -2880,8 +2912,14 @@ def os_deletar(id):
 
     from sqlalchemy import text as sqla_text
     rows = db.session.execute(
-        sqla_text("SELECT peca_id, quantidade FROM os_pecas WHERE os_id=:id"),
-        {"id": os_obj.id},
+        sqla_text(
+            "SELECT op.peca_id, op.quantidade FROM os_pecas op "
+            "JOIN ordens_servico o ON o.id = op.os_id "
+            "JOIN pecas p ON p.id = op.peca_id "
+            "WHERE op.os_id=:id AND o.organization_id=:org "
+            "AND p.organization_id=:org"
+        ),
+        {"id": os_obj.id, "org": g.organization_id},
     ).fetchall()
     for row in rows:
         p = db.session.get(Peca, row.peca_id)

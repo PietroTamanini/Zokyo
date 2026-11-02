@@ -4,6 +4,11 @@
     <form method="POST" action="{{ url_for('platform.update_organization', organization_id=org.id) }}" class="admin-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="form-group"><label for="edit-company-name">Nome da empresa</label><input id="edit-company-name" name="name" value="{{ org.nome }}" required maxlength="200"></div>
+      <div class="form-group">
+        <label for="edit-custom-domain">Domínio próprio da landing page</label>
+        <input id="edit-custom-domain" name="custom_domain" value="{{ sites_by_org.get(org.id).custom_domain if sites_by_org.get(org.id) else '' }}" maxlength="255" placeholder="www.minhaempresa.com.br">
+        <div class="input-hint">Aponte esse domínio para o servidor. Vazio usa {{ org.subdomain }}.{{ base_domain }}.</div>
+      </div>
       <div class="form-row fr2">
         <div class="form-group"><label for="edit-plan">Plano</label><select id="edit-plan" name="plan_id">
           {% if not subscription %}<option value="">Sem plano</option>{% endif %}
@@ -49,10 +54,13 @@
     </details>
     <div class="admin-section-heading admin-domain-heading"><h2>Domínio</h2></div>
     <dl class="admin-definition-list">
-      <div><dt>Endereço</dt><dd>{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}</dd></div>
-      <div><dt>Situação</dt><dd><span class="badge {{ 'b-green' if org.dns_status == 'active' else 'b-amber' }}">{{ {'active': 'Ativo', 'error': 'Falha', 'manual': 'Manual', 'pending': 'Pendente'}.get(org.dns_status, 'Pendente') }}</span></dd></div>
+      <div><dt>Endereço</dt><dd>{{ sites_by_org.get(org.id).custom_domain if sites_by_org.get(org.id) and sites_by_org.get(org.id).custom_domain else (org.slug ~ '.' ~ base_domain) }}</dd></div>
+      <div><dt>Landing</dt><dd><span class="badge {{ 'b-green' if sites_by_org.get(org.id) and sites_by_org.get(org.id).custom_domain_validated else 'b-amber' }}">{{ 'Liberada' if sites_by_org.get(org.id) and sites_by_org.get(org.id).custom_domain_validated else 'Aguardando verificação' }}</span></dd></div>
     </dl>
     {% if org.dns_last_error %}<p class="admin-inline-notice">{{ org.dns_last_error }}</p>{% endif %}
-    <form method="POST" action="{{ url_for('platform.sync_dns', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Sincronizar DNS</button></form>
+    <div class="admin-form-footer">
+      <form method="POST" action="{{ url_for('platform.verify_site_domain', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit">Verificar domínio da landing</button></form>
+      <form method="POST" action="{{ url_for('platform.sync_dns', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Sincronizar DNS</button></form>
+    </div>
   </section>
 </div>

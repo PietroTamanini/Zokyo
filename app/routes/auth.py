@@ -8,7 +8,7 @@ Fixes:
 """
 import time
 
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
 from sqlalchemy import null
 
 from app.extensions import db
@@ -43,6 +43,10 @@ def _ip():
 
 
 def _login_user(usuario):
+    # A sessão recém-criada define o tenant efetivo, mesmo que o login tenha
+    # sido feito por um subdomínio diferente.
+    g.organization_id = usuario.organization_id
+    g.current_organization = usuario.organization
     session.clear()
     session.permanent = True
     session["usuario_id"] = usuario.id
@@ -93,7 +97,7 @@ def login_post():
         return render_template("pages/login.html")
 
     # Busca sempre (não revelar se e-mail existe via timing)
-    usuario = Usuario.query.filter_by(email=email, ativo=True).first()
+    usuario = Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email, ativo=True).first()
 
     # Timing constante independente de o usuário existir ou não
     if not usuario or not usuario.check_senha(senha):
@@ -116,6 +120,8 @@ def login_post():
 
 
 def _api_login_payload(usuario):
+    g.organization_id = usuario.organization_id
+    g.current_organization = usuario.organization
     session.clear()
     session.permanent = True
     session["usuario_id"] = usuario.id
@@ -152,7 +158,7 @@ def api_v1_login():
     if not email or not validar_email(email) or not senha:
         time.sleep(0.3)
         return jsonify({"status": False, "message": "Os dados de acesso estao incorretos"}), 401
-    usuario = Usuario.query.filter_by(email=email, ativo=True).first()
+    usuario = Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email, ativo=True).first()
     if not usuario or not usuario.check_senha(senha) or not usuario.organization or not usuario.organization.ativo:
         time.sleep(0.3)
         return jsonify({"status": False, "message": "Os dados de acesso estao incorretos"}), 401
@@ -192,11 +198,13 @@ def two_factor_challenge():
     if not user_id or session.get("2fa_expires", 0) < time.time():
         session.clear()
         return redirect(url_for("auth.login_page"))
-    usuario = db.session.get(Usuario, user_id)
+    usuario = db.session.get(Usuario, user_id, execution_options={"include_all_tenants": True})
     secret = decrypt_secret(usuario.totp_secret_encrypted) if usuario else None
     if not usuario or not usuario.ativo or not usuario.totp_enabled or not secret:
         session.clear()
         return redirect(url_for("auth.login_page"))
+    g.organization_id = usuario.organization_id
+    g.current_organization = usuario.organization
     if request.method == "POST":
         code = request.form.get("codigo", "").strip().lower()
         if verify_totp(secret, code) or consume_recovery_code(usuario, code):
@@ -212,7 +220,9 @@ def two_factor_challenge():
 @auth_bp.route("/seguranca/2fa", methods=["GET", "POST"])
 @page_nivel_required("admin")
 def two_factor_setup():
-    usuario = db.session.get(Usuario, session["usuario_id"])
+    usuario = db.session.get(
+        Usuario, session["usuario_id"], execution_options={"include_all_tenants": True}
+    )
     if request.method == "POST":
         secret = decrypt_secret(usuario.totp_secret_encrypted)
         if not secret or not verify_totp(secret, request.form.get("codigo", "")):
@@ -236,7 +246,9 @@ def two_factor_setup():
 @auth_bp.route("/seguranca/2fa/desativar", methods=["POST"])
 @page_nivel_required("admin")
 def two_factor_disable():
-    usuario = db.session.get(Usuario, session["usuario_id"])
+    usuario = db.session.get(
+        Usuario, session["usuario_id"], execution_options={"include_all_tenants": True}
+    )
     secret = decrypt_secret(usuario.totp_secret_encrypted)
     if not usuario.check_senha(request.form.get("senha", "")) or not secret or not verify_totp(secret, request.form.get("codigo", "")):
         flash("Senha ou código TOTP inválido.", "error")
@@ -255,7 +267,7 @@ def logout():
     uid, uname = session.get("usuario_id"), session.get("usuario_nome", "—")
     if uid:
         from app.services.user_sessions import current_session_record, revoke_record
-        usuario = db.session.get(Usuario, uid)
+        usuario = db.session.get(Usuario, uid, execution_options={"include_all_tenants": True})
         record = current_session_record(uid)
         if record:
             revoke_record(record, "logout")
@@ -271,7 +283,9 @@ def logout():
 @page_nivel_required("admin")
 def sessions_page():
     from app.models import UserSession
-    usuario = db.session.get(Usuario, session["usuario_id"])
+    usuario = db.session.get(
+        Usuario, session["usuario_id"], execution_options={"include_all_tenants": True}
+    )
     records = UserSession.query.filter_by(user_id=usuario.id).order_by(UserSession.last_seen_at.desc()).limit(100).all()
     current = session.get("session_token")
     from app.services.user_sessions import _hash
@@ -322,8 +336,10 @@ def sessions_revoke_others():
 def recuperar_senha():
     if request.method == "POST":
         email = sanitize_email(request.form.get("email", ""))
-        usuario = Usuario.query.filter_by(email=email, ativo=True).first() if validar_email(email) else None
+        usuario = Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email, ativo=True).first() if validar_email(email) else None
         if usuario:
+            g.organization_id = usuario.organization_id
+            g.current_organization = usuario.organization
             _token, raw_token = criar_token(usuario, _ip())
             db.session.commit()
             try:
@@ -362,7 +378,7 @@ def redefinir_senha(token):
 
 @auth_bp.route("/primeiro-acesso", methods=["GET"])
 def primeiro_acesso_page():
-    if Usuario.query.first():
+    if Usuario.query.execution_options(include_all_tenants=True).first():
         return redirect(url_for("auth.login_page"))
     return render_template("pages/register.html")
 
@@ -376,8 +392,13 @@ def primeiro_acesso_post():
     lock = getattr(current_app, "_primeiro_acesso_lock", None)
 
     def _processar():
+        # O primeiro acesso cria o administrador da plataforma, nunca um
+        # usuário de tenant. Ignora qualquer contexto de subdomínio herdado.
+        g.organization_id = None
+        g.current_organization = None
+
         # Verifica dentro do lock
-        if Usuario.query.first():
+        if Usuario.query.execution_options(include_all_tenants=True).first():
             return redirect(url_for("auth.login_page"))
 
         data = request.form

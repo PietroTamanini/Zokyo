@@ -205,5 +205,5 @@ def test_api_publica_consulta_os_por_numero_e_documento_sem_vazar_dados():
     assert "DIAGNOSTICO INTERNO" not in response.get_data(as_text=True)
 
     wrong = client.post("/api/public/os-consulta", json={"numero": "2668", "documento": "000.000.000-00"})
-    assert wrong.status_code == 404
-    assert wrong.json["message"] == "OS não encontrada com os dados informados."
+    assert wrong.status_code == 400
+    assert wrong.json["message"] == "CPF inválido"

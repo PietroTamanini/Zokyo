@@ -1,0 +1,88 @@
+# =============================================================================
+# .gitattributes — Zokyo
+# Normalização de fim de linha para evitar ruído CRLF/LF entre ambientes
+# (Windows, Linux/GitHub Actions, Docker).
+#
+# Regras aplicadas em ordem; a última regra correspondente vence.
+# Arquivos binários são listados APÓS os de texto para garantir que
+# `* text=auto eol=lf` não afete binários sem extensão mapeada.
+# =============================================================================
+
+# ── Arquivos de texto: normalizar para LF no repositório ──
+# No commit (checkin), Git normaliza para LF. No checkout no Windows,
+# se o cliente tiver autocrlf=true, converte para CRLF localmente.
+# No repositório (blob), fica sempre LF.
+* text=auto eol=lf
+
+# ── Documentação e código-fonte ──
+*.md      text eol=lf
+*.py      text eol=lf
+*.html    text eol=lf
+*.htm     text eol=lf
+*.css     text eol=lf
+*.js      text eol=lf
+*.jsx     text eol=lf
+*.ts      text eol=lf
+*.tsx     text eol=lf
+*.json    text eol=lf
+*.xml     text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.ini     text eol=lf
+*.cfg     text eol=lf
+*.toml    text eol=lf
+*.txt     text eol=lf
+*.env     text eol=lf
+*.example text eol=lf
+
+# ── Docker / infraestrutura ──
+Dockerfile        text eol=lf
+*.dockerfile      text eol=lf
+docker-compose*   text eol=lf
+nginx*            text eol=lf
+*.conf            text eol=lf
+
+# ── Scripts ──
+*.sh     text eol=lf
+*.bash   text eol=lf
+*.ps1    text eol=crlf
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+# ── Migrações e templates ──
+*.mako   text eol=lf
+
+# ── Git internos ──
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.dockerignore text eol=lf
+.secrets.baseline text eol=lf
+
+# ── Cobertura e relatórios ──
+.coveragerc text eol=lf
+
+# ── Arquivos binários: NÃO normalizar, tratar como opaco ──
+# Listados após as regras de texto para evitar sobrescrita acidental.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.svg    binary
+*.ico    binary
+*.pdf    binary
+*.zip    binary
+*.gz     binary
+*.db     binary
+*.sqlite3 binary
+*.pyc    binary
+*.pyd    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.bin    binary
+*.exe    binary
+*.dll    binary
+*.so     binary
+*.fdb    binary
+*.FDB    binary
+* filter=gitattributes diff=gitattributes

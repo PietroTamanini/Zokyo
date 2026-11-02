@@ -28,6 +28,10 @@ BASE_PERMISSIONS = {
     "fornecedores.manage",
     "financeiro.view",
     "financeiro.manage",
+    "caixa.view",
+    "caixa.manage",
+    "inventario.view",
+    "inventario.manage",
     "cobrancas.view",
     "cobrancas.manage",
     "vendas.view",
@@ -79,6 +83,7 @@ ROLE_PERMISSIONS = {
         "fornecedores.view",
         "coletas.view", "coletas.manage",
         "agenda.view", "bancada.view",
+    "inventario.view", "inventario.manage",
         "checklists.view", "checklists.manage",
         "compras_pecas.view", "compras_pecas.manage",
         "garantias.view", "garantias.manage",
@@ -108,6 +113,7 @@ ROLE_PERMISSIONS = {
         "clientes.view", "os.view", "estoque.view", "servicos.view",
         "fornecedores.view",
         "financeiro.view", "financeiro.manage",
+        "caixa.view", "caixa.manage",
         "cobrancas.view", "cobrancas.manage",
         "vendas.view", "vendas.manage",
         "relatorios.view", "relatorios.export", "relatorios.manage",
@@ -143,6 +149,10 @@ PUBLIC_ENDPOINTS = {
     "client_api.os_detail",
     "client_api.compras",
     "client_api.cobrancas",
+    "public_site.index",
+    "public_site.sitemap",
+    "public_site.robots",
+    "public_tracking.index",
     "platform.sandbox_webhook",
     "platform.asaas_webhook",
     "static",
@@ -156,6 +166,8 @@ PREFIX_POLICIES: tuple[tuple[str, str, str], ...] = (
     ("pecas.", "estoque.view", "estoque.manage"),
     ("defeitos.", "servicos.view", "servicos.manage"),
     ("transacoes.", "financeiro.view", "financeiro.manage"),
+    ("cash.", "caixa.view", "caixa.manage"),
+    ("inventario.", "inventario.view", "inventario.manage"),
     ("usuarios.", "usuarios.manage", "usuarios.manage"),
     ("configuracoes.", "configuracoes.manage", "configuracoes.manage"),
     ("logs.", "logs.view", "logs.view"),
@@ -265,7 +277,11 @@ def _current_user():
     from app.models import Usuario
 
     if session.get("usuario_id"):
-        return db.session.get(Usuario, session.get("usuario_id"))
+        return db.session.get(
+            Usuario,
+            session.get("usuario_id"),
+            execution_options={"include_all_tenants": True},
+        )
 
     if request.headers.get("Authorization", "").lower().startswith("bearer "):
         from app.utils.auth import authenticate_bearer_session
@@ -340,6 +356,7 @@ def _model_name_for_resource(endpoint: str, arg_name: str) -> str | None:
         "produto_id": "Peca",
         "fornecedor_id": "Fornecedor",
         "transacao_id": "Transacao",
+        "sessao_id": "CaixaSessao",
         "usuario_id": "Usuario",
         "notification_id": "Notification",
         "report_id": "SavedReport",
@@ -354,6 +371,8 @@ def _model_name_for_resource(endpoint: str, arg_name: str) -> str | None:
         (("pages.fornecedor", "fornecedores."), "Fornecedor"),
         (("pages.estoque", "pages.produtos", "pages.peca_", "pecas."), "Peca"),
         (("pages.financeiro", "pages.transacao_", "pages.cobrancas", "pages.vendas", "transacoes."), "Transacao"),
+        (("inventario.",), "InventarioSessao"),
+        (("cash.",), "CaixaSessao"),
         (("laudos.",), "LaudoTecnico"),
         (("privacy.",), "Cliente"),
     )

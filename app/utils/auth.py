@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-from flask import flash, g, jsonify, redirect, request, session, url_for
+from flask import flash, g, has_app_context, jsonify, redirect, request, session, url_for
 
 # Top-50 senhas mais comuns — expandir conforme necessário
 _SENHAS_COMUNS = frozenset({
@@ -63,16 +63,20 @@ def authenticate_bearer_session():
     if not raw_token:
         return None
     from app.extensions import db
-    from app.models import UserSession
+    from app.models import UserSession, Usuario
 
     record = (
         UserSession.query.execution_options(include_all_tenants=True)
         .filter_by(token_hash=_hash_token(raw_token))
         .first()
     )
-    if not record or not record.is_active or not record.user or not record.user.ativo:
+    if not record or not record.is_active:
         return None
-    user = record.user
+    user = db.session.get(
+        Usuario, record.user_id, execution_options={"include_all_tenants": True}
+    )
+    if not user or not user.ativo:
+        return None
     if not user.organization or not user.organization.ativo:
         return None
     session.permanent = True
@@ -117,7 +121,23 @@ def nivel_required(*niveis):
         def decorated(*args, **kwargs):
             if not _ensure_api_auth():
                 return jsonify({"erro": "Autenticação necessária"}), 401
-            if session.get("nivel") not in niveis:
+            from app.extensions import db
+            from app.models import Usuario
+            usuario = None
+            if has_app_context():
+                try:
+                    usuario = db.session.get(
+                        Usuario,
+                        session.get("usuario_id"),
+                        execution_options={"include_all_tenants": True},
+                    )
+                except RuntimeError:
+                    usuario = None
+            effective_level = usuario.nivel if usuario else session.get("nivel")
+            if (
+                effective_level not in niveis
+                or (usuario is not None and session.get("nivel") not in niveis)
+            ):
                 return jsonify({"erro": "Acesso negado"}), 403
             return f(*args, **kwargs)
         return decorated

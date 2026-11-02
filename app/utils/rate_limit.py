@@ -306,6 +306,7 @@ def rate_limit_route(max_hits: int = 30, window_seconds: int = 60,
                 remaining = int((ji + window - now).total_seconds())
                 if abort_code == 429:
                     resp = jsonify({
+                        "status": False,
                         "erro": "Muitas requisições. Tente novamente mais tarde.",
                         "retry_after": remaining,
                     })

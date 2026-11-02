@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ content.name }} - Acompanhamento de OS</title>
+  <meta name="description" content="Acompanhe o status do seu equipamento com numero da OS e CPF/CNPJ.">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1f2937; background: #f9fafb; }
+    .container { max-width: 760px; margin: 0 auto; padding: 0 1.25rem; }
+    header { padding: 2.2rem 0 1.2rem; text-align: center; }
+    h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); color: #111827; }
+    .subtitle { color: #4b5563; margin-top: 0.4rem; }
+    form { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; font-size: 0.9rem; color: #374151; margin-bottom: 0.35rem; }
+    input { width: 100%; padding: 0.75rem 0.9rem; border: 1px solid #d1d5db; border-radius: 10px; font-size: 1rem; }
+    button { width: 100%; background: var(--p, #2563eb); color: #fff; border: none; padding: 0.9rem; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.4rem; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .resultado { margin-top: 1.4rem; display: none; }
+    .status-badge { display: inline-block; padding: 0.4rem 0.9rem; border-radius: 999px; background: var(--p, #2563eb); color: #fff; font-weight: 700; font-size: 0.85rem; }
+    .info-grid { display: grid; gap: 0.6rem; margin-top: 1rem; }
+    .info-grid div { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.7rem 0.9rem; font-size: 0.95rem; }
+    .timeline { margin-top: 1rem; }
+    .timeline h2 { font-size: 1.15rem; color: #111827; margin-bottom: 0.6rem; }
+    .timeline ul { list-style: none; }
+    .timeline li { position: relative; padding: 0 0 0.9rem 1.4rem; border-left: 2px solid #e5e7eb; margin-left: 0.45rem; }
+    .timeline li::before { content: ""; position: absolute; left: -6px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--p, #2563eb); }
+    .timeline li strong { color: #374151; }
+    .alerta { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 0.7rem 0.9rem; border-radius: 10px; margin-top: 1rem; font-size: 0.92rem; }
+    .botao-contato { display: inline-block; margin-top: 1rem; background: #16a34a; color: #fff; padding: 0.7rem 1.2rem; border-radius: 10px; font-weight: 700; text-decoration: none; }
+    .erro { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 0.7rem 0.9rem; border-radius: 10px; margin-top: 1rem; font-size: 0.92rem; display: none; }
+    @media (max-width: 560px) { form { padding: 1.2rem; } }
+  </style>
+</head>
+<body>
+  {% set wa = content.whatsapp if content.whatsapp else '' %}
+  <a href="#conteudo" class="skip-link" style="position:absolute;left:-9999px;top:0;background:#fff;padding:.5rem 1rem;z-index:99">Ir para o conteúdo principal</a>
+  <main class="container" id="conteudo">
+    <header>
+      <h1>Consulta de Ordem de Serviço</h1>
+      <p class="subtitle">{{ content.name }} — informe o número da OS e o CPF/CNPJ para acompanhar.</p>
+    </header>
+
+    <form id="consulta-form" onsubmit="return false;">
+      <div class="field">
+        <label for="numero">Número da OS</label>
+        <input id="numero" name="numero" type="text" inputmode="numeric" autocomplete="off" placeholder="Ex.: 2668" required>
+      </div>
+      <div class="field">
+        <label for="documento">CPF ou CNPJ</label>
+        <input id="documento" name="documento" type="text" inputmode="numeric" autocomplete="off" placeholder="Ex.: 123.456.789-09" required>
+      </div>
+      <button type="submit" id="enviar">Consultar status</button>
+      <p class="erro" id="erro"></p>
+    </form>
+
+    <div class="resultado" id="resultado">
+      <div class="status-badge" id="status-badge"></div>
+      <div class="info-grid" id="info-grid"></div>
+      <div class="timeline" id="timeline" style="display:none;"></div>
+      <div class="alerta" id="alerta-orcamento" style="display:none;"></div>
+      <a class="botao-contato" id="botao-contato" href="#" style="display:none;">Falar no WhatsApp</a>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById('consulta-form');
+    const resultado = document.getElementById('resultado');
+    const erro = document.getElementById('erro');
+    const statusBadge = document.getElementById('status-badge');
+    const infoGrid = document.getElementById('info-grid');
+    const timelineEl = document.getElementById('timeline');
+    const alertaOrcamento = document.getElementById('alerta-orcamento');
+    const botaoContato = document.getElementById('botao-contato');
+
+    function formatarData(valor) {
+      if (!valor) return '—';
+      const data = new Date(valor);
+      if (Number.isNaN(data.getTime())) return valor;
+      return data.toLocaleDateString('pt-BR');
+    }
+
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      erro.style.display = 'none';
+      resultado.style.display = 'none';
+      const numero = document.getElementById('numero').value;
+      const documento = document.getElementById('documento').value;
+      if (!numero || !documento) {
+        erro.textContent = 'Informe o número da OS e o CPF/CNPJ.';
+        erro.style.display = 'block';
+        return;
+      }
+      const resposta = await fetch('/api/public/os-consulta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Origin': window.location.origin },
+        body: JSON.stringify({ numero: numero, documento: documento }),
+      });
+      const dados = await resposta.json().catch(function () { return { status: false, message: 'Resposta invalida do servidor.' }; });
+      if (!resposta.ok || !dados.status) {
+        erro.textContent = dados.message || 'Não foi possível consultar a OS.';
+        erro.style.display = 'block';
+        resultado.style.display = 'none';
+        return;
+      }
+      const resultadoData = dados.result || {};
+      statusBadge.textContent = resultadoData.status_label || resultadoData.status || '';
+      infoGrid.innerHTML = '';
+      const itens = [
+        ['Equipamento', resultadoData.equipamento || '—'],
+        ['Data de abertura', formatarData(resultadoData.entrada)],
+        ['Previsão de conclusão', formatarData(resultadoData.previsao)],
+        ['Garantia', resultadoData.garantia_dias ? `${resultadoData.garantia_dias} dias` : '—'],
+      ];
+      for (const [rotulo, valor] of itens) {
+        const div = document.createElement('div');
+        div.innerHTML = `<strong>${rotulo}:</strong> ${valor}`;
+        infoGrid.appendChild(div);
+      }
+      timelineEl.style.display = 'block';
+      timelineEl.innerHTML = '';
+      const timeline = Array.isArray(resultadoData.timeline) ? resultadoData.timeline : [];
+      if (timeline.length > 0) {
+        const h2 = document.createElement('h2');
+        h2.textContent = 'Linha do tempo do atendimento';
+        timelineEl.appendChild(h2);
+        const ul = document.createElement('ul');
+        for (const item of timeline) {
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${item.status_novo || ''}</strong> — ${item.criado_em ? new Date(item.criado_em).toLocaleString('pt-BR') : ''}`;
+          ul.appendChild(li);
+        }
+        timelineEl.appendChild(ul);
+      } else {
+        timelineEl.style.display = 'none';
+      }
+      const orcamento = resultadoData.orcamento_status;
+      if (orcamento) {
+        alertaOrcamento.style.display = 'block';
+        alertaOrcamento.textContent = orcamento === 'aprovado'
+          ? 'Orçamento aprovado. A manutenção pode seguir.'
+          : 'Orçamento aguardando aprovação do cliente.';
+      } else {
+        alertaOrcamento.style.display = 'none';
+      }
+      if (content.whatsapp && botaoContato) {
+        botaoContato.style.display = 'inline-block';
+        botaoContato.href = `https://wa.me/${content.whatsapp}`;
+      }
+      resultado.style.display = 'block';
+    });
+  </script>
+</body>
+</html>

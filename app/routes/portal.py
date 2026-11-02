@@ -1,7 +1,7 @@
 """Portal público mínimo para acompanhamento e aprovação de orçamento."""
 import io
 
-from flask import Blueprint, abort, make_response, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, g, make_response, redirect, render_template, request, send_file, session, url_for
 
 from app.extensions import db
 from app.models import OrdemServico, OSHistorico, Usuario, registrar
@@ -78,7 +78,9 @@ def _pdf_publico_os(portal_token) -> bytes:
 @portal_bp.route("/os/<int:os_id>/portal-link", methods=["POST"])
 @nivel_required("admin", "operacional")
 def gerar_link(os_id):
-    usuario = db.session.get(Usuario, session.get("usuario_id"))
+    usuario = db.session.get(
+        Usuario, session.get("usuario_id"), execution_options={"include_all_tenants": True}
+    )
     os_obj = OrdemServico.query.filter_by(id=os_id, organization_id=usuario.organization_id).first_or_404()
     purpose = request.form.get("purpose", "tracking")
     try:
@@ -96,6 +98,7 @@ def publico(token):
     portal_token = buscar_token_portal(token)
     if not portal_token:
         abort(404)
+    g.organization_id = portal_token.organization_id
     if request.method == "POST":
         decision = request.form.get("decisao", "")
         try:
@@ -130,6 +133,7 @@ def publico_pdf(token):
     portal_token = buscar_token_portal(token)
     if not portal_token:
         abort(404)
+    g.organization_id = portal_token.organization_id
     pdf = _pdf_publico_os(portal_token)
     codigo_os = portal_token.os.codigo_os if portal_token.os else f"{portal_token.os_id:04d}"
     return send_file(

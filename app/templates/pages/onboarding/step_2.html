@@ -1,0 +1,59 @@
+<!-- Etapa 2: Dados Comerciais -->
+<div class="field-group">
+  <label>Nome Fantasia <span class="required">*</span></label>
+  <input type="text" name="nome_fantasia" value="{{ current_step_data.nome_fantasia or '' }}" required>
+</div>
+
+<div class="field-group">
+  <label>Endereço <span class="required">*</span></label>
+  <textarea name="endereco" rows="3">{{ current_step_data.endereco or '' }}</textarea>
+</div>
+
+<div class="field-group">
+  <label>Cidade <span class="required">*</span></label>
+  <input type="text" name="cidade" value="{{ current_step_data.cidade or '' }}" required>
+</div>
+
+<div class="field-group">
+  <label>UF <span class="required">*</span></label>
+  <select name="uf" required>
+    <option value="">Selecione</option>
+    <option value="AC" {% if current_step_data.uf == 'AC' %}selected{% endif %}>AC</option>
+    <option value="AL" {% if current_step_data.uf == 'AL' %}selected{% endif %}>AL</option>
+    <option value="AM" {% if current_step_data.uf == 'AM' %}selected{% endif %}>AM</option>
+    <option value="AP" {% if current_step_data.uf == 'AP' %}selected{% endif %}>AP</option>
+    <option value="BA" {% if current_step_data.uf == 'BA' %}selected{% endif %}>BA</option>
+    <option value="CE" {% if current_step_data.uf == 'CE' %}selected{% endif %}>CE</option>
+    <option value="DF" {% if current_step_data.uf == 'DF' %}selected{% endif %}>DF</option>
+    <option value="ES" {% if current_step_data.uf == 'ES' %}selected{% endif %}>ES</option>
+    <option value="GO" {% if current_step_data.uf == 'GO' %}selected{% endif %}>GO</option>
+    <option value="MA" {% if current_step_data.uf == 'MA' %}selected{% endif %}>MA</option>
+    <option value="MT" {% if current_step_data.uf == 'MT' %}selected{% endif %}>MT</option>
+    <option value="MS" {% if current_step_data.uf == 'MS' %}selected{% endif %}>MS</option>
+    <option value="MG" {% if current_step_data.uf == 'MG' %}selected{% endif %}>MG</option>
+    <option value="PA" {% if current_step_data.uf == 'PA' %}selected{% endif %}>PA</option>
+    <option value="PB" {% if current_step_data.uf == 'PB' %}selected{% endif %}>PB</option>
+    <option value="PR" {% if current_step_data.uf == 'PR' %}selected{% endif %}>PR</option>
+    <option value="PE" {% if current_step_data.uf == 'PE' %}selected{% endif %}>PE</option>
+    <option value="RJ" {% if current_step_data.uf == 'RJ' %}selected{% endif %}>RJ</option>
+    <option value="RN" {% if current_step_data.uf == 'RN' %}selected{% endif %}>RN</option>
+    <option value="RS" {% if current_step_data.uf == 'RS' %}selected{% endif %}>RS</option>
+    <option value="RO" {% if current_step_data.uf == 'RO' %}selected{% endif %}>RO</option>
+    <option value="RR" {% if current_step_data.uf == 'RR' %}selected{% endif %}>RR</option>
+    <option value="SC" {% if current_step_data.uf == 'SC' %}selected{% endif %}>SC</option>
+    <option value="SP" {% if current_step_data.uf == 'SP' %}selected{% endif %}>SP</option>
+    <option value="SE" {% if current_step_data.uf == 'SE' %}selected{% endif %}>SE</option>
+    <option value="TO" {% if current_step_data.uf == 'TO' %}selected{% endif %}>TO</option>
+  </select>
+</div>
+
+<div class="field-group">
+  <label>CEP <span class="required">*</span></label>
+  <input type="text" name="cep" value="{{ current_step_data.cep or '' }}" placeholder="00000-000" required>
+</div>
+
+<fieldset>
+  <legend>Horário de Funcionamento</fieldset>
+  <label>Horário de Atendimento <span class="required">*</span></label>
+  <input type="text" name="horario_atendimento" value="{{ current_step_data.horario_atendimento or '' }}" placeholder="Ex: 08:00 às 18:00">
+</div>

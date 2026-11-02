@@ -32,7 +32,11 @@ def global_admin_required(function):
     def wrapped(*args, **kwargs):
         user = getattr(g, "current_user", None)
         if user is None and session.get("usuario_id"):
-            user = db.session.get(Usuario, session.get("usuario_id"))
+            user = db.session.get(
+                Usuario,
+                session.get("usuario_id"),
+                execution_options={"include_all_tenants": True},
+            )
         if not user:
             return redirect(url_for("auth.login_page"))
         if not can_manage_platform(user):

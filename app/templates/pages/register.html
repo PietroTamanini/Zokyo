@@ -93,7 +93,7 @@
 </main>
 
 {% include 'partials/_pwa_install.html' %}
-<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pwa-install.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pwa-install.js', v='20261102-3') }}"></script>
 <script nonce="{{ csp_nonce }}">
 (function(){
   const t = localStorage.getItem('theme') || 'dark';

@@ -37,4 +37,14 @@ class UserSession(db.Model):
     def is_active(self):
         now = _now().replace(tzinfo=None)
         expires = self.expires_at.replace(tzinfo=None)
-        return self.revoked_at is None and expires > now and self.security_version == self.user.security_version
+        from app.models.usuario import Usuario
+
+        user = db.session.get(
+            Usuario, self.user_id, execution_options={"include_all_tenants": True}
+        )
+        return (
+            self.revoked_at is None
+            and expires > now
+            and user is not None
+            and self.security_version == user.security_version
+        )

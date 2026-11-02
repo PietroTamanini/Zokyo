@@ -1,8 +1,8 @@
 (function () {
   const PROMPT_ID = 'pwa-install';
-  const DISMISS_KEY = 'zokyo:pwa:v3:dismissed-until';
+  const DISMISS_KEY = 'zokyo:pwa:v4:dismissed';
+  const LEGACY_DISMISS_KEY = 'zokyo:pwa:v3:dismissed-until';
   const INSTALLED_KEY = 'zokyo:pwa:v3:installed';
-  const DISMISS_MS = 6 * 60 * 60 * 1000;
   const FALLBACK_DELAY_MS = 45000;
 
   let deferredPrompt = null;
@@ -24,13 +24,14 @@
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
-  function dismissedNow() {
-    const until = Number(localStorage.getItem(DISMISS_KEY) || 0);
-    return Number.isFinite(until) && Date.now() < until;
-  }
-
   function shouldSkip() {
-    return isStandalone() || localStorage.getItem(INSTALLED_KEY) === '1' || dismissedNow();
+    const legacyUntil = Number(localStorage.getItem(LEGACY_DISMISS_KEY) || 0);
+    const legacyDismissed = localStorage.getItem(LEGACY_DISMISS_KEY) === '1'
+      || (Number.isFinite(legacyUntil) && legacyUntil > 0);
+    return isStandalone()
+      || localStorage.getItem(INSTALLED_KEY) === '1'
+      || localStorage.getItem(DISMISS_KEY) === '1'
+      || legacyDismissed;
   }
 
   function registerServiceWorker() {
@@ -105,7 +106,7 @@
     if (prompt) prompt.hidden = true;
     isVisible = false;
     if (dismiss) {
-      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_MS));
+      localStorage.setItem(DISMISS_KEY, '1');
     }
   }
 
@@ -140,7 +141,6 @@
   window.addEventListener('beforeinstallprompt', function (event) {
     event.preventDefault();
     deferredPrompt = event;
-    localStorage.removeItem(DISMISS_KEY);
     showPrompt('native');
   });
 

@@ -36,6 +36,13 @@ class Peca(db.Model):
             item.quantity for item in self.reservations
             if item.status == "active"
         )
+
+    # Relacionamento com inventário físico (back_populates do modelo InventarioItem)
+    _inventario_items = db.relationship(
+        'InventarioItem',
+        back_populates='peca',
+        lazy='select',
+    )
     @property
     def quantidade_disponivel(self):
         return max(0, self.quantidade - self.quantidade_reservada)
