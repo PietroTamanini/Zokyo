@@ -13,7 +13,8 @@ depends_on = None
 
 
 def upgrade():
-    inspector = sa.inspect(op.get_bind())
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
     tables = set(inspector.get_table_names())
     if "pecas_inventario" not in tables:
         op.create_table(
@@ -37,8 +38,9 @@ def upgrade():
 
     op.execute("UPDATE configuracoes SET onboarding_step = COALESCE(onboarding_step, 1)")
     op.execute("UPDATE configuracoes SET onboarding_completed = COALESCE(onboarding_completed, 0)")
-    op.alter_column("configuracoes", "onboarding_step", existing_type=sa.Integer(), nullable=False)
-    op.alter_column("configuracoes", "onboarding_completed", existing_type=sa.Boolean(), nullable=False)
+    if bind.dialect.name in {"mysql", "mariadb"}:
+        op.alter_column("configuracoes", "onboarding_step", existing_type=sa.Integer(), nullable=False)
+        op.alter_column("configuracoes", "onboarding_completed", existing_type=sa.Boolean(), nullable=False)
 
 
 def downgrade():
