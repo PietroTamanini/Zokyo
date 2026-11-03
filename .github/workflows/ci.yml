@@ -85,8 +85,8 @@ jobs:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
-          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: |
@@ -98,8 +98,8 @@ jobs:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
-          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
         run: python -m scripts.test_laudo_concurrency
@@ -108,8 +108,8 @@ jobs:
           FLASK_ENV: production
           DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
-          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=
+          ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
+          BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
           DISABLE_CREATE_ALL: "true"
           SCHEDULER_ENABLED: "false"
           GUNICORN_BIND: 127.0.0.1:8000
