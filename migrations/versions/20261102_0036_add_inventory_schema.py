@@ -92,6 +92,12 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table("inventario_ajustes")
-    op.drop_table("inventario_itens")
-    op.drop_table("inventario_sessoes")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    for table_name in ("inventario_ajustes", "inventario_itens", "inventario_sessoes"):
+        if table_name in inspector.get_table_names():
+            op.drop_table(table_name)
+    if "inventory_movements" in inspector.get_table_names():
+        columns = {column["name"] for column in inspector.get_columns("inventory_movements")}
+        if "quantity_delta" in columns:
+            op.drop_column("inventory_movements", "quantity_delta")

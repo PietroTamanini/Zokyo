@@ -8,7 +8,7 @@ from app.services.domain_resolution import (
     validate_unique_domain,
     validate_unique_subdomain,
 )
-from app.services.tenant_provisioning import verify_tenant_domain
+from app.services.tenant_provisioning import tenant_hostname, verify_tenant_domain
 
 
 class TenantSiteError(ValueError):
@@ -276,6 +276,11 @@ def update_tenant_subdomain(organization_id: int, subdomain: str) -> Organizatio
 
         abort(404)
     value = validate_unique_subdomain(subdomain, organization_id=organization_id)
+    old_hostname = tenant_hostname(organization.subdomain) if organization.subdomain else None
+    if organization.custom_domain == old_hostname:
+        organization.custom_domain = tenant_hostname(value)
     organization.subdomain = value
+    organization.dns_status = "pending"
+    organization.dns_last_error = None
     db.session.flush()
     return organization

@@ -1,5 +1,5 @@
 """routes/inventario_fisico.py — Inventário físico: sessões, itens, aprovação e relatório."""
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, request, session
 
 from app.services import inventario_fisico as inv_svc
 from app.utils.auth import nivel_required
@@ -38,8 +38,8 @@ def listar_sessoes():
 def abrir():
     org_id = _org_id()
     data, _ = get_request_data()
-    responsavel_id = data.get("responsavel_id") or None
-    responsavel_nome = data.get("responsavel_nome") or None
+    responsavel_id = session.get("usuario_id")
+    responsavel_nome = None
     observacoes = data.get("observacoes") or None
     sessao = inv_svc.open_inventario(
         org_id,
@@ -128,7 +128,7 @@ def informar_quantidade():
     data, _ = get_request_data()
     peca_id = data.get("peca_id")
     quantidade_fisica = data.get("quantidade_fisica")
-    usuario_id = data.get("usuario_id") or getattr(g, "usuario_id", None) or 1
+    usuario_id = session.get("usuario_id")
     justificativa = data.get("justificativa") or None
 
     try:
@@ -166,7 +166,7 @@ def aprovar_peca(sessao_id=None, peca_id=None):
     org_id = _org_id()
     data, _ = get_request_data()
     peca_id = data.get("peca_id") or peca_id
-    usuario_id = data.get("usuario_id") or getattr(g, "usuario_id", None) or 1
+    usuario_id = session.get("usuario_id")
     justificativa = data.get("justificativa") or None
 
     try:
@@ -187,7 +187,7 @@ def rejeitar_peca(sessao_id=None, peca_id=None):
     org_id = _org_id()
     data, _ = get_request_data()
     peca_id = data.get("peca_id") or peca_id
-    usuario_id = data.get("usuario_id") or getattr(g, "usuario_id", None) or 1
+    usuario_id = session.get("usuario_id")
     motivo = data.get("motivo") or "Não informado"
 
     try:

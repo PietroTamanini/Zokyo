@@ -59,7 +59,10 @@ jobs:
         env:
           DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: ci-secret-key  # pragma: allowlist secret
-        run: python -m flask --app wsgi:app db current
+        run: |
+          python -m flask --app wsgi:app db current
+          DATABASE_URL="sqlite:///ci-migrations.db" python -m flask --app wsgi:app db upgrade
+          test -f ci-migrations.db
       - name: Validate production readiness contract
         env:
           FLASK_ENV: production

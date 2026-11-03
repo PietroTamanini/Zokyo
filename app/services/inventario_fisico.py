@@ -32,9 +32,12 @@ def _now():
 
 def _float(value):
     try:
-        return int(value or 0)
+        parsed = int(value)
     except (TypeError, ValueError):
-        return 0
+        raise ValueError("Quantidade fisica deve ser um inteiro valido") from None
+    if parsed < 0 or parsed > MAX_QUANTIDADE_PIECA:
+        raise ValueError(f"Quantidade fisica deve estar entre 0 e {MAX_QUANTIDADE_PIECA}")
+    return parsed
 
 
 def _quantidade_disponivel_apos(peca, delta):

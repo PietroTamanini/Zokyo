@@ -44,4 +44,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table("pecas_inventario")
+    if "pecas_inventario" in sa.inspect(op.get_bind()).get_table_names():
+        op.drop_table("pecas_inventario")

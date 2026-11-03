@@ -56,6 +56,15 @@ def buscar_token_portal(raw_token: str) -> PortalToken | None:
 def decidir_orcamento(token: PortalToken, decisao: str):
     if token.purpose != "budget":
         raise ValueError("Este link não permite decidir o orçamento.")
+    locked_token = db.session.execute(
+        db.select(PortalToken)
+        .where(PortalToken.id == token.id)
+        .execution_options(include_all_tenants=True)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if not locked_token:
+        raise ValueError("Este link não foi encontrado.")
+    token = locked_token
     if token.usado_em:
         raise ValueError("Este orçamento já recebeu uma decisão.")
     if decisao not in {"approved", "rejected"}:

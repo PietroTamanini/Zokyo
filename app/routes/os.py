@@ -785,11 +785,15 @@ def servicos_os(id):
         return jsonify({"erro": "Acesso negado"}), 403
     data, _ = get_request_data()
     servico_id = data.get("servico_id") or data.get("idServico") or data.get("defeito_id")
+    try:
+        servico_id_int = int(servico_id) if servico_id else None
+    except (TypeError, ValueError):
+        return jsonify({"erro": "servico_id deve ser numerico"}), 400
     servico = (
-        DefeitoPadrao.query.filter_by(id=int(servico_id), ativo=True)
+        DefeitoPadrao.query.filter_by(id=servico_id_int, ativo=True)
         .filter(DefeitoPadrao.deletado_em.is_(None))
         .first()
-        if servico_id else None
+        if servico_id_int else None
     )
     descricao = sanitize_text(
         data.get("descricao") or data.get("nome") or (servico.sintoma if servico else ""),
@@ -816,16 +820,15 @@ def servicos_os(id):
 @os_bp.route("/api/v1/os/<int:id>/servicos/<int:servico_id>", methods=["DELETE"])
 @nivel_required("admin", "operacional")
 def remover_servico_os(id, servico_id):
-    os_obj = (
+    (
         OrdemServico.query.filter_by(id=id)
         .filter(OrdemServico.deletado_em.is_(None))
         .first_or_404()
     )
     return jsonify({
-        "success": True,
-        "mensagem": "Serviço consolidado na OS; ajuste valor_servico se precisar reverter.",
-        "os": os_obj.to_dict(),
-    })
+        "success": False,
+        "erro": "Serviços consolidados não podem ser removidos individualmente.",
+    }), 405
 
 
 @os_bp.route("/api/v1/os/<int:id>/anotacoes", methods=["GET", "POST"])
@@ -863,9 +866,9 @@ def anotacoes_os(id):
 def remover_anotacao_os(id, anotacao_id):
     OrdemServico.query.filter_by(id=id).filter(OrdemServico.deletado_em.is_(None)).first_or_404()
     return jsonify({
-        "success": True,
-        "mensagem": "Anotações são preservadas no histórico/auditoria do Zokyo.",
-    })
+        "success": False,
+        "erro": "Anotações são preservadas no histórico/auditoria do Zokyo.",
+    }), 405
 
 
 @os_bp.route("/api/v1/os/<int:id>/anexos", methods=["GET"])

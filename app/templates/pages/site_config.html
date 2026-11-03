@@ -40,7 +40,7 @@
   </div>
 
   <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
-    {{ csrf_token() if csrf_token else '' }}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
     <h2 class="text-lg font-semibold mb-4">Identidade</h2>
 
@@ -157,17 +157,18 @@
 
     <div class="flex gap-2 mt-8">
       <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar configuracoes</button>
-      <form method="POST" action="{{ url_for('site_config.toggle') }}" style="display: inline;">
-        {{ csrf_token() if csrf_token else '' }}
-        <button type="submit" class="bg-{{ 'green' if not site.site_enabled else 'red' }}-600 text-white px-4 py-2 rounded hover:bg-{{ 'green' if not site.site_enabled else 'red' }}-700">
-          {{ 'Ativar site' if not site.site_enabled else 'Desativar site' }}
-        </button>
-      </form>
     </div>
   </form>
 
+  <form method="POST" action="{{ url_for('site_config.toggle') }}" class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="bg-{{ 'green' if not site.site_enabled else 'red' }}-600 text-white px-4 py-2 rounded hover:bg-{{ 'green' if not site.site_enabled else 'red' }}-700">
+      {{ 'Ativar site' if not site.site_enabled else 'Desativar site' }}
+    </button>
+  </form>
+
   <form method="POST" action="{{ url_for('site_config.subdomain') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    {{ csrf_token() if csrf_token else '' }}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <h2 class="text-lg font-semibold mb-4">Subdominio</h2>
     <div class="flex gap-2">
       <input type="text" name="subdomain" value="{{ organization.subdomain or '' }}" class="w-full border rounded p-2" max_length="63">
@@ -177,7 +178,7 @@
   </form>
 
   <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    {{ csrf_token() if csrf_token else '' }}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <h2 class="text-lg font-semibold mb-4">Dominio personalizado</h2>
     <div class="flex gap-2">
       <input type="text" name="custom_domain" value="{{ site.custom_domain or '' }}" class="w-full border rounded p-2" placeholder="exemplo.empresa.com.br">
@@ -187,7 +188,7 @@
   </form>
 
   <form method="POST" action="{{ url_for('site_config.verify') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    {{ csrf_token() if csrf_token else '' }}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <h2 class="text-lg font-semibold mb-4">Verificacao de dominio</h2>
     <p class="text-sm text-gray-600 mb-4">Verifica o registro DNS configurado para o dominio personalizado (integracao Cloudflare).</p>
     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Verificar agora</button>

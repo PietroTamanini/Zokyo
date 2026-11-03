@@ -6,6 +6,7 @@ Regras de negocio:
   - O fechamento calcula o valor esperado (saldo inicial + movimentacoes) e
     compara com o valor conferido, registrando a diferenca.
 """
+import math
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -38,6 +39,9 @@ def get_open_caixa(organization_id: int):
 
 def open_caixa(organization_id: int, saldo_inicial: float = 0, responsavel_id=None, responsavel_nome=None):
     """Abre uma nova sessao de caixa (idempotente enquanto houver uma aberta)."""
+    saldo_inicial = float(saldo_inicial or 0)
+    if not math.isfinite(saldo_inicial) or saldo_inicial < 0 or saldo_inicial > MAX_VALOR_CAIXA:
+        raise ValueError("Saldo inicial deve ser finito, nao negativo e dentro do limite da caixa")
     existing = get_open_caixa(organization_id)
     if existing:
         return existing
@@ -45,7 +49,7 @@ def open_caixa(organization_id: int, saldo_inicial: float = 0, responsavel_id=No
         organization_id=organization_id,
         status="aberto",
         data_abertura=_now(),
-        saldo_inicial=float(saldo_inicial or 0),
+        saldo_inicial=saldo_inicial,
         valor_fechado_esperado=0,
         valor_conferido=0,
         diferenca=0,
@@ -94,7 +98,7 @@ def add_caixa_movimento(
     if tipo not in ("entrada", "saida", "sangria", "suprimento"):
         raise ValueError("tipo de movimentacao invalido. Use: entrada, saida, sangria, suprimento")
     valor_float = float(valor)
-    if valor_float <= 0:
+    if not math.isfinite(valor_float) or valor_float <= 0:
         raise ValueError("Valor da movimentacao deve ser positivo")
     if valor_float > MAX_VALOR_CAIXA:
         raise ValueError("Valor excede o maximo permitido para caixa")
@@ -142,6 +146,8 @@ def close_caixa(organization_id: int, sessao_id: int, valor_conferido: float, ob
         expected += float(movement.valor or 0) * float(DELTAS_CAIXA.get(movement.tipo, 0))
 
     conferido = float(valor_conferido or 0)
+    if not math.isfinite(conferido) or conferido < 0 or conferido > MAX_VALOR_CAIXA:
+        raise ValueError("Valor conferido deve ser finito, nao negativo e dentro do limite da caixa")
     diferenca = round(conferido - expected, 2)
 
     session.status = "fechado"

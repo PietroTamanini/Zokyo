@@ -139,6 +139,11 @@ function Start-DjTechSite {
 
 Set-Location $RepoRoot
 Start-LocalMySql
+Write-Host "Aplicando migrations do banco local..."
+& $PythonExe -m flask --app wsgi:app db upgrade
+if ($LASTEXITCODE -ne 0) {
+    throw "As migrations do banco local falharam. Corrija o banco antes de iniciar o Zokyo."
+}
 Start-ZokyoFlask
 Wait-ZokyoReady
 Start-DjTechSite

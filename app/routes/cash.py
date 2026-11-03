@@ -1,5 +1,7 @@
 """routes/cash.py — caixa: abertura, movimentacoes, conferencia e fechamento."""
-from flask import Blueprint, g, jsonify, request
+import math
+
+from flask import Blueprint, g, jsonify, request, session
 
 from app.services import cash as cash_service
 from app.utils.auth import nivel_required
@@ -40,13 +42,21 @@ def sessoes():
 def abrir():
     organization_id = _organization_id()
     data, _ = get_request_data()
-    saldo_inicial = float(data.get("saldo_inicial") or 0)
-    session_obj = cash_service.open_caixa(
-        organization_id,
-        saldo_inicial=saldo_inicial,
-        responsavel_id=data.get("responsavel_id") or None,
-        responsavel_nome=data.get("responsavel_nome") or None,
-    )
+    try:
+        saldo_inicial = float(data.get("saldo_inicial") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "erro": "saldo_inicial deve ser numerico"}), 400
+    if not math.isfinite(saldo_inicial) or saldo_inicial < 0:
+        return jsonify({"success": False, "erro": "saldo_inicial deve ser finito e nao negativo"}), 400
+    try:
+        session_obj = cash_service.open_caixa(
+            organization_id,
+            saldo_inicial=saldo_inicial,
+            responsavel_id=session.get("usuario_id"),
+            responsavel_nome=None,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "erro": str(exc)}), 400
     return jsonify({
         "success": True,
         "sessao": {
@@ -81,15 +91,15 @@ def sessao_detail(sessao_id):
 def fechar(sessao_id):
     organization_id = _organization_id()
     data, _ = get_request_data()
-    valor_conferido = float(data.get("valor_conferido") or 0)
     try:
+        valor_conferido = float(data.get("valor_conferido") or 0)
         session_obj = cash_service.close_caixa(
             organization_id,
             sessao_id=sessao_id,
             valor_conferido=valor_conferido,
             observacoes=data.get("observacoes") or None,
-            usuario_id=data.get("usuario_id") or None,
-            usuario_nome=data.get("usuario_nome") or None,
+            usuario_id=session.get("usuario_id"),
+            usuario_nome=None,
         )
     except ValueError as exc:
         return jsonify({"success": False, "erro": str(exc)}), 409 if "ja fechada" in str(exc) else 400
@@ -146,6 +156,8 @@ def criar_movimento():
         valor_float = float(data.get("valor"))
     except (TypeError, ValueError):
         return jsonify({"success": False, "erro": "valor deve ser numerico"}), 400
+    if not math.isfinite(valor_float) or valor_float <= 0:
+        return jsonify({"success": False, "erro": "valor deve ser finito e positivo"}), 400
     session_obj = cash_service.get_open_caixa(organization_id)
     if not session_obj:
         return jsonify({"success": False, "erro": "Caixa aberta nao encontrada"}), 409
@@ -158,8 +170,8 @@ def criar_movimento():
             valor=valor_float,
             forma_pagamento=data.get("forma_pagamento") or None,
             descricao=data.get("descricao") or None,
-            responsavel_id=data.get("responsavel_id") or None,
-            responsavel_nome=data.get("responsavel_nome") or None,
+            responsavel_id=session.get("usuario_id"),
+            responsavel_nome=None,
         )
     except ValueError as exc:
         return jsonify({"success": False, "erro": str(exc)}), 400
