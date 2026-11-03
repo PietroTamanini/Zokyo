@@ -117,9 +117,12 @@ def verify_site_domain(organization_id):
     return redirect(url_for("platform.index", view="company", organization_id=organization_id))
 
 
-@platform_bp.route("/settings/domain", methods=["POST"])
+@platform_bp.route("/settings/domain", methods=["GET", "POST"])
 @global_admin_required
 def update_base_domain():
+    if request.method == "GET":
+        return redirect(url_for("platform.index", view="domains"))
+
     value = (request.form.get("base_domain") or "").strip().lower().strip(".")
     if not value or len(value) > 253 or not re.fullmatch(
         r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*",
