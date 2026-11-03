@@ -16,8 +16,8 @@ jobs:
         env:
           MARIADB_DATABASE: zokyo_ci
           MARIADB_USER: zokyo
-          MARIADB_PASSWORD: zokyo_ci_password
-          MARIADB_ROOT_PASSWORD: root_ci_password
+          MARIADB_PASSWORD: zokyo_ci_password  # pragma: allowlist secret
+          MARIADB_ROOT_PASSWORD: root_ci_password  # pragma: allowlist secret
         ports:
           - 3306:3306
         options: >-
@@ -45,12 +45,12 @@ jobs:
       - name: Test
         env:
           DATABASE_URL: "sqlite:///:memory:"
-          SECRET_KEY: ci-secret-key
+          SECRET_KEY: ci-secret-key  # pragma: allowlist secret
         run: pytest -q
       - name: Coverage
         env:
           DATABASE_URL: "sqlite:///:memory:"
-          SECRET_KEY: ci-secret-key
+          SECRET_KEY: ci-secret-key  # pragma: allowlist secret
         run: |
           coverage run -m pytest -q
           coverage report --fail-under=65
@@ -58,7 +58,7 @@ jobs:
       - name: Validate migrations command
         env:
           DATABASE_URL: "sqlite:///:memory:"
-          SECRET_KEY: ci-secret-key
+          SECRET_KEY: ci-secret-key  # pragma: allowlist secret
         run: python -m flask --app wsgi:app db current
       - name: Validate production readiness contract
         env:
@@ -83,7 +83,7 @@ jobs:
       - name: Upgrade clean MariaDB schema
         env:
           FLASK_ENV: production
-          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci  # pragma: allowlist secret
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
           BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
@@ -96,7 +96,7 @@ jobs:
       - name: Test concurrent report numbering on MariaDB
         env:
           FLASK_ENV: production
-          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci  # pragma: allowlist secret
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
           BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
@@ -106,7 +106,7 @@ jobs:
       - name: Load smoke test on MariaDB
         env:
           FLASK_ENV: production
-          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci
+          DATABASE_URL: mysql+pymysql://zokyo:zokyo_ci_password@127.0.0.1:3306/zokyo_ci  # pragma: allowlist secret
           SECRET_KEY: ci-production-secret-key-long-value  # pragma: allowlist secret
           ENCRYPTION_SALT: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=  # pragma: allowlist secret
           BLIND_INDEX_KEY: MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=  # pragma: allowlist secret
