@@ -10,6 +10,7 @@ from app.extensions import db
 from app.models import Configuracao, Organization, Usuario, registrar
 from app.services.billing import ensure_trial_subscription
 from app.services.message_templates import seed_default_templates
+from app.services.domain_resolution import validate_unique_domain
 from app.utils.auth import validar_senha_forte
 from app.utils.sanitizers import sanitize_email, sanitize_text
 from app.utils.validators import validar_email
@@ -102,9 +103,16 @@ def provision_tenant(
     trial_days: int = 14,
     active: bool = True,
     provision_dns: bool = True,
+    custom_domain: str | None = None,
 ) -> tuple[Organization, Usuario]:
     organization_name = sanitize_text(name, max_length=200)
     normalized_slug = normalize_slug(slug) if str(slug or "").strip() else unique_slug_for_name(organization_name)
+    normalized_custom_domain = None
+    if str(custom_domain or "").strip():
+        try:
+            normalized_custom_domain = validate_unique_domain(custom_domain)
+        except ValueError as exc:
+            raise TenantProvisioningError(str(exc)) from exc
     owner_name, owner_email = _validate_owner(owner_name, owner_email, owner_password, owner_password is not None)
     if not organization_name:
         raise TenantProvisioningError("Nome da empresa e obrigatorio.")
@@ -120,7 +128,9 @@ def provision_tenant(
         nome=organization_name,
         slug=normalized_slug,
         subdomain=normalized_slug,
-        custom_domain=hostname,
+        # O subdomínio da plataforma continua disponível mesmo quando a
+        # empresa informa um domínio próprio.
+        custom_domain=normalized_custom_domain or hostname,
         ativo=active,
         dns_status="pending",
     )
@@ -149,7 +159,9 @@ def provision_tenant(
         subscription.plan_id = plan_id
 
     if provision_dns:
-        sync_tenant_dns(organization)
+        # O DNS automático só pode criar registros na zona administrada pelo
+        # Zokyo. Domínios próprios são apontados pelo cliente no provedor dele.
+        sync_tenant_dns(organization, hostname=hostname)
     else:
         organization.dns_status = "manual"
         organization.dns_last_error = "Use wildcard DNS ou sincronize via Cloudflare no painel global."
@@ -164,7 +176,7 @@ def provision_tenant(
     return organization, owner
 
 
-def sync_tenant_dns(organization: Organization) -> bool:
+def sync_tenant_dns(organization: Organization, hostname: str | None = None) -> bool:
     mode = (_config_value("TENANT_DNS_MODE") or "manual").strip().lower()
     if mode == "wildcard":
         organization.dns_status = "active"
@@ -182,7 +194,7 @@ def sync_tenant_dns(organization: Organization) -> bool:
         organization.dns_last_error = "Configure wildcard DNS ou defina CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID e TENANT_DNS_TARGET."
         return False
     try:
-        _upsert_cloudflare_record(token, zone_id, organization.custom_domain, target)
+        _upsert_cloudflare_record(token, zone_id, hostname or organization.custom_domain, target)
     except requests.RequestException as exc:
         organization.dns_status = "error"
         organization.dns_last_error = str(exc)[:500]

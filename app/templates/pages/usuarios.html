@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Usuarios - Zokyo{% endblock %}
-{% block breadcrumb %}Usuarios{% endblock %}
+{% block title %}Usuários - Zokyo{% endblock %}
+{% block breadcrumb %}Usuários{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><div class="page-title">Usuarios</div><div class="page-sub">Contas, perfis de acesso e permissoes da equipe</div></div>
-  <button type="button" class="btn btn-primary" data-action="usuario-novo">Novo usuario</button>
+  <div><div class="page-title">Usuários</div><div class="page-sub">Contas, perfis de acesso e permissões da equipe</div></div>
+  <button type="button" class="btn btn-primary" data-action="usuario-novo">Novo usuário</button>
 </div>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -14,8 +14,8 @@
 <div class="card users-toolbar-card">
   <div class="users-toolbar">
     <div>
-      <strong>{{ usuarios|length }} usuario{{ '' if usuarios|length == 1 else 's' }}</strong>
-      <span>Use perfis como base e aplique excecoes so quando precisar.</span>
+      <strong>{{ usuarios|length }} usuário{{ '' if usuarios|length == 1 else 's' }}</strong>
+      <span>Use perfis como base e aplique exceções só quando precisar.</span>
     </div>
     <a class="btn btn-outline btn-sm" href="{{ url_for('pages.zokyo_permissoes') }}">Mapa de permissoes</a>
   </div>
@@ -52,7 +52,7 @@
 <div class="modal-overlay" id="modal-novo">
   <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-title">Novo usuario</div>
+      <div class="modal-title">Novo usuário</div>
       <button type="button" class="modal-close" data-action="usuario-novo-fechar">x</button>
     </div>
     <div id="novo-err" class="alert a-red mb16 hidden"></div>
@@ -61,15 +61,15 @@
       <div class="form-group"><label>E-mail <span class="req">*</span></label><input type="email" id="n-email"></div>
     </div>
     <div class="form-row fr2">
-      <div class="form-group"><label>Senha <span class="req">*</span></label><input type="password" id="n-senha" placeholder="Min. 8 caracteres"></div>
+      <div class="form-group"><label>Senha <span class="req">*</span></label><input type="password" id="n-senha" class="validate-password" data-password-input data-min="8" minlength="8" placeholder="Crie uma senha forte">{% include 'partials/_password_requirements.html' %}</div>
       <div class="form-group"><label>Perfil <span class="req">*</span></label><select id="n-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
     </div>
     <details class="mb16">
-      <summary>Permissoes especificas</summary>
+        <summary>Permissões específicas</summary>
       <div class="permission-picker">
         <div class="permission-picker-panel">
-          <h4>Permitir alem do perfil</h4>
-          <p>Use para liberar uma funcao pontual sem trocar o cargo do usuario.</p>
+          <h4>Permitir além do perfil</h4>
+          <p>Use para liberar uma função pontual sem trocar o cargo do usuário.</p>
           <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-new-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
@@ -93,7 +93,7 @@
 <div class="modal-overlay" id="modal-editar">
   <div class="modal-box">
     <div class="modal-header">
-      <div class="modal-title">Editar usuario</div>
+      <div class="modal-title">Editar usuário</div>
       <button type="button" class="modal-close" data-action="usuario-editar-fechar">x</button>
     </div>
     <div id="edit-err" class="alert a-red mb16 hidden"></div>
@@ -103,16 +103,16 @@
       <div class="form-group"><label>E-mail</label><input type="email" id="e-email"></div>
     </div>
     <div class="form-row fr2">
-      <div class="form-group"><label>Nova senha <span class="txt-faint mono-xs">(opcional)</span></label><input type="password" id="e-senha" placeholder="Min. 8 caracteres"></div>
+      <div class="form-group"><label>Nova senha <span class="txt-faint mono-xs">(opcional)</span></label><input type="password" id="e-senha" class="validate-password" data-password-input data-min="8" minlength="8" placeholder="Deixe vazio para manter">{% include 'partials/_password_requirements.html' %}</div>
       <div class="form-group"><label>Perfil</label><select id="e-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
     </div>
     <div class="form-group"><label>Status</label><select id="e-ativo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
     <details class="mb16">
-      <summary>Permissoes especificas</summary>
+        <summary>Permissões específicas</summary>
       <div class="permission-picker">
         <div class="permission-picker-panel">
-          <h4>Permitir alem do perfil</h4>
-          <p>Use para liberar uma funcao pontual sem trocar o cargo do usuario.</p>
+          <h4>Permitir além do perfil</h4>
+          <p>Use para liberar uma função pontual sem trocar o cargo do usuário.</p>
           <div class="permission-pill-list">
             {% for permissao in permissoes %}<label><input type="checkbox" data-edit-extra value="{{ permissao }}"> {{ permissao }}</label>{% endfor %}
           </div>
@@ -126,7 +126,7 @@
         </div>
       </div>
     </details>
-    <div class="alert a-amber mb16 muted-sm">Revogue sessoes em caso de perda de dispositivo ou suspeita de acesso.</div>
+    <div class="alert a-amber mb16 muted-sm">Revogue sessões em caso de perda de dispositivo ou suspeita de acesso.</div>
     <div class="modal-actions">
       <button type="button" class="btn btn-danger btn-sm" data-action="usuario-deletar">Remover</button>
       <button type="button" class="btn btn-outline btn-sm" data-action="usuario-revogar">Encerrar sessoes</button>
@@ -176,6 +176,8 @@ function editarUsuario(u) {
 
 async function criarUsuario() {
   const err = document.getElementById('novo-err');
+  const passwordErrors = window.DJValidators?.passwordErrors?.(document.getElementById('n-senha').value) || [];
+  if (passwordErrors.length) { err.textContent = passwordErrors.join('. ') + '.'; err.classList.remove('hidden'); return; }
   const body = {
     nome: document.getElementById('n-nome').value,
     email: document.getElementById('n-email').value,
@@ -186,7 +188,7 @@ async function criarUsuario() {
   };
   const r = await fetch('/api/usuarios', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(body)});
   const d = await r.json();
-  if (!r.ok) { err.textContent = d.erro || 'Erro ao criar usuario.'; err.classList.remove('hidden'); return; }
+  if (!r.ok) { err.textContent = d.erro || 'Erro ao criar usuário.'; err.classList.remove('hidden'); return; }
   location.reload();
 }
 
@@ -202,22 +204,24 @@ async function salvarUsuario() {
     permissoes_negadas: collectPermissions('[data-edit-denied]'),
   };
   const password = document.getElementById('e-senha').value;
+  const passwordErrors = password ? (window.DJValidators?.passwordErrors?.(password) || []) : [];
+  if (passwordErrors.length) { err.textContent = passwordErrors.join('. ') + '.'; err.classList.remove('hidden'); return; }
   if (password) body.senha = password;
   const r = await fetch(`/api/usuarios/${id}`, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(body)});
   const d = await r.json();
-  if (!r.ok) { err.textContent = d.erro || 'Erro ao salvar usuario.'; err.classList.remove('hidden'); return; }
+  if (!r.ok) { err.textContent = d.erro || 'Erro ao salvar usuário.'; err.classList.remove('hidden'); return; }
   location.reload();
 }
 
 async function deletarUsuario() {
-  if (!confirm('Remover este usuario?')) return;
+  if (!confirm('Remover este usuário?')) return;
   const id = document.getElementById('e-id').value;
   await fetch(`/api/usuarios/${id}`, {method:'DELETE', headers:{'X-CSRFToken':CSRF}});
   location.reload();
 }
 
 async function revogarSessoes() {
-  if (!confirm('Encerrar todas as sessoes deste usuario?')) return;
+  if (!confirm('Encerrar todas as sessões deste usuário?')) return;
   const id = document.getElementById('e-id').value;
   const response = await fetch(`/api/usuarios/${id}/revogar-sessoes`, {method:'POST', headers:{'X-CSRFToken':CSRF}});
   if (response.ok) location.reload();

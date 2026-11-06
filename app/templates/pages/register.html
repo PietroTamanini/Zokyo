@@ -54,7 +54,7 @@
 
     {% include 'partials/_flash.html' %}
 
-    <form method="POST" action="{{ url_for('auth.primeiro_acesso_post') }}" id="reg-form">
+    <form method="POST" action="{{ url_for('auth.primeiro_acesso_post') }}" id="reg-form" data-validate>
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <div class="form-group mb16">
@@ -72,14 +72,15 @@
       <div class="form-row fr2 register-password-row">
         <div class="form-group mb16">
           <label>Senha <span class="req">*</span></label>
-          <input type="password" name="senha" id="senha"
-                 placeholder="Mínimo 8 caracteres" minlength="8" required>
+          <input type="password" name="senha" id="senha" class="validate-password" data-password-input data-min="8"
+                 placeholder="Crie uma senha forte" minlength="8" autocomplete="new-password" required>
+          {% include 'partials/_password_requirements.html' %}
         </div>
 
         <div class="form-group mb16">
           <label>Confirmar senha <span class="req">*</span></label>
           <input type="password" name="confirmar_senha" id="confirmar_senha"
-                 placeholder="Repita a senha" minlength="8" required>
+                 placeholder="Repita a senha" minlength="8" autocomplete="new-password" required>
           <div id="senha-erro" class="password-error">
             As senhas não coincidem.
           </div>
@@ -93,6 +94,8 @@
 </main>
 
 {% include 'partials/_pwa_install.html' %}
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validators.js') }}"></script>
+<script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/password-policy.js', v='20261105-1') }}"></script>
 <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pwa-install.js', v='20261102-3') }}"></script>
 <script nonce="{{ csp_nonce }}">
 (function(){

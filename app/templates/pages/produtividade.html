@@ -2,49 +2,127 @@
 {% block title %}Produtividade - Zokyo{% endblock %}
 {% block breadcrumb %}Produtividade{% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+  .productivity-page { max-width: 1440px; }
+  .productivity-hero { align-items: flex-end; margin-bottom: 28px; }
+  .productivity-kicker { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+  .productivity-kicker::before { content: ""; width: 22px; height: 3px; border-radius: 99px; background: var(--blue); }
+  .productivity-hero .page-title { letter-spacing: -0.7px; }
+  .productivity-hero .page-sub { max-width: 620px; font-size: 14px; }
+  .productivity-context { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2); background: var(--surface); font-size: 12px; font-weight: 650; }
+  .productivity-context::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px var(--green-g); }
+  .productivity-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 24px; }
+  .productivity-stats .stat-card { cursor: default; min-height: 142px; padding: 18px 20px; }
+  .productivity-stats .stat-card:hover { transform: none; }
+  .productivity-stats .stat-icon { margin-bottom: 15px; }
+  .productivity-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr); gap: 20px; align-items: start; }
+  .productivity-card { box-shadow: 0 10px 26px rgba(15,23,42,.045); }
+  .productivity-card .card-header { padding: 17px 20px; }
+  .productivity-card .card-title { display: flex; align-items: center; gap: 9px; }
+  .productivity-card .card-title .ui-icon { width: 17px; height: 17px; color: var(--blue); }
+  .productivity-card .card-header small { color: var(--text-3); font-size: 12px; }
+  .productivity-table table { min-width: 650px; }
+  .productivity-table th { white-space: nowrap; }
+  .productivity-table td { vertical-align: middle; }
+  .tech-cell { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+  .tech-avatar { display: grid; place-items: center; width: 31px; height: 31px; flex: 0 0 31px; border-radius: 8px; background: var(--blue-glow); color: var(--blue); font-size: 12px; font-weight: 800; text-transform: uppercase; }
+  .tech-name { color: var(--text); font-weight: 700; }
+  .tech-sub { display: block; margin-top: 2px; color: var(--text-3); font-size: 11px; font-weight: 500; }
+  .productivity-progress { min-width: 92px; }
+  .productivity-progress-bar { height: 6px; margin-bottom: 5px; overflow: hidden; border-radius: 99px; background: var(--surface3); }
+  .productivity-progress-bar span { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+  .productivity-progress-label { color: var(--text-3); font-size: 11px; }
+  .productivity-status-list { display: grid; gap: 9px; padding: 16px 20px 20px; }
+  .productivity-status-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); transition: border-color .15s, background .15s; }
+  .productivity-status-item:hover { border-color: var(--blue-ring); background: var(--blue-glow); }
+  .productivity-status-label { display: flex; align-items: center; gap: 9px; color: var(--text-2); font-size: 13px; font-weight: 650; }
+  .productivity-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+  .productivity-status-item:nth-child(2n) .productivity-status-dot { background: var(--amber); }
+  .productivity-status-item:nth-child(3n) .productivity-status-dot { background: var(--green); }
+  .productivity-status-count { color: var(--text); font-size: 20px; font-weight: 800; }
+  .productivity-empty { padding: 38px 20px; text-align: center; color: var(--text-3); }
+  .productivity-empty strong { display: block; margin-bottom: 5px; color: var(--text-2); }
+  @media (max-width: 960px) { .productivity-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 600px) { .productivity-hero { align-items: flex-start; } .productivity-context { display: none; } .productivity-stats { grid-template-columns: 1fr; } .productivity-stats .stat-card { min-height: 0; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="page-title">Produtividade</div>
-    <div class="page-sub">Indicadores operacionais para enxergar gargalos da oficina.</div>
-  </div>
-</div>
+<div class="productivity-page">
+  <header class="page-header productivity-hero">
+    <div>
+      <div class="productivity-kicker">Visão operacional</div>
+      <div class="page-title">Produtividade</div>
+      <div class="page-sub">Acompanhe o volume de ordens, os atrasos e a carga distribuída entre os técnicos.</div>
+    </div>
+    <div class="productivity-context">Acompanhamento da operação</div>
+  </header>
 
-<div class="stats-grid mb20">
-  <div class="stat-card"><div class="stat-label">OS abertas</div><div class="stat-value">{{ total_open }}</div></div>
-  <div class="stat-card"><div class="stat-label">OS atrasadas</div><div class="stat-value txt-red">{{ total_overdue }}</div></div>
-  <div class="stat-card"><div class="stat-label">Técnicos no painel</div><div class="stat-value">{{ by_tech|length }}</div></div>
-</div>
+  <section class="stats-grid productivity-stats" aria-label="Resumo da produtividade">
+    <div class="stat-card c-blue">
+      <div class="stat-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-clipboard"></use></svg></div>
+      <div class="stat-label">OS em andamento</div>
+      <div class="stat-value">{{ total_open }}</div>
+      <div class="stat-meta">Ordens que ainda exigem ação</div>
+    </div>
+    <div class="stat-card c-red">
+      <div class="stat-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-chart"></use></svg></div>
+      <div class="stat-label">OS atrasadas</div>
+      <div class="stat-value">{{ total_overdue }}</div>
+      <div class="stat-meta">Priorize estas ordens primeiro</div>
+    </div>
+    <div class="stat-card c-green">
+      <div class="stat-icon"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg></div>
+      <div class="stat-label">Técnicos no painel</div>
+      <div class="stat-value">{{ by_tech|length }}</div>
+      <div class="stat-meta">Com ordens registradas</div>
+    </div>
+  </section>
 
-<div class="card mb20">
-  <div class="card-header"><div class="card-title">Por técnico</div></div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Técnico</th><th>Total</th><th>Abertas</th><th>Entregues</th><th>Atrasadas</th><th>Receita paga</th></tr></thead>
-      <tbody>
-        {% for nome, row in by_tech.items()|sort %}
-        <tr>
-          <td class="td-strong">{{ nome }}</td>
-          <td class="td-mono">{{ row.total }}</td>
-          <td class="td-mono">{{ row.abertas }}</td>
-          <td class="td-mono">{{ row.entregues }}</td>
-          <td class="td-mono {{ 'txt-red' if row.atrasadas else '' }}">{{ row.atrasadas }}</td>
-          <td class="td-mono">{{ row.receita|moeda }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="td-empty">Sem dados ainda.</td></tr>
+  <div class="productivity-layout">
+    <section class="card productivity-card" aria-labelledby="technicians-title">
+      <div class="card-header">
+        <div>
+          <div class="card-title" id="technicians-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>Desempenho por técnico</div>
+          <small>Volume de ordens e receita paga acumulada</small>
+        </div>
+      </div>
+      <div class="table-wrap productivity-table">
+        <table>
+          <thead><tr><th>Técnico</th><th>Total</th><th>Abertas</th><th>Entregues</th><th>Atrasadas</th><th>Receita paga</th></tr></thead>
+          <tbody>
+            {% for nome, row in by_tech.items()|sort %}
+            {% set completion = ((row.entregues / row.total * 100) if row.total else 0)|round(0) %}
+            <tr>
+              <td><div class="tech-cell"><span class="tech-avatar" aria-hidden="true">{{ nome[:1] }}</span><span><span class="tech-name">{{ nome }}</span><span class="tech-sub">{{ completion|int }}% entregues</span></span></div></td>
+              <td class="td-mono td-strong">{{ row.total }}</td>
+              <td class="td-mono">{{ row.abertas }}</td>
+              <td class="productivity-progress"><div class="productivity-progress-bar" aria-label="{{ completion|int }}% das ordens entregues"><span style="width: {{ completion }}%"></span></div><span class="productivity-progress-label">{{ row.entregues }} entregues</span></td>
+              <td class="td-mono {{ 'txt-red' if row.atrasadas else '' }}">{{ row.atrasadas }}</td>
+              <td class="td-mono">{{ row.receita|moeda }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6"><div class="productivity-empty"><strong>Nenhum técnico com ordens</strong>Os dados aparecerão aqui quando houver movimentação.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card productivity-card" aria-labelledby="status-title">
+      <div class="card-header">
+        <div>
+          <div class="card-title" id="status-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-chart"></use></svg>Distribuição por status</div>
+          <small>Ordens em cada etapa do fluxo</small>
+        </div>
+      </div>
+      <div class="productivity-status-list">
+        {% for key, label in status_map.items() %}
+        <div class="productivity-status-item"><span class="productivity-status-label"><span class="productivity-status-dot" aria-hidden="true"></span>{{ label }}</span><strong class="productivity-status-count">{{ status_counts.get(key, 0) }}</strong></div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-header"><div class="card-title">Por status</div></div>
-  <div class="pipeline">
-    {% for key, label in status_map.items() %}
-    <div class="pipeline-item"><span>{{ label }}</span><strong>{{ status_counts.get(key, 0) }}</strong></div>
-    {% endfor %}
+      </div>
+    </section>
   </div>
 </div>
 {% endblock %}

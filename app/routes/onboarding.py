@@ -1,10 +1,10 @@
 """routes/onboarding.py — Fluxo de onboarding de 10 etapas para novas assistencias."""
 
-from flask import Blueprint, g, redirect, render_template, request, url_for
+from flask import Blueprint, flash, g, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import Configuracao
-from app.utils.auth import nivel_required
+from app.utils.auth import nivel_required, validar_senha_forte
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
@@ -92,9 +92,26 @@ def step(step_name):
 
     # Processar submissão
     if request.method == "POST":
+        if step_name == "empresa_cadastro":
+            password_errors = validar_senha_forte(request.form.get("owner_password", ""))
+            if password_errors:
+                for error in password_errors:
+                    flash(error, "error")
+                return render_template(
+                    "pages/onboarding_step.html",
+                    active="onboarding", step=cfg.onboarding_step,
+                    total_steps=total_steps, step_name=step_name,
+                    step_names=ONBOARDING_STEPS,
+                    current_step_data=request.form,
+                    is_first=(cfg.onboarding_step == 1),
+                    is_last=(cfg.onboarding_step == total_steps),
+                )
         step_data = cfg.onboarding_data or {}
         # Salvar dados da etapa atual
-        step_data[step_name] = request.form.to_dict()
+        step_data[step_name] = {
+            key: value for key, value in request.form.items()
+            if key not in {"owner_password", "senha", "confirmar_senha"}
+        }
 
         # Verificar se há campos de "concluir" nesta etapa
         # Cada etapa pode ter campos que indicam avanço automático

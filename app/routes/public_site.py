@@ -4,16 +4,17 @@ Rotas publicas, sem autenticacao, resolvidas pelo hostname da requisicao.
 """
 from __future__ import annotations
 
-from flask import Blueprint, abort, current_app, g, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, abort, g, make_response, redirect, request, url_for
 
-from app.services.tenant_site_service import get_public_site_by_host, get_site_content
+from app.services.tenant_site_service import get_public_site_by_host
+from app.services.tenant_site_bundle import send_bundle_file
 
 public_site_bp = Blueprint("public_site", __name__)
 
 
 @public_site_bp.route("/", methods=["GET"])
 def index():
-    """Renderiza o site publico institucional da empresa resolvida pelo host."""
+    """Entrega o index.html publicado pela empresa resolvida pelo host."""
     host = request.host
     organization, site = get_public_site_by_host(host)
     if not organization:
@@ -27,15 +28,22 @@ def index():
     if not site:
         abort(404, description="Site publico nao esta habilitado para esta empresa.")
 
-    content = get_site_content(organization, site)
-    noindex = bool(current_app.config.get("SEO_BLOCK_TEST_ENVIRONMENTS")) or bool(current_app.testing)
-    return render_template(
-        "pages/public_site.html",
-        organization=organization,
-        site=site,
-        content=content,
-        noindex=noindex,
-    )
+    response = send_bundle_file(site, "index.html")
+    if response is None:
+        abort(404, description="Esta empresa ainda nao publicou os arquivos do site.")
+    return response
+
+
+@public_site_bp.route("/<path:asset_path>", methods=["GET"])
+def uploaded_asset(asset_path):
+    """Entrega assets e rotas SPA do bundle estatico do tenant."""
+    organization, site = get_public_site_by_host(request.host)
+    if not organization or not site or site.site_mode != "upload":
+        abort(404)
+    response = send_bundle_file(site, asset_path)
+    if response is None:
+        abort(404)
+    return response
 
 
 @public_site_bp.route("/sitemap.xml", methods=["GET"])
@@ -44,7 +52,7 @@ def sitemap():
     organization, site = get_public_site_by_host(request.host)
     if not organization:
         abort(404)
-    if not site:
+    if not site or site.site_mode != "upload" or not site.site_bundle_version:
         abort(404, description="Site publico nao esta habilitado para esta empresa.")
 
     url = f"{request.scheme}://{request.host}/"
@@ -64,7 +72,7 @@ def sitemap():
 def robots():
     """Robots publico por tenant: libera landing, bloqueia privado/API/painel."""
     organization, site = get_public_site_by_host(request.host)
-    if not organization:
+    if not organization or not site or site.site_mode != "upload" or not site.site_bundle_version:
         abort(404)
     body = (
         "User-agent: *\n"

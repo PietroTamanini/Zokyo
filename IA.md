@@ -257,3 +257,50 @@ O production check precisa passar sem erro. Consulte [CONFIGURACAO.md](docs/CONF
 Não escolher automaticamente licença, preços, provedor de cobrança, política jurídica, SLA, controlador LGPD, retenção definitiva ou natureza legal da assinatura. Essas decisões pertencem ao proprietário e aos responsáveis comercial/jurídico/operacional.
 
 Não publicar, apagar volumes, restaurar dados, alterar produção ou usar credenciais reais sem pedido explícito.
+
+## Atualização posterior
+
+A criação de empresas aceita domínio próprio opcional (`custom_domain`) e preserva o subdomínio gerenciado (`subdomain.<TENANT_BASE_DOMAIN>`) como fallback. O DNS do domínio próprio continua sendo responsabilidade do provedor da empresa.
+
+O acesso administrativo global é separado do acesso das empresas: administradores globais entram por `/platform/login`, enquanto usuários de tenant entram por `/login`. O painel possui aliases `/platform/dashboard`, `/platform/companies`, `/platform/subscriptions` e `/platform/audit`.
+
+## Atualização posterior — 2026-11-05
+
+### Vendas e navegação
+
+- `/vendas/index` → **Nova venda** agora usa o formulário específico de vendas em `app/templates/pages/vendas_form.html`, com cliente/descrição, categoria, valor, vencimento/recebimento, status, forma de pagamento, parcelas, recorrência e comissão.
+- O formulário genérico de transações financeiras continua em `/financeiro/adicionar`; o alias não deve renderizar o formulário de vendas.
+- A correção foi feita em `app/routes/pages.py`: `vendas_adicionar_alias()` e `vendas_editar_alias()` renderizam `vendas_form.html`, enquanto `financeiro_adicionar_alias()` renderiza `zokyo_transacao_form.html`.
+- A tela de vendas possui resumo lateral atualizado em tempo real e estilos compatíveis com o tema escuro.
+
+### Senhas e criação de usuários
+
+- A política central está em `app/utils/auth.py`: mínimo de 8 caracteres, uma letra maiúscula, uma minúscula, um número, um caractere especial e rejeição de senhas comuns.
+- A política é aplicada no primeiro acesso do administrador da plataforma, cadastro de empresa, usuários, convites, redefinição/troca de senha, onboarding, provisionamento de tenant e criação de administrador pela plataforma.
+- O cadastro de empresa exige confirmação da senha. O onboarding não persiste `owner_password`, `senha` ou `confirmar_senha` em `onboarding_data`.
+- O componente `app/templates/partials/_password_requirements.html` exibe uma caixa visual interativa: cada requisito muda de estado enquanto o usuário digita e mostra a pontuação de requisitos atendidos. Ele é carregado por `app/static/js/password-policy.js` e estilizado em `app/static/css/components/forms.css`.
+- Os campos de senha relevantes usam `data-password-input`; ao adicionar um novo formulário com senha, reutilizar esse atributo e o partial em vez de criar outra validação visual.
+
+### Plataforma e planos
+
+- A plataforma possui criação, edição e exclusão de planos em `app/admin/plans.py`, `app/routes/platform.py` e `app/templates/admin/partials/_plans.html`.
+- A exclusão física é bloqueada quando o plano está vinculado a assinaturas/empresas. A interface mostra quantas empresas usam cada plano e orienta desativá-lo para impedir novas assinaturas.
+- `platform.index` calcula `plan_subscription_counts` e o painel mostra total de planos e quantidade de planos ativos.
+
+### Ícones, aparência e limpeza
+
+- Emojis foram removidos da aplicação, do site de exemplo e das mensagens WhatsApp. A interface usa o sprite SVG existente ou SVG inline quando a página é independente.
+- Foi adicionado o bloqueio visual de sublinhado azul nos itens do pipeline em `app/static/css/components/pipeline.css`.
+- `app/static/css/unslop.css` continua carregado por último para consolidar o acabamento visual da aplicação.
+- Após auditoria de referências, foram removidos somente os artefatos JSON históricos sem uso `producao_homologacao_etapa_16.json` e `relatorio_homologacao_etapa_15.json`. Migrações, testes, documentação, backups e arquivos operacionais não devem ser removidos sem confirmar suas referências.
+
+### Validações recentes
+
+- `python -m compileall -q app migrations`
+- Compilação Jinja dos 97 templates existentes
+- `node --check app/static/js/password-policy.js`
+- `node --check app/static/js/validators.js`
+- `git diff --check`
+- `docker compose up -d --build app`; o serviço ficou saudável.
+
+O detector visual usado na revisão não encontrou erro funcional; os avisos restantes são recomendações de design em páginas de autenticação independentes e não devem ser tratados como falha de execução.

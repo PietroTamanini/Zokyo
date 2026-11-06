@@ -1,5 +1,7 @@
 ﻿.pipeline { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 24px; }
 .pipe-step { flex: 1; padding: 14px 8px; text-align: center; background: var(--surface); border-right: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+.pipe-step,
+.pipe-step * { text-decoration: none !important; border-bottom: 0; }
 .pipe-step:last-child { border-right: none; }
 .pipe-step:hover { background: var(--blue-glow); }
 .pipe-num { font-size: 28px; font-weight: 800; color: var(--text-3); line-height: 1; letter-spacing: -1px; }

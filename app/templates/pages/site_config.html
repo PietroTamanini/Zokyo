@@ -1,197 +1,89 @@
 {% extends "base.html" %}
 
-{% block title %}Meu Site - {{ organization.nome }}{% endblock %}
+{% block title %}Publicar site - {{ organization.nome }}{% endblock %}
+{% block breadcrumb %}Publicar site{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+  .site-settings { max-width: 1120px; margin: 0 auto; }
+  .site-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 8px 0 28px; }
+  .site-header h1 { margin: 0; color: var(--text); font-size: clamp(25px, 3vw, 34px); line-height: 1.15; letter-spacing: -.035em; }
+  .site-header p { max-width: 620px; margin: 9px 0 0; color: var(--text-2); font-size: 14px; }
+  .site-actions { display: flex; flex-wrap: wrap; gap: 9px; justify-content: flex-end; }
+  .site-actions .btn { min-height: 38px; }
+  .site-panel { margin-bottom: 20px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-sm); }
+  .site-panel__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
+  .site-panel__heading h2 { margin: 0; color: var(--text); font-size: 17px; line-height: 1.35; }
+  .site-panel__heading p { margin: 5px 0 0; color: var(--text-3); font-size: 12px; line-height: 1.55; }
+  .site-panel__heading .ui-icon { width: 21px; height: 21px; color: var(--blue-text); }
+  .site-publish { position: relative; overflow: hidden; border-color: color-mix(in srgb, var(--blue) 38%, var(--border)); }
+  .site-publish::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--blue); }
+  .site-publish__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr); align-items: center; gap: 30px; }
+  .site-publish__copy strong { display: block; margin-bottom: 7px; color: var(--text); font-size: 15px; }
+  .site-publish__copy p { max-width: 650px; margin: 0; color: var(--text-2); font-size: 13px; line-height: 1.65; }
+  .site-upload { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed var(--border2); border-radius: 8px; background: var(--surface2); }
+  .site-upload .ui-icon { flex: 0 0 auto; width: 22px; height: 22px; color: var(--blue-text); }
+  .site-upload__field { min-width: 0; flex: 1; }
+  .site-upload input[type=file] { display: block; width: 100%; min-width: 0; color: var(--text-2); font: inherit; font-size: 12px; }
+  .site-upload input[type=file]::file-selector-button { margin-right: 8px; padding: 6px 9px; border: 1px solid var(--border2); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+  .site-upload input[type=file]::file-selector-button:hover { border-color: var(--blue); color: var(--blue-text); }
+  .site-upload__hint { display: block; margin-top: 5px; color: var(--text-3); font-size: 12px; }
+  .site-published { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+  .site-status { display: inline-flex; align-items: center; gap: 6px; color: var(--green); font-weight: 650; }
+  .site-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .site-meta-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .site-meta { min-width: 0; padding: 15px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+  .site-meta span { display: block; margin-bottom: 7px; color: var(--text-3); font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  .site-meta strong, .site-meta code { display: block; overflow-wrap: anywhere; color: var(--text); font-size: 13px; font-weight: 650; }
+  .site-meta code { font-family: "JetBrains Mono", monospace; font-size: 12px; }
+  .site-meta__state { color: var(--green) !important; }
+  .site-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .8fr); align-items: start; gap: 20px; }
+  .site-side { display: grid; gap: 20px; }
+  .site-side .site-panel { margin-bottom: 0; }
+  .site-domain-form { display: grid; gap: 12px; }
+  .site-domain-form .btn { justify-self: start; }
+  .site-domain-help { margin: 0; color: var(--text-3); font-size: 12px; line-height: 1.6; }
+  .site-domain-help code { color: var(--blue-text); font-family: "JetBrains Mono", monospace; }
+  .site-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+  .site-toggle__copy strong { display: block; color: var(--text); font-size: 13px; }
+  .site-toggle__copy span { display: block; margin-top: 4px; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+  @media (max-width: 980px) { .site-publish__body, .site-grid { grid-template-columns: 1fr; } .site-meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .site-header { display: block; } .site-actions { justify-content: flex-start; margin-top: 16px; } .site-panel { padding: 18px; } .site-meta-grid { grid-template-columns: 1fr; } .site-upload { align-items: flex-start; flex-direction: column; } .site-upload .btn { width: 100%; justify-content: center; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold">Meu Site</h1>
-    <div class="flex gap-2">
-      <a class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300" href="{{ url_for('public_site.index') }}">Ver site publico</a>
-      <a class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700" href="{{ url_for('site_config.preview') }}">Visualizar previa</a>
+<div class="site-settings">
+  <header class="site-header">
+    <div><h1>Publique o site da empresa</h1><p>Aqui voce envia os arquivos do site. Cada empresa pode ter um site completamente diferente.</p></div>
+    <div class="site-actions">
+      {% if site.site_mode == 'upload' %}<a class="btn btn-ghost" href="{{ public_site_url }}" target="_blank" rel="noopener"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg> Abrir site</a>{% endif %}
     </div>
+  </header>
+
+  <div class="site-meta-grid" aria-label="Resumo da publicacao">
+    <div class="site-meta"><span>Empresa</span><strong>{{ organization.nome }}</strong></div>
+    <div class="site-meta"><span>Subdomínio</span><code>{{ organization.subdomain or 'Não definido' }}</code></div>
+    <div class="site-meta"><span>Domínio próprio</span><strong>{{ site.custom_domain or 'Não configurado' }}</strong></div>
+    <div class="site-meta"><span>Publicação</span><strong class="site-meta__state">{{ 'Site publicado' if site.site_mode == 'upload' else 'Aguardando ZIP' }}</strong></div>
   </div>
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="mb-4 p-4 rounded {{ 'bg-green-100 text-green-700' if category == 'success' else 'bg-red-100 text-red-700' }}">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  <div class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
-    <h2 class="text-lg font-semibold mb-4">Publicação</h2>
-    <div class="flex items-center gap-3 mb-4">
-      <label class="flex items-center gap-2">
-        <input type="checkbox" name="site_enabled" value="1" {{ 'checked' if site.site_enabled else '' }}>
-        <span class="text-sm text-gray-700">Habilitar site publico para esta empresa</span>
-      </label>
-      <span class="text-sm text-gray-500">Endpoint publico: /</span>
+  <section class="site-panel site-publish" aria-labelledby="publish-title">
+    <div class="site-panel__heading"><div><h2 id="publish-title">Envie os arquivos do site</h2><p>O ZIP publicado passa a ser o único conteúdo exibido no endereço público.</p></div><svg class="ui-icon" aria-hidden="true"><use href="#i-upload"></use></svg></div>
+    <div class="site-publish__body">
+      <div class="site-publish__copy"><strong>HTML, CSS, JavaScript e imagens</strong><p>Compacte o site pronto em um ZIP. O arquivo <code>index.html</code> precisa estar na raiz. Não existe landing padrão: sem ZIP publicado, o endereço não exibe site.</p></div>
+      <form method="POST" action="{{ url_for('site_config.upload') }}" enctype="multipart/form-data" class="site-upload"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-archive"></use></svg><div class="site-upload__field"><input type="file" name="site_bundle" accept=".zip,application/zip" required aria-label="Arquivo ZIP do site"><span class="site-upload__hint">ZIP de ate {{ config.SITES_MAX_BUNDLE_MB }} MB</span></div><button type="submit" class="btn btn-primary">Publicar</button></form>
     </div>
-    <p class="text-sm text-gray-600 mb-4">Subdominio: <code>{{ organization.subdomain }}</code></p>
-    <p class="text-sm text-gray-600 mb-4">Dominio atual: {{ site.custom_domain or "Nao definido" }}</p>
-    <p class="text-sm text-gray-600 mb-4">Status do dominio: <strong>{{ domain_status }}</strong></p>
-    {% if site.custom_domain_validated %}
-      <span class="text-green-600 font-medium">✓ Dominio validado</span>
-    {% elif site.custom_domain %}
-      <span class="text-yellow-600 font-medium">⚠ Dominio pendente validacao</span>
-    {% endif %}
+    {% if site.site_mode == 'upload' %}<div class="site-published"><span class="site-status">Site publicado</span><span>{{ site.site_bundle_file_count or 0 }} arquivos ativos</span>{% if site.site_bundle_uploaded_at %}<span>Atualizado em {{ site.site_bundle_uploaded_at.strftime('%d/%m/%Y %H:%M') }}</span>{% endif %}</div>{% endif %}
+  </section>
+
+  <div class="site-grid">
+    <section class="site-panel"><div class="site-panel__heading"><div><h2>Visibilidade do site</h2><p>Controle se o endereço publicado pode ser acessado.</p></div><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg></div><div class="site-toggle"><div class="site-toggle__copy"><strong>{{ 'Site ativo' if site.site_enabled else 'Site desativado' }}</strong><span>{{ 'Visitantes podem acessar o site enviado.' if site.site_enabled else 'O endereço está temporariamente indisponível.' }}</span></div><form method="POST" action="{{ url_for('site_config.toggle') }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn {{ 'btn-danger' if site.site_enabled else 'btn-success' }} btn-sm">{{ 'Desativar' if site.site_enabled else 'Ativar' }}</button></form></div></section>
+
+    <aside class="site-side">
+      <section class="site-panel"><div class="site-panel__heading"><div><h2>Subdomínio</h2><p>Endereço gerenciado pelo Zokyo.</p></div><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg></div><form method="POST" action="{{ url_for('site_config.subdomain') }}" class="site-domain-form"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><div class="site-field"><label for="subdomain">Nome do subdomínio</label><input id="subdomain" type="text" name="subdomain" value="{{ organization.subdomain or '' }}" maxlength="63" placeholder="minha-empresa"></div><button type="submit" class="btn btn-outline">Salvar subdomínio</button><p class="site-domain-help">Exemplo: <code>alpha.zokyo.com.br</code></p></form></section>
+      <section class="site-panel"><div class="site-panel__heading"><div><h2>Domínio próprio</h2><p>Use um endereço que a empresa já possui.</p></div><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg></div><form method="POST" action="{{ url_for('site_config.salvar') }}" class="site-domain-form"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><div class="site-field"><label for="custom_domain">Domínio</label><input id="custom_domain" type="text" name="custom_domain" value="{{ site.custom_domain or '' }}" placeholder="www.empresa.com.br"></div><button type="submit" class="btn btn-outline">Salvar domínio</button><p class="site-domain-help">Status: <strong>{{ domain_status }}</strong>. Configure o DNS e depois faça a verificação.</p></form><form method="POST" action="{{ url_for('site_config.verify') }}" style="margin-top: 10px"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-ghost btn-sm">Verificar DNS agora</button></form></section>
+    </aside>
   </div>
-
-  <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-
-    <h2 class="text-lg font-semibold mb-4">Identidade</h2>
-
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Nome publico da assistencia</label>
-        <input type="text" name="site_name" value="{{ content.name or organization.nome }}" class="w-full border rounded p-2" max_length="200">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Nome do site (hero)</label>
-        <input type="text" name="site_title" value="{{ site.site_title or organization.nome }}" class="w-full border rounded p-2" max_length="200">
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Tagline</label>
-        <input type="text" name="tagline" value="{{ site.tagline or content.tagline or '' }}" class="w-full border rounded p-2" max_length="300">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Subtitulo (hero)</label>
-        <input type="text" name="site_subtitle" value="{{ site.site_subtitle or '' }}" class="w-full border rounded p-2" max_length="300">
-      </div>
-    </div>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Descricao da empresa</label>
-      <textarea name="description" class="w-full border rounded p-2" rows="3">{{ content.description or '' }}</textarea>
-    </div>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Historia / apresentacao</label>
-      <textarea name="story" class="w-full border rounded p-2" rows="4">{{ content.story or '' }}</textarea>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Cor primaria</label>
-        <input type="color" name="primary_color" value="{{ site.primary_color or '#2563eb' }}" class="w-full h-10 border rounded p-1">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Cor secundaria</label>
-        <input type="color" name="secondary_color" value="{{ site.secondary_color or '#6b7280' }}" class="w-full h-10 border rounded p-1">
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Cor de destaque</label>
-        <input type="color" name="accent_color" value="{{ site.accent_color or '#6366f1' }}" class="w-full h-10 border rounded p-1">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Imagem de capa (URL)</label>
-        <input type="url" name="cover_image" value="{{ site.cover_image or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/capa.png">
-      </div>
-    </div>
-
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">URL do logo</label>
-        <input type="url" name="logo_url" value="{{ site.logo_url or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/logo.png">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">URL do favicon</label>
-        <input type="url" name="favicon_url" value="{{ site.favicon_url or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/favicon.ico">
-      </div>
-    </div>
-
-    <h2 class="text-lg font-semibold mb-4 mt-8">Servicos</h2>
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Lista de servicos (JSON)</label>
-      <textarea name="services_json" class="w-full border rounded p-2" rows="6" placeholder='[{"nome":"Troca de tela","descricao":"..."}]'>{{ site.services_json or '' }}</textarea>
-    </div>
-
-    <h2 class="text-lg font-semibold mb-4 mt-8">Contato</h2>
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">Telefone</label>
-        <input type="text" name="phone" value="{{ site.phone or '' }}" class="w-full border rounded p-2" max_length="20">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">WhatsApp</label>
-        <input type="text" name="whatsapp" value="{{ site.whatsapp or '' }}" class="w-full border rounded p-2" max_length="20">
-      </div>
-    </div>
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Endereco</label>
-      <textarea name="address" class="w-full border rounded p-2" rows="2">{{ content.address or '' }}</textarea>
-    </div>
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Horario de funcionamento</label>
-      <textarea name="hours" class="w-full border rounded p-2" rows="2">{{ content.hours or '' }}</textarea>
-    </div>
-
-    <h2 class="text-lg font-semibold mb-4 mt-8">Redes sociais e SEO</h2>
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">Redes sociais (JSON)</label>
-      <textarea name="socials_json" class="w-full border rounded p-2" rows="4" placeholder='{"instagram":"https://instagram.com/..."}'>{{ site.socials_json or '' }}</textarea>
-    </div>
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">SEO - titulo</label>
-        <input type="text" name="seo_title" value="{{ content.seo.title or '' }}" class="w-full border rounded p-2" max_length="200">
-      </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">SEO - imagem de compartilhamento (URL)</label>
-        <input type="url" name="seo_image" value="{{ content.seo.image or '' }}" class="w-full border rounded p-2" placeholder="https://exemplo.com/og.png">
-      </div>
-    </div>
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-700 mb-2">SEO - descricao</label>
-      <textarea name="seo_description" class="w-full border rounded p-2" rows="2">{{ content.seo.description or '' }}</textarea>
-    </div>
-
-    <div class="flex gap-2 mt-8">
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar configuracoes</button>
-    </div>
-  </form>
-
-  <form method="POST" action="{{ url_for('site_config.toggle') }}" class="bg-white p-6 rounded-lg shadow mb-8 max-w-4xl">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" class="bg-{{ 'green' if not site.site_enabled else 'red' }}-600 text-white px-4 py-2 rounded hover:bg-{{ 'green' if not site.site_enabled else 'red' }}-700">
-      {{ 'Ativar site' if not site.site_enabled else 'Desativar site' }}
-    </button>
-  </form>
-
-  <form method="POST" action="{{ url_for('site_config.subdomain') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <h2 class="text-lg font-semibold mb-4">Subdominio</h2>
-    <div class="flex gap-2">
-      <input type="text" name="subdomain" value="{{ organization.subdomain or '' }}" class="w-full border rounded p-2" max_length="63">
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar subdominio</button>
-    </div>
-    <p class="text-xs text-gray-500 mt-2">Subdominio identifica a empresa no dominio raiz (ex: alpha.tamanini.dev.br).</p>
-  </form>
-
-  <form method="POST" action="{{ url_for('site_config.salvar') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <h2 class="text-lg font-semibold mb-4">Dominio personalizado</h2>
-    <div class="flex gap-2">
-      <input type="text" name="custom_domain" value="{{ site.custom_domain or '' }}" class="w-full border rounded p-2" placeholder="exemplo.empresa.com.br">
-      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Salvar dominio</button>
-    </div>
-    <p class="text-xs text-gray-500 mt-2">Configure o DNS para apontar para este servidor antes de validar o dominio.</p>
-  </form>
-
-  <form method="POST" action="{{ url_for('site_config.verify') }}" class="bg-white p-6 rounded-lg shadow max-w-4xl">
-    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-    <h2 class="text-lg font-semibold mb-4">Verificacao de dominio</h2>
-    <p class="text-sm text-gray-600 mb-4">Verifica o registro DNS configurado para o dominio personalizado (integracao Cloudflare).</p>
-    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Verificar agora</button>
-  </form>
 </div>
 {% endblock %}

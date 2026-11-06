@@ -10,5 +10,7 @@
         {{ label }}
       </a>
     {% endfor %}
+    <a class="nav-item" href="{{ url_for('platform.operations') }}"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>Operação e gargalos</a>
+    <a class="nav-item" href="{{ url_for('platform.audit') }}"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>Auditoria global</a>
   </div>
 </section>

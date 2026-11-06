@@ -329,7 +329,7 @@
         <div class="d-row"><div class="d-label">Mão de obra</div><div class="d-value txt-r">{{ os.valor_servico | moeda }}</div></div>
         <div class="d-row"><div class="d-label">Peças</div><div class="d-value txt-r">{{ os.valor_pecas | moeda }}</div></div>
         {% if os.desconto and os.desconto > 0 %}
-        <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">âˆ’ {{ os.desconto | moeda }}</div></div>
+        <div class="d-row"><div class="d-label txt-red">Desconto</div><div class="d-value txt-r txt-red">− {{ os.desconto | moeda }}</div></div>
         {% endif %}
         <div class="d-row"><div class="d-label">Pago</div><div class="d-value txt-r txt-green">{{ valor_pago | moeda }}</div></div>
         <div class="d-row"><div class="d-label">Restante</div><div class="d-value txt-r {{ 'txt-green' if valor_restante <= 0 else 'txt-red' }}">{{ valor_restante | moeda }}</div></div>
@@ -467,7 +467,7 @@ const OS_DATA = {
 const PECAS_ESTOQUE = {{ pecas_estoque_json | safe if pecas_estoque_json is defined else '[]' }};
 
 function abrirModalAdicionarPeca() {
-  openModal('➕ Adicionar Peça à OS', `
+  openModal('Adicionar peça à OS', `
     <div class="form-row fr3">
       <div class="form-group"><label>Peça *</label>
         <select id="ap-id">

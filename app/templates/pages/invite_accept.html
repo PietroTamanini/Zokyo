@@ -21,14 +21,16 @@
       {% if invalid %}
       <div class="alert a-red">Este convite expirou, foi revogado ou já foi utilizado.</div>
       {% else %}
-      <form method="POST">
+      <form method="POST" data-validate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-group"><label for="invite-name">Nome</label><input id="invite-name" name="nome" required maxlength="120" autocomplete="name"></div>
-        <div class="form-group"><label for="invite-password">Senha</label><input id="invite-password" type="password" name="senha" required minlength="8" autocomplete="new-password"></div>
+        <div class="form-group"><label for="invite-password">Senha</label><input id="invite-password" class="validate-password" data-password-input data-min="8" type="password" name="senha" required minlength="8" autocomplete="new-password">{% include 'partials/_password_requirements.html' %}</div>
         <button class="btn btn-primary btn-block btn-lg" type="submit">Criar conta</button>
       </form>
       {% endif %}
     </section>
   </main>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validators.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/password-policy.js', v='20261105-1') }}"></script>
 </body>
 </html>

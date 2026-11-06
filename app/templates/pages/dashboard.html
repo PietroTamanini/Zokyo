@@ -11,7 +11,7 @@
 {% if alertas %}
 <div class="page-alerts">
   {% for a in alertas %}
-  <div class="alert a-{{ a.tipo }}">{{ a.icone }} {{ a.msg }}</div>
+  <div class="alert a-{{ a.tipo }}"><svg class="ui-icon" aria-hidden="true"><use href="#{{ a.icone }}"></use></svg><span>{{ a.msg }}</span></div>
   {% endfor %}
 </div>
 {% endif %}

@@ -1,4 +1,4 @@
-# Admin global e subdominios
+# Admin global, domínios e subdomínios
 
 O primeiro acesso cria um admin global sem empresa. Esse usuario entra em `/platform` e gerencia empresas, planos, assinaturas, DNS e admins de cada empresa sem acessar dados internos dos tenants.
 
@@ -12,12 +12,13 @@ O primeiro acesso cria um admin global sem empresa. Esse usuario entra em `/plat
 - `app/templates/admin/`: tela do admin global separada por partials.
 - `app/static/css/components/admin.css`: estilos do admin global e telas administrativas.
 
-## Subdominio automatico
+## Desenvolvimento local
 
-O caminho mais simples para `empresa.tamanini.dev.br` e usar wildcard DNS:
+No ambiente local, use o modo `wildcard` apenas para dizer ao Zokyo que os
+subdomínios de teste serão aceitos. Isso não cria DNS público:
 
 ```env
-TENANT_BASE_DOMAIN=tamanini.dev.br
+TENANT_BASE_DOMAIN=zokyo.localhost
 TENANT_DNS_MODE=wildcard
 ```
 
@@ -30,7 +31,48 @@ Valor: IP ou hostname publico do servidor
 Proxy: ativado se usar Cloudflare e o proxy for desejado
 ```
 
-Com isso, toda empresa criada no painel ja responde em `slug.tamanini.dev.br`, desde que o Nginx/proxy envie esses hosts para o Zokyo.
+Com isso, uma empresa criada no painel responde em
+`slug.zokyo.localhost`. O navegador normalmente resolve `*.localhost` para a
+própria máquina; se necessário, adicione os nomes ao arquivo `hosts`.
+
+## Produção com DNS manual
+
+Em produção, use o modo `manual` quando você mesmo criará os registros DNS:
+
+```env
+TENANT_BASE_DOMAIN=zokyo.com.br
+TENANT_DNS_MODE=manual
+```
+
+No provedor DNS, crie um wildcard `*` apontando para o proxy/servidor do
+Zokyo, ou crie um registro individual para cada empresa. O Zokyo não chama a
+API DNS e exibirá o status como `manual`; isso é esperado nesse modo. O proxy
+reverso ainda precisa aceitar os hosts e o HTTPS precisa estar configurado.
+
+O modo `wildcard` também pode ser usado em produção somente se o wildcard DNS
+já estiver configurado e você aceitar que o Zokyo marque os subdomínios como
+ativos sem verificar cada registro. Ele não substitui o registro DNS nem o
+certificado HTTPS.
+
+### Domínio próprio da empresa
+
+Na criação da empresa, preencha o domínio próprio, por exemplo
+`painel.assistencia.com.br`. O subdomínio `slug.zokyo.com.br` continua como
+endereço alternativo. No provedor DNS da empresa, crie um registro `A` para o
+IP do servidor ou `CNAME` para o hostname do proxy. Depois configure HTTPS no
+proxy reverso (Cloudflare é uma opção simples) e encaminhe o `Host` original
+para o Zokyo.
+
+Para desenvolvimento local, use `TENANT_BASE_DOMAIN=zokyo.localhost`; assim
+`empresa.zokyo.localhost` aponta para a própria máquina em navegadores que
+resolvem `localhost`. Outra opção é adicionar os nomes ao arquivo `hosts`:
+
+```text
+127.0.0.1 empresa.zokyo.localhost
+127.0.0.1 outra.zokyo.localhost
+```
+
+Não é necessário criar registros DNS públicos para testar empresas localmente.
 
 ## Cloudflare API
 

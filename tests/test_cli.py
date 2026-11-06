@@ -112,6 +112,24 @@ def test_cli_create_organization_aceita_subdominio_curto():
         assert Organization.query.filter_by(custom_domain="a.tamanini.dev.br").count() == 1
 
 
+def test_cli_create_organization_aceita_dominio_proprio_e_mantem_subdominio():
+    app = create_app("development")
+    app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")
+    with app.app_context():
+        db.create_all()
+    result = app.test_cli_runner().invoke(args=[
+        "create-organization", "--name", "Empresa Própria", "--slug", "empresa-propria",
+        "--custom-domain", "painel.empresa.com.br",
+        "--admin-name", "Administrador", "--admin-email", "admin@propria.example",
+        "--password", "Senha!Forte123", "--password", "Senha!Forte123",
+    ])
+    assert result.exit_code == 0, result.output
+    with app.app_context():
+        organization = Organization.query.filter_by(slug="empresa-propria").one()
+        assert organization.subdomain == "empresa-propria"
+        assert organization.custom_domain == "painel.empresa.com.br"
+
+
 def test_seed_system_e_idempotente():
     app = create_app("development")
     app.config.update(TESTING=True, SQLALCHEMY_DATABASE_URI="sqlite:///:memory:")

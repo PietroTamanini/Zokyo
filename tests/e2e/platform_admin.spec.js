@@ -6,7 +6,7 @@ const password = process.env.E2E_PASSWORD;
 test.skip(!email || !password, 'Defina E2E_EMAIL e E2E_PASSWORD para validar o admin global.');
 
 async function login(page) {
-  await page.goto('/login');
+  await page.goto('/platform/login');
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(password);
   await Promise.all([

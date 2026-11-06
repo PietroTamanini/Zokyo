@@ -680,6 +680,7 @@ def _caixa_expression():
 # DASHBOARD
 # ══════════════════════════════════════════════════════════════
 @pages_bp.route("/")
+@pages_bp.route("/app")
 @login_required
 def dashboard():
     period = request.args.get("period", "this_month")
@@ -736,16 +737,16 @@ def dashboard():
 
     alertas = []
     if cfg.alerta_caixa_minimo and caixa < cfg.alerta_caixa_minimo:
-        alertas.append({"tipo": "red",   "icone": "💰",
+        alertas.append({"tipo": "red",   "icone": "i-dollar",
                         "msg": f"Caixa abaixo do mínimo: R$ {caixa:,.2f}"})
     if estoque_critico > 0:
-        alertas.append({"tipo": "amber", "icone": "📦",
+        alertas.append({"tipo": "amber", "icone": "i-box",
                         "msg": f"{estoque_critico} peça(s) com estoque crítico"})
     if os_atrasadas > 0:
-        alertas.append({"tipo": "red",   "icone": "⏰",
+        alertas.append({"tipo": "red",   "icone": "i-clock",
                         "msg": f"{os_atrasadas} OS atrasada(s)"})
     if os_prontas > 0:
-        alertas.append({"tipo": "green", "icone": "✅",
+        alertas.append({"tipo": "green", "icone": "i-check",
                         "msg": f"{os_prontas} equipamento(s) pronto(s) para retirada"})
 
     prazo = hoje + timedelta(days=cfg.alerta_vencimento_dias or 5)
@@ -754,7 +755,7 @@ def dashboard():
         Transacao.data_vencimento <= prazo.replace(tzinfo=None)
     ).count()
     if vencendo > 0:
-        alertas.append({"tipo": "amber", "icone": "📅",
+        alertas.append({"tipo": "amber", "icone": "i-calendar",
                         "msg": f"{vencendo} transação(ões) vencendo em breve"})
 
     pct_meta = 0
@@ -4095,11 +4096,10 @@ def vendas():
 @login_required
 def vendas_adicionar_alias():
     return render_template(
-        "pages/zokyo_transacao_form.html",
+        "pages/vendas_form.html",
         active="vendas",
         transacao=None,
         action_url=url_for("pages.transacao_criar"),
-        tipo_padrao="receita",
         titulo="Adicionar Venda",
         voltar_url=url_for("pages.vendas"),
     )
@@ -4110,11 +4110,10 @@ def vendas_adicionar_alias():
 def vendas_editar_alias(id):
     item = db.get_or_404(Transacao, id)
     return render_template(
-        "pages/zokyo_transacao_form.html",
+        "pages/vendas_form.html",
         active="vendas",
         transacao=item,
         action_url=url_for("pages.transacao_editar", id=id),
-        tipo_padrao=item.tipo,
         titulo="Editar Venda",
         voltar_url=url_for("pages.vendas"),
     )

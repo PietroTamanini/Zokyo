@@ -21,6 +21,8 @@ _SENHAS_COMUNS = frozenset({
     "temp1234", "change12", "default1", "system12", "root1234",
 })
 
+PASSWORD_MIN_LENGTH = 8
+
 
 def validar_senha_forte(senha: str) -> list[str]:
     """
@@ -29,8 +31,8 @@ def validar_senha_forte(senha: str) -> list[str]:
     """
     erros = []
 
-    if len(senha) < 8:
-        erros.append("Mínimo 8 caracteres.")
+    if len(senha) < PASSWORD_MIN_LENGTH:
+        erros.append(f"Mínimo {PASSWORD_MIN_LENGTH} caracteres.")
     if not re.search(r"[A-Z]", senha):
         erros.append("Pelo menos 1 letra maiúscula.")
     if not re.search(r"[a-z]", senha):

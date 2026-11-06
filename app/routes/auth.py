@@ -29,6 +29,7 @@ from app.utils.auth import (
     validar_senha_forte,  # V-01: importação necessária
 )
 from app.utils.rate_limit import rate_limit_route
+from app.admin.security import can_manage_platform
 from app.utils.sanitizers import sanitize_email, sanitize_text
 from app.utils.validators import validar_email
 
@@ -42,7 +43,8 @@ def _ip():
     return request.remote_addr or "unknown"
 
 
-def _login_user(usuario):
+def _login_user(usuario, area="tenant"):
+    area = session.get("_auth_area", area)
     # A sessão recém-criada define o tenant efetivo, mesmo que o login tenha
     # sido feito por um subdomínio diferente.
     g.organization_id = usuario.organization_id
@@ -54,6 +56,7 @@ def _login_user(usuario):
     session["perfil"] = usuario.nivel
     session["usuario_nome"] = usuario.nome
     session["security_version"] = usuario.security_version
+    session["auth_area"] = area
     session["_last_active"] = time.time()
     from app.services.user_sessions import create_session_record
     create_session_record(usuario)
@@ -62,7 +65,7 @@ def _login_user(usuario):
         usuario_id=usuario.id, usuario_nome=usuario.nome, organization_id=usuario.organization_id,
     )
     db.session.commit()
-    if usuario.is_platform_admin and not usuario.organization_id:
+    if area == "platform":
         destination = "platform.index"
         return redirect(url_for(destination))
     else:
@@ -75,12 +78,11 @@ def _login_user(usuario):
 @auth_bp.route("/login", methods=["GET"])
 def login_page():
     if "usuario_id" in session:
-        return redirect(url_for("pages.dashboard"))
-    return render_template("pages/login.html")
+        return redirect(url_for("platform.index" if session.get("auth_area") == "platform" else "pages.dashboard"))
+    return render_template("pages/login.html", login_area="tenant")
 
 
-@auth_bp.route("/login", methods=["POST"])
-def login_post():
+def _legacy_login_post():
     from app.utils.rate_limit import check_lock, clear_fails, register_fail
     ip = _ip()
 
@@ -117,6 +119,68 @@ def login_post():
         session["2fa_expires"] = time.time() + 300
         return redirect(url_for("auth.two_factor_challenge"))
     return _login_user(usuario)
+
+
+def _login_page(area="tenant", **context):
+    if "usuario_id" in session:
+        return redirect(url_for("platform.index" if session.get("auth_area") == "platform" else "pages.dashboard"))
+    return render_template("pages/login.html", login_area=area, **context)
+
+
+def _login_post(area="tenant"):
+    from app.utils.rate_limit import check_lock, clear_fails, register_fail
+    ip = _ip()
+    bloqueado, remaining = check_lock(ip)
+    if bloqueado:
+        flash(f"Muitas tentativas. Aguarde {remaining}s.", "error")
+        return _login_page(area), 429
+    email = sanitize_email(request.form.get("email", ""))
+    senha = request.form.get("senha", "")
+    if not email or not validar_email(email):
+        time.sleep(0.3)
+        flash("E-mail ou senha incorretos.", "error")
+        return _login_page(area)
+    usuario = Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email, ativo=True).first()
+    if not usuario or not usuario.check_senha(senha):
+        secs = register_fail(ip)
+        flash(
+            f"Conta bloqueada por {secs}s por excesso de tentativas." if secs else "E-mail ou senha incorretos.",
+            "error",
+        )
+        time.sleep(0.3)
+        return _login_page(area, email=email)
+    is_platform_user = can_manage_platform(usuario) and not usuario.organization_id
+    if area == "platform" and not is_platform_user:
+        flash("Esta conta pertence a uma empresa. Use o acesso em /login.", "error")
+        return _login_page(area, email=email)
+    if area == "tenant" and is_platform_user:
+        # Não revelar que o endereço pertence a um administrador da plataforma.
+        flash("E-mail ou senha incorretos.", "error")
+        time.sleep(0.3)
+        return _login_page(area, email=email)
+    clear_fails(ip)
+    if usuario.nivel == "admin" and usuario.totp_enabled:
+        session.clear()
+        session["2fa_user_id"] = usuario.id
+        session["2fa_expires"] = time.time() + 300
+        session["_auth_area"] = area
+        return redirect(url_for("auth.two_factor_challenge"))
+    return _login_user(usuario, area)
+
+
+@auth_bp.route("/login", methods=["POST"])
+def login_post():
+    return _login_post("tenant")
+
+
+@auth_bp.route("/platform/login", methods=["GET"])
+def platform_login_page():
+    return _login_page("platform")
+
+
+@auth_bp.route("/platform/login", methods=["POST"])
+def platform_login_post():
+    return _login_post("platform")
 
 
 def _api_login_payload(usuario):
@@ -194,15 +258,16 @@ def api_v1_regen_token():
 @auth_bp.route("/2fa", methods=["GET", "POST"])
 @rate_limit_route(max_hits=10, window_seconds=300)
 def two_factor_challenge():
+    area = session.get("_auth_area", "tenant")
     user_id = session.get("2fa_user_id")
     if not user_id or session.get("2fa_expires", 0) < time.time():
         session.clear()
-        return redirect(url_for("auth.login_page"))
+        return redirect(url_for("auth.platform_login_page" if area == "platform" else "auth.login_page"))
     usuario = db.session.get(Usuario, user_id, execution_options={"include_all_tenants": True})
     secret = decrypt_secret(usuario.totp_secret_encrypted) if usuario else None
     if not usuario or not usuario.ativo or not usuario.totp_enabled or not secret:
         session.clear()
-        return redirect(url_for("auth.login_page"))
+        return redirect(url_for("auth.platform_login_page" if area == "platform" else "auth.login_page"))
     g.organization_id = usuario.organization_id
     g.current_organization = usuario.organization
     if request.method == "POST":
@@ -210,7 +275,7 @@ def two_factor_challenge():
         if verify_totp(secret, code) or consume_recovery_code(usuario, code):
             registrar("login", "sistema", "Segundo fator validado.", usuario_id=usuario.id, usuario_nome=usuario.nome)
             db.session.commit()
-            return _login_user(usuario)
+            return _login_user(usuario, area)
         registrar("falha_login", "sistema", "Segundo fator inválido.", usuario_id=usuario.id, usuario_nome=usuario.nome)
         db.session.commit()
         flash("Código inválido.", "error")
@@ -264,6 +329,7 @@ def two_factor_disable():
 
 @auth_bp.route("/logout", methods=["POST"])
 def logout():
+    area = session.get("auth_area", "tenant")
     uid, uname = session.get("usuario_id"), session.get("usuario_nome", "—")
     if uid:
         from app.services.user_sessions import current_session_record, revoke_record
@@ -276,7 +342,7 @@ def logout():
                   organization_id=usuario.organization_id if usuario else None)
         db.session.commit()
     session.clear()
-    return redirect(url_for("auth.login_page"))
+    return redirect(url_for("auth.platform_login_page" if area == "platform" else "auth.login_page"))
 
 
 @auth_bp.route("/seguranca/sessoes")
@@ -450,6 +516,33 @@ def primeiro_acesso_post():
     return _processar()
 
 
-@auth_bp.route("/register")
+@auth_bp.route("/register", methods=["GET", "POST"])
+@rate_limit_route(max_hits=5, window_seconds=3600, methods={"POST"})
 def register_page():
-    return redirect(url_for("auth.primeiro_acesso_page"))
+    if not Usuario.query.execution_options(include_all_tenants=True).first():
+        return redirect(url_for("auth.primeiro_acesso_page"))
+    if request.method == "POST":
+        from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant
+
+        if request.form.get("owner_password", "") != request.form.get("confirm_owner_password", ""):
+            flash("As senhas não coincidem.", "error")
+            return render_template("pages/company_register.html", form=request.form)
+
+        try:
+            organization, _owner = provision_tenant(
+                name=request.form.get("name", ""),
+                slug=request.form.get("slug", ""),
+                owner_name=request.form.get("owner_name", ""),
+                owner_email=request.form.get("owner_email", ""),
+                owner_password=request.form.get("owner_password", ""),
+                custom_domain=request.form.get("custom_domain", ""),
+                provision_dns=False,
+            )
+            db.session.commit()
+        except TenantProvisioningError as exc:
+            db.session.rollback()
+            flash(str(exc), "error")
+            return render_template("pages/company_register.html", form=request.form)
+        flash(f"Empresa criada. Acesse {organization.subdomain} pelo login da empresa.", "success")
+        return redirect(url_for("auth.login_page"))
+    return render_template("pages/company_register.html")

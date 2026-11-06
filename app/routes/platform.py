@@ -2,7 +2,8 @@
 
 import re
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
+from sqlalchemy import func
 
 from app.admin.dashboard import admin_dashboard_context
 from app.admin.organizations import (
@@ -12,12 +13,20 @@ from app.admin.organizations import (
     sync_organization_dns,
     update_organization_from_form,
 )
-from app.admin.plans import assign_subscription_from_form, create_plan_from_form, plan_json
+from app.admin.plans import (
+    assign_subscription_from_form,
+    create_plan_from_form,
+    delete_plan_by_id,
+    plan_json,
+    update_plan_from_form,
+)
+from app.admin.operations import operations_context
 from app.admin.security import global_admin_required
 from app.extensions import db
-from app.models import OrganizationSubscription, Plan, PlatformSetting, Usuario, registrar
+from app.models import EventoLog, Organization, OrganizationSubscription, Plan, PlatformSetting, Usuario, registrar
 from app.services.billing import process_asaas_event, process_sandbox_event
 from app.services.tenant_site_service import TenantSiteError, verify_custom_domain
+from app.services.tenant_site_bundle import SiteBundleError, publish_bundle, unpublish_bundle
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
 
@@ -26,10 +35,15 @@ platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
 @global_admin_required
 def index():
     context = admin_dashboard_context()
-    view = request.args.get("view", "overview")
+    view = request.args.get("view") or getattr(g, "platform_view", "overview")
     if view not in {"overview", "organizations", "plans", "domains", "new-company", "company"}:
         view = "overview"
     context["admin_view"] = view
+    context["plan_subscription_counts"] = dict(
+        db.session.query(OrganizationSubscription.plan_id, func.count(OrganizationSubscription.id))
+        .group_by(OrganizationSubscription.plan_id)
+        .all()
+    )
     if view == "company":
         organization_id = request.args.get("organization_id", type=int)
         context["org"] = next((org for org in context["organizations"] if org.id == organization_id), None)
@@ -59,6 +73,63 @@ def index():
         page=page, page_count=page_count,
     )
     return render_template("admin/platform.html", **context)
+
+
+@platform_bp.route("/dashboard")
+@global_admin_required
+def dashboard():
+    g.platform_view = "overview"
+    return index()
+
+
+@platform_bp.route("/companies")
+@global_admin_required
+def companies():
+    g.platform_view = "organizations"
+    return index()
+
+
+@platform_bp.route("/subscriptions")
+@global_admin_required
+def subscriptions():
+    g.platform_view = "organizations"
+    return index()
+
+
+@platform_bp.route("/audit")
+@global_admin_required
+def audit():
+    from app.routes.logs import _build_query
+
+    data_ini = request.args.get("data_ini", "")
+    data_fim = request.args.get("data_fim", "")
+    usuario_id = request.args.get("usuario_id", "")
+    tipo = request.args.get("tipo", "")
+    modulo = request.args.get("modulo", "")
+    organization_id = request.args.get("organization_id", "")
+    page = request.args.get("page", 1, type=int)
+    pag = _build_query(data_ini, data_fim, usuario_id, tipo, modulo, organization_id, include_all_tenants=True).order_by(
+        EventoLog.criado_em.desc()
+    ).paginate(page=page, per_page=50, error_out=False)
+    usuarios = Usuario.query.execution_options(include_all_tenants=True).order_by(Usuario.nome).all()
+    organizations = Organization.query.execution_options(include_all_tenants=True).order_by(Organization.nome).all()
+    modulos = [row[0] for row in db.session.query(EventoLog.modulo).distinct().all() if row[0]]
+    return render_template(
+        "pages/logs.html",
+        active="logs",
+        eventos=pag.items,
+        paginacao=pag,
+        usuarios=usuarios,
+        organizations=organizations,
+        modulos=modulos,
+        filtros={"data_ini": data_ini, "data_fim": data_fim, "usuario_id": usuario_id, "tipo": tipo, "modulo": modulo, "organization_id": organization_id},
+    )
+
+
+@platform_bp.route("/operations")
+@global_admin_required
+def operations():
+    return render_template("admin/operations.html", operations=operations_context())
 
 
 @platform_bp.route("/organizations", methods=["POST"])
@@ -107,6 +178,7 @@ def sync_dns(organization_id):
 @global_admin_required
 def verify_site_domain(organization_id):
     ok = verify_custom_domain(organization_id)
+    registrar("status", "site_publico", "Verificacao de dominio executada pelo super admin", f"validated={ok}", organization_id=organization_id)
     db.session.commit()
     flash(
         "Domínio verificado. A landing page está liberada."
@@ -117,7 +189,49 @@ def verify_site_domain(organization_id):
     return redirect(url_for("platform.index", view="company", organization_id=organization_id))
 
 
-@platform_bp.route("/settings/domain", methods=["GET", "POST"])
+@platform_bp.route("/organizations/<int:organization_id>/site/upload", methods=["POST"])
+@global_admin_required
+def upload_site(organization_id):
+    organization = db.session.get(Organization, organization_id)
+    if not organization or not organization.ativo:
+        abort(404)
+    from app.services.tenant_site_service import get_or_create_site
+    site = get_or_create_site(organization.id)
+    try:
+        result = publish_bundle(site, request.files.get("site_bundle"))
+        registrar(
+            "edicao", "site_publico", "Site publicado pelo super admin",
+            f"files={result['files']};size_bytes={result['size_bytes']};version={result['version']}",
+            organization_id=organization.id,
+        )
+        db.session.commit()
+        flash("Site da empresa publicado com sucesso.", "success")
+    except SiteBundleError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    except Exception:
+        db.session.rollback()
+        flash("Nao foi possivel publicar o site desta empresa.", "error")
+    return redirect(url_for("platform.index", view="company", organization_id=organization.id))
+
+
+@platform_bp.route("/organizations/<int:organization_id>/site/unpublish", methods=["POST"])
+@global_admin_required
+def unpublish_site(organization_id):
+    from app.models import Organization
+    from app.services.tenant_site_service import get_or_create_site
+    organization = db.session.get(Organization, organization_id)
+    if not organization:
+        abort(404)
+    site = get_or_create_site(organization.id)
+    had_bundle = unpublish_bundle(site)
+    registrar("exclusao", "site_publico", "Site despublicado pelo super admin", f"had_bundle={had_bundle}", organization_id=organization.id)
+    db.session.commit()
+    flash("Site da empresa despublicado.", "success")
+    return redirect(url_for("platform.index", view="company", organization_id=organization.id))
+
+
+@platform_bp.route("/settings/domain", methods=["GET", "POST"], strict_slashes=False)
 @global_admin_required
 def update_base_domain():
     if request.method == "GET":
@@ -132,6 +246,7 @@ def update_base_domain():
         return redirect(url_for("platform.index", view="domains"))
     PlatformSetting.set_value("tenant_base_domain", value)
     current_app.config["TENANT_BASE_DOMAIN"] = value
+    registrar("edicao", "dns", "Dominio base da plataforma alterado", "base_domain_updated=true", organization_id=None)
     db.session.commit()
     flash(f"Domínio base atualizado para {value}.", "success")
     return redirect(url_for("platform.index", view="domains"))
@@ -143,6 +258,42 @@ def create_plan():
     plan = create_plan_from_form(request.form)
     registrar("criacao", "platform", f"Plano #{plan.id} criado", f"code={plan.code}")
     db.session.commit()
+    return redirect(url_for("platform.index", view="plans"))
+
+
+@platform_bp.route("/plans/<int:plan_id>", methods=["POST"])
+@global_admin_required
+def update_plan(plan_id):
+    try:
+        plan = update_plan_from_form(plan_id, request.form)
+    except LookupError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        registrar("edicao", "platform", f"Plano #{plan.id} atualizado", f"code={plan.code};active={plan.ativo}")
+        db.session.commit()
+        flash("Plano atualizado com sucesso.", "success")
+    return redirect(url_for("platform.index", view="plans"))
+
+
+@platform_bp.route("/plans/<int:plan_id>/delete", methods=["POST"])
+@global_admin_required
+def delete_plan(plan_id):
+    try:
+        plan = delete_plan_by_id(plan_id)
+    except LookupError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        registrar("exclusao", "platform", f"Plano #{plan.id} excluído", f"code={plan.code}")
+        db.session.commit()
+        flash("Plano excluído com sucesso.", "success")
     return redirect(url_for("platform.index", view="plans"))
 
 

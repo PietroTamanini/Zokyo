@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Criar empresa - {{ APP_NAME }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
+</head>
+<body class="auth-page">
+  <main class="login-shell register-shell">
+    <aside class="login-brand-panel" aria-label="{{ APP_NAME }}">
+      <div class="login-brand-mark"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
+      <div class="login-brand-copy">
+        <p class="login-eyebrow">Cadastro</p>
+        <h2>Comece sua operação</h2>
+        <p>Crie a empresa e o primeiro administrador do seu espaço.</p>
+      </div>
+      <div class="login-brand-footer"><span class="login-status-dot" aria-hidden="true"></span> Cadastro seguro</div>
+    </aside>
+    <section class="auth-box login-form-panel register-form-panel" aria-labelledby="register-title">
+      <div class="auth-head">
+        <div class="auth-brand-lockup login-mobile-brand"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
+        <p class="login-eyebrow">Nova empresa</p>
+        <h1 id="register-title">Criar sua empresa</h1>
+        <p class="auth-subtitle-lg">Você poderá acessar pelo subdomínio gerado e configurar um domínio próprio depois.</p>
+      </div>
+      {% include 'partials/_flash.html' %}
+      <form method="POST" autocomplete="off" data-validate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group"><label for="company-name">Nome da empresa</label><input id="company-name" name="name" value="{{ form.get('name', '') if form else '' }}" required maxlength="200"></div>
+        <div class="form-group"><label for="company-slug">Subdomínio desejado (opcional)</label><input id="company-slug" name="slug" value="{{ form.get('slug', '') if form else '' }}" maxlength="80" placeholder="minha-assistencia"></div>
+        <div class="form-group"><label for="company-domain">Domínio próprio (opcional)</label><input id="company-domain" name="custom_domain" value="{{ form.get('custom_domain', '') if form else '' }}" maxlength="255" placeholder="painel.minhaempresa.com.br"></div>
+        <div class="form-group"><label for="owner-name">Seu nome</label><input id="owner-name" name="owner_name" value="{{ form.get('owner_name', '') if form else '' }}" required minlength="2" maxlength="120"></div>
+        <div class="form-group"><label for="owner-email">E-mail</label><input id="owner-email" type="email" name="owner_email" value="{{ form.get('owner_email', '') if form else '' }}" required autocomplete="email"></div>
+        <div class="form-group"><label for="owner-password">Senha</label><input id="owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" required minlength="8" autocomplete="new-password">{% include 'partials/_password_requirements.html' %}</div>
+        <div class="form-group"><label for="confirm-owner-password">Confirmar senha</label><input id="confirm-owner-password" type="password" name="confirm_owner_password" required minlength="8" data-match="#owner-password" autocomplete="new-password"></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Criar empresa</button>
+      </form>
+      <div class="login-form-meta"><a href="{{ url_for('auth.login_page') }}">Já tenho uma conta</a><span>{{ APP_DOMAIN }}</span></div>
+    </section>
+  </main>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/validators.js') }}"></script>
+  <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/password-policy.js', v='20261105-1') }}"></script>
+</body>
+</html>

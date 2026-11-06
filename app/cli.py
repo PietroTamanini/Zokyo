@@ -105,11 +105,12 @@ def register_cli(app):
     @app.cli.command("create-organization")
     @click.option("--name", required=True, help="Nome da organizacao.")
     @click.option("--slug", required=True, help="Identificador URL em minusculas.")
+    @click.option("--custom-domain", default="", help="Dominio proprio opcional da empresa.")
     @click.option("--admin-name", required=True, help="Nome do administrador inicial.")
     @click.option("--admin-email", required=True, help="E-mail do administrador inicial.")
     @click.password_option("--password", confirmation_prompt=True)
-    def create_organization(name, slug, admin_name, admin_email, password):
-        """Provisiona uma organizacao, subdominio e primeiro administrador."""
+    def create_organization(name, slug, custom_domain, admin_name, admin_email, password):
+        """Provisiona uma organizacao, dominios e primeiro administrador."""
         try:
             organization, _admin = provision_tenant(
                 name=name,
@@ -118,6 +119,7 @@ def register_cli(app):
                 owner_email=admin_email,
                 owner_password=password,
                 provision_dns=False,
+                custom_domain=custom_domain,
             )
             db.session.commit()
         except TenantProvisioningError as exc:

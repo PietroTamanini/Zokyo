@@ -24,6 +24,28 @@ input.input-error, select.input-error, textarea.input-error {
 .input-hint.error { color: var(--red); }
 .field-error { display:block; color:var(--red); font-size:11px; margin-top:3px; font-weight:500; }
 .password-strength { font-size:11px; font-weight:600; margin-top:3px; }
+.password-policy { margin-top:9px; padding:12px 13px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--text-2); }
+.password-policy-heading { display:flex; align-items:center; gap:9px; }
+.password-policy-lock { display:grid; place-items:center; width:28px; height:28px; border-radius:7px; background:var(--blue-glow); color:var(--blue-text); }
+.password-policy-lock .ui-icon { width:15px; height:15px; }
+.password-policy-heading strong, .password-policy-heading span { display:block; }
+.password-policy-heading strong { color:var(--text); font-size:12px; }
+.password-policy-heading [data-password-score] { margin-top:2px; color:var(--text-3); font-size:11px; }
+.password-policy-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:6px 14px; margin:12px 0 0; padding:0; list-style:none; }
+.password-policy-list li { display:flex; align-items:center; gap:7px; min-width:0; color:var(--text-3); font-size:11px; line-height:1.3; transition:color .16s; }
+.password-rule-icon { display:grid; place-items:center; width:15px; height:15px; flex:0 0 15px; color:var(--text-3); }
+.password-rule-icon svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.password-rule-ok { display:none; }
+.password-policy-list li.is-valid { color:var(--green); }
+.password-policy-list li.is-valid .password-rule-pending { display:none; }
+.password-policy-list li.is-valid .password-rule-ok { display:block; }
+.password-policy-list li.is-invalid { color:var(--red); }
+.password-policy-list li.is-invalid .password-rule-pending { color:var(--red); }
+.password-policy[data-strength="6"] { border-color:color-mix(in srgb, var(--green) 55%, var(--border)); }
+.password-policy[data-strength="6"] [data-password-score] { color:var(--green); }
+.password-policy[data-strength="1"], .password-policy[data-strength="2"] { border-color:color-mix(in srgb, var(--red) 45%, var(--border)); }
+.password-policy[data-strength="1"] [data-password-score], .password-policy[data-strength="2"] [data-password-score] { color:var(--red); }
+@media (max-width:520px) { .password-policy-list { grid-template-columns:1fr; } }
 .strength-1 { color:#ef4444; } .strength-2 { color:#f97316; } .strength-3 { color:#ca8a04; }
 .strength-4 { color:#22c55e; } .strength-5 { color:#16a34a; }
 .field-autofilled { background:var(--green-g) !important; transition:background .4s; }

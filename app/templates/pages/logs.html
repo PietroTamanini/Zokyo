@@ -7,7 +7,7 @@
 </div>
 
 <div class="card filter-card mb20">
-  <div class="card-header"><span class="card-title">🔍 Filtros</span></div>
+  <div class="card-header"><span class="card-title"><svg class="ui-icon" aria-hidden="true"><use href="#i-search"></use></svg> Filtros</span></div>
   <div class="card-body">
     <form method="GET">
       <div class="form-row fr3 items-end">
@@ -39,6 +39,13 @@
           <a href="{{ url_for('logs.index') }}" class="btn btn-ghost">Limpar</a>
         </div>
       </div>
+      {% if organizations is defined %}
+      <div class="form-row fr3 items-end">
+        <div class="form-group"><label>Empresa</label>
+          <select name="organization_id"><option value="">Todas</option>{% for org in organizations %}<option value="{{ org.id }}" {% if filtros.organization_id|string == org.id|string %}selected{% endif %}>{{ org.nome }}</option>{% endfor %}</select>
+        </div>
+      </div>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -52,6 +59,7 @@
       <thead><tr>
         <th>Data/Hora</th>
         <th>Usuário</th>
+        {% if organizations is defined %}<th>Empresa</th>{% endif %}
         <th>Tipo</th>
         <th>Módulo</th>
         <th>Operação</th>
@@ -63,13 +71,14 @@
         <tr class="tr-static">
           <td class="td-mono">{{ ev.criado_em | fmtdata }}<br><span class="td-note">{{ ev.criado_em.strftime('%H:%M:%S') if ev.criado_em else '' }}</span></td>
           <td class="td-strong">{{ ev.usuario_nome or '—' }}</td>
+          {% if organizations is defined %}<td class="td-muted">{{ organizations|selectattr('id', 'equalto', ev.organization_id)|map(attribute='nome')|first or ('Sistema' if not ev.organization_id else '#' ~ ev.organization_id) }}</td>{% endif %}
           <td><span class="badge {{ tipo_cls }}"><span class="dot"></span>{{ ev.tipo }}</span></td>
           <td><span class="chip">{{ ev.modulo or '—' }}</span></td>
           <td>{{ ev.operacao or '—' }}</td>
           <td class="td-muted">{{ ev.descricao or '' }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="td-empty">Nenhum evento encontrado.</td></tr>
+        <tr><td colspan="{{ 7 if organizations is defined else 6 }}" class="td-empty">Nenhum evento encontrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>

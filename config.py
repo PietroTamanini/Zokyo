@@ -59,6 +59,10 @@ class Config:
 
     # ── PDF ────────────────────────────────────────────────────────────────
     REPORTS_UPLOAD_FOLDER = os.environ.get("REPORTS_UPLOAD_FOLDER", "").strip() or None
+    SITES_UPLOAD_FOLDER = os.environ.get("SITES_UPLOAD_FOLDER", "").strip() or None
+    SITES_MAX_BUNDLE_MB = int(os.environ.get("SITES_MAX_BUNDLE_MB", "50"))
+    SITES_MAX_FILES = int(os.environ.get("SITES_MAX_FILES", "2000"))
+    MAX_CONTENT_LENGTH = (SITES_MAX_BUNDLE_MB + 1) * 1024 * 1024
     REPORTS_PUBLIC_VERIFICATION = os.environ.get("REPORTS_PUBLIC_VERIFICATION", "true").lower() in ("1", "true", "yes", "on")
     S3_BUCKET = os.environ.get("S3_BUCKET", "").strip() or None
     S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "").strip() or None

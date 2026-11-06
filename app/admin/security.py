@@ -38,7 +38,7 @@ def global_admin_required(function):
                 execution_options={"include_all_tenants": True},
             )
         if not user:
-            return redirect(url_for("auth.login_page"))
+            return redirect(url_for("auth.platform_login_page"))
         if not can_manage_platform(user):
             abort(403)
         return function(*args, **kwargs)

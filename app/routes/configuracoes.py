@@ -272,7 +272,7 @@ def whatsapp_teste():
     numero = data.get("numero", "").strip()
     if not numero:
         return jsonify({"erro": "número é obrigatório"}), 400
-    resultado = enviar_whatsapp(numero, "✅ Teste Zokyo — WhatsApp funcionando!")
+    resultado = enviar_whatsapp(numero, "Teste Zokyo — WhatsApp funcionando!")
     return jsonify(resultado)
 
 

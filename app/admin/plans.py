@@ -27,6 +27,49 @@ def create_plan_from_form(form) -> Plan:
     return plan
 
 
+def _plan_values_from_form(form, current: Plan | None = None) -> tuple[str, str, float, dict, bool]:
+    code = sanitize_text(form.get("code"), max_length=50).lower().replace(" ", "-")
+    name = sanitize_text(form.get("nome"), max_length=100)
+    query = Plan.query.filter_by(code=code)
+    if current is not None:
+        query = query.filter(Plan.id != current.id)
+    if not code or not name or query.first():
+        raise ValueError("Informe um código e um nome únicos para o plano.")
+    limits = {}
+    for key in ("max_users", "max_clients", "max_open_orders", "max_storage_mb"):
+        value = form.get(key, type=int)
+        if value is not None and value >= 0:
+            limits[key] = value
+    price = form.get("preco_mensal", type=float)
+    if price is None or price < 0:
+        raise ValueError("Informe uma mensalidade válida.")
+    active = form.get("ativo") == "on"
+    return code, name, price, limits, active
+
+
+def update_plan_from_form(plan_id: int, form) -> Plan:
+    plan = db.session.get(Plan, plan_id)
+    if not plan:
+        raise LookupError("Plano não encontrado.")
+    code, name, price, limits, active = _plan_values_from_form(form, plan)
+    plan.code = code
+    plan.nome = name
+    plan.preco_mensal = price
+    plan.limites = limits
+    plan.ativo = active
+    return plan
+
+
+def delete_plan_by_id(plan_id: int) -> Plan:
+    plan = db.session.get(Plan, plan_id)
+    if not plan:
+        raise LookupError("Plano não encontrado.")
+    if OrganizationSubscription.query.filter_by(plan_id=plan.id).first():
+        raise ValueError("Este plano está vinculado a uma assinatura e não pode ser excluído. Desative-o para impedir novas assinaturas.")
+    db.session.delete(plan)
+    return plan
+
+
 def assign_subscription_from_form(form) -> OrganizationSubscription:
     organization_id = form.get("organization_id", type=int)
     plan_id = form.get("plan_id", type=int)

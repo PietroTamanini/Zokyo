@@ -1,104 +1,121 @@
 {% extends 'base.html' %}
 {% set editando = transacao is not none %}
-{% set page_title = titulo or ('Editar lançamento' if editando else 'Receber ou pagar') %}
+{% set page_title = titulo or ('Editar lançamento' if editando else 'Nova venda') %}
 {% block title %}{{ page_title }} - Zokyo{% endblock %}
 {% block breadcrumb %}{{ page_title }}{% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+  .sale-form-page { max-width: 1180px; margin: 0 auto; }
+  .sale-form-header { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; margin-bottom:24px; }
+  .sale-kicker { display:flex; align-items:center; gap:8px; color:var(--muted,#64748b); font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-bottom:8px; }
+  .sale-kicker .ui-icon { width:16px; height:16px; color:var(--blue); }
+  .sale-form-header h1 { margin:0; color:var(--ink,#172033); font-size:clamp(26px,3vw,36px); letter-spacing:-.04em; }
+  .sale-form-header p { max-width:650px; margin:8px 0 0; color:var(--muted,#64748b); line-height:1.55; }
+  .sale-form-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:20px; align-items:start; }
+  .sale-card { background:var(--surface,#fff); border:1px solid var(--line,#dbe3ee); border-radius:16px; box-shadow:0 10px 30px rgba(23,32,51,.06); }
+  .sale-card-head { padding:20px 24px 16px; border-bottom:1px solid var(--line,#dbe3ee); }
+  .sale-card-head h2 { margin:0; font-size:16px; letter-spacing:-.01em; }
+  .sale-card-head p { margin:5px 0 0; color:var(--muted,#64748b); font-size:13px; }
+  .sale-card-body { padding:24px; }
+  .sale-form .form-group { margin-bottom:18px; }
+  .sale-form label { display:flex; align-items:center; gap:6px; margin-bottom:7px; color:var(--ink,#172033); font-size:13px; font-weight:700; }
+  .sale-form .field-hint { color:var(--muted,#64748b); font-size:12px; font-weight:400; }
+  .sale-form input, .sale-form select { min-height:44px; }
+  .sale-form .form-row { display:grid; gap:16px; }
+  .sale-form .fr2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .sale-section-label { display:flex; align-items:center; gap:10px; margin:26px 0 16px; color:var(--ink,#172033); font-size:13px; font-weight:800; }
+  .sale-section-label:after { content:""; height:1px; flex:1; background:var(--line,#dbe3ee); }
+  .sale-actions { display:flex; justify-content:flex-end; align-items:center; gap:10px; padding-top:8px; }
+  .sale-actions .btn-primary { min-width:140px; }
+  .sale-summary { position:sticky; top:20px; overflow:hidden; }
+  .sale-summary .summary-amount { padding:22px 20px; background:#f5f8fc; border-bottom:1px solid var(--line,#dbe3ee); }
+  .summary-label { color:var(--muted,#64748b); font-size:12px; font-weight:700; }
+  .summary-total { display:block; margin-top:5px; color:var(--ink,#172033); font-size:30px; font-weight:800; letter-spacing:-.05em; }
+  .summary-lines { padding:18px 20px 20px; }
+  .summary-line { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line,#e7edf5); font-size:13px; }
+  .summary-line:last-of-type { border-bottom:0; }
+  .summary-line span:first-child { color:var(--muted,#64748b); }
+  .summary-line strong { color:var(--ink,#172033); text-align:right; }
+  .sale-tip { display:flex; gap:10px; margin-top:16px; padding:13px 14px; border:1px solid #cfe0f8; border-radius:10px; background:#f5f9ff; color:#315679; font-size:12px; line-height:1.5; }
+  .sale-tip .ui-icon { flex:0 0 16px; margin-top:1px; color:var(--blue); }
+  @media (max-width:900px) { .sale-form-layout { grid-template-columns:1fr; } .sale-summary { position:static; order:-1; } }
+  @media (max-width:620px) { .sale-form-header { display:block; } .sale-form .fr2 { grid-template-columns:1fr; } .sale-card-body, .sale-card-head { padding:18px; } .sale-actions { flex-direction:column-reverse; align-items:stretch; } .sale-actions .btn { width:100%; } }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="zokyo-widget">
-  <div class="widget-title">
-    <span class="widget-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
-    <h5>{{ page_title }}</h5>
-  </div>
-  <div class="card">
-    <div class="card-body">
-      <form method="POST" action="{{ action_url }}" class="zokyo-form">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <div class="form-row fr2">
-          <div class="form-group">
-            <label>Tipo *</label>
-            {% set tipo_atual = transacao.tipo if editando else tipo_padrao %}
-            <select name="tipo" required>
-              <option value="receita" {{ 'selected' if tipo_atual == 'receita' else '' }}>Receita</option>
-              <option value="despesa" {{ 'selected' if tipo_atual == 'despesa' else '' }}>Despesa</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Categoria</label>
-            {% set categoria_atual = transacao.categoria if editando else 'servico' %}
-            <select name="categoria">
-              {% for value, label in [('servico','Serviço'),('peca','Peça'),('aluguel','Aluguel'),('salario','Salário'),('fornecedor','Fornecedor'),('imposto','Imposto'),('outros','Outros')] %}
-              <option value="{{ value }}" {{ 'selected' if categoria_atual == value else '' }}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Descrição *</label>
-          <input type="text" name="descricao" required autofocus value="{{ transacao.descricao if editando else '' }}" placeholder="Descrição do lançamento">
-        </div>
-
-        <div class="form-row fr2">
-          <div class="form-group">
-            <label>Valor (R$) *</label>
-            <input type="number" name="valor" step="0.01" min="0" required value="{{ transacao.valor if editando else '' }}">
-          </div>
-          <div class="form-group">
-            <label>Vencimento</label>
-            <input type="date" name="data_vencimento" value="{{ transacao.data_vencimento.strftime('%Y-%m-%d') if editando and transacao.data_vencimento else '' }}">
-          </div>
-        </div>
-
-        <div class="form-row fr2">
-          <div class="form-group">
-            <label>Status</label>
-            {% set status_atual = transacao.status if editando else 'pendente' %}
-            <select name="status">
-              <option value="pendente" {{ 'selected' if status_atual == 'pendente' else '' }}>Pendente</option>
-              <option value="pago" {{ 'selected' if status_atual == 'pago' else '' }}>Pago</option>
-              {% if editando %}<option value="cancelado" {{ 'selected' if status_atual == 'cancelado' else '' }}>Cancelado</option>{% endif %}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Forma de pagamento</label>
-            {% set forma_atual = transacao.forma_pagamento if editando else '' %}
-            <select name="forma_pagamento">
-              <option value="">Selecione</option>
-              {% for value, label in [('Dinheiro','Dinheiro'),('PIX','PIX'),('Cartao Debito','Cartão de débito'),('Cartao Credito','Cartão de crédito'),('Transferencia','Transferência')] %}
-              <option value="{{ value }}" {{ 'selected' if forma_atual == value else '' }}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        {% if not editando %}
-        <div class="form-row fr2">
-          <div class="form-group">
-            <label>Parcelas</label>
-            <input type="number" name="parcelas" value="1" min="1" max="60">
-          </div>
-          <div class="form-group">
-            <label>Recorrência</label>
-            <select name="recorrencia">
-              <option value="">Não recorrente</option>
-              <option value="mensal">Mensal</option>
-            </select>
-          </div>
-        </div>
-        {% endif %}
-
-        <div class="form-group">
-          <label>Comissão %</label>
-          <input type="number" name="comissao_percentual" value="{{ transacao.comissao_percentual if editando else '0' }}" min="0" max="100" step="0.01">
-        </div>
-
-        <div class="modal-actions">
-          <a class="btn btn-ghost" href="{{ voltar_url or url_for('pages.financeiro') }}">Cancelar</a>
-          <button type="submit" class="btn btn-primary">Salvar</button>
-        </div>
-      </form>
+<main class="sale-form-page">
+  <header class="sale-form-header">
+    <div>
+      <div class="sale-kicker"><svg class="ui-icon" aria-hidden="true"><use href="#i-cart"></use></svg> Vendas</div>
+      <h1>{{ page_title }}</h1>
+      <p>{% if editando %}Atualize os dados desta venda e mantenha o histórico financeiro organizado.{% else %}Registre uma venda direta em poucos passos. Use este fluxo quando não houver necessidade de abrir uma ordem de serviço.{% endif %}</p>
     </div>
+    <a class="btn btn-ghost" href="{{ voltar_url or url_for('pages.financeiro') }}">Voltar para vendas</a>
+  </header>
+
+  <div class="sale-form-layout">
+    <section class="sale-card" aria-labelledby="sale-details-title">
+      <div class="sale-card-head"><h2 id="sale-details-title">Dados da venda</h2><p>Preencha os campos essenciais e confira o resumo antes de salvar.</p></div>
+      <div class="sale-card-body">
+        <form method="POST" action="{{ action_url }}" class="sale-form" id="sale-form">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          {% set tipo_atual = transacao.tipo if editando else tipo_padrao %}
+          {% set categoria_atual = transacao.categoria if editando else 'servico' %}
+          <div class="form-row fr2">
+            <div class="form-group"><label for="sale-type">Tipo <span class="field-hint">obrigatório</span></label><select id="sale-type" name="tipo" required><option value="receita" {{ 'selected' if tipo_atual == 'receita' else '' }}>Receita</option><option value="despesa" {{ 'selected' if tipo_atual == 'despesa' else '' }}>Despesa</option></select></div>
+            <div class="form-group"><label for="sale-category">Categoria</label><select id="sale-category" name="categoria">{% for value, label in [('servico','Serviço'),('peca','Peça'),('aluguel','Aluguel'),('salario','Salário'),('fornecedor','Fornecedor'),('imposto','Imposto'),('outros','Outros')] %}<option value="{{ value }}" {{ 'selected' if categoria_atual == value else '' }}>{{ label }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="form-group"><label for="sale-description">Descrição <span class="field-hint">obrigatória</span></label><input id="sale-description" type="text" name="descricao" required maxlength="300" autofocus value="{{ transacao.descricao if editando else '' }}" placeholder="Ex.: Venda de tela para notebook Dell"></div>
+          <div class="form-row fr2">
+            <div class="form-group"><label for="sale-value">Valor total <span class="field-hint">em reais</span></label><input id="sale-value" type="number" name="valor" step="0.01" min="0" max="9999999.99" required inputmode="decimal" value="{{ transacao.valor if editando else '' }}" placeholder="0,00"></div>
+            <div class="form-group"><label for="sale-due">Vencimento</label><input id="sale-due" type="date" name="data_vencimento" value="{{ transacao.data_vencimento.strftime('%Y-%m-%d') if editando and transacao.data_vencimento else '' }}"></div>
+          </div>
+          <div class="sale-section-label">Recebimento</div>
+          <div class="form-row fr2">
+            <div class="form-group"><label for="sale-status">Status</label>{% set status_atual = transacao.status if editando else 'pendente' %}<select id="sale-status" name="status"><option value="pendente" {{ 'selected' if status_atual == 'pendente' else '' }}>Pendente</option><option value="pago" {{ 'selected' if status_atual == 'pago' else '' }}>Pago</option>{% if editando %}<option value="cancelado" {{ 'selected' if status_atual == 'cancelado' else '' }}>Cancelado</option>{% endif %}</select></div>
+            <div class="form-group"><label for="sale-payment">Forma de pagamento</label>{% set forma_atual = transacao.forma_pagamento if editando else '' %}<select id="sale-payment" name="forma_pagamento"><option value="">Selecione</option>{% for value, label in [('Dinheiro','Dinheiro'),('PIX','PIX'),('Cartao Debito','Cartão de débito'),('Cartao Credito','Cartão de crédito'),('Transferencia','Transferência')] %}<option value="{{ value }}" {{ 'selected' if forma_atual == value else '' }}>{{ label }}</option>{% endfor %}</select></div>
+          </div>
+          {% if not editando %}
+          <div class="sale-section-label">Parcelamento</div>
+          <div class="form-row fr2"><div class="form-group"><label for="sale-installments">Parcelas</label><input id="sale-installments" type="number" name="parcelas" value="1" min="1" max="60" inputmode="numeric"></div><div class="form-group"><label for="sale-recurrence">Recorrência</label><select id="sale-recurrence" name="recorrencia"><option value="">Não recorrente</option><option value="mensal">Mensal</option></select></div></div>
+          {% endif %}
+          <div class="sale-section-label">Comissão</div>
+          <div class="form-group"><label for="sale-commission">Percentual de comissão <span class="field-hint">opcional</span></label><input id="sale-commission" type="number" name="comissao_percentual" value="{{ transacao.comissao_percentual if editando else '0' }}" min="0" max="100" step="0.01" inputmode="decimal" placeholder="0"></div>
+          <div class="sale-actions"><a class="btn btn-ghost" href="{{ voltar_url or url_for('pages.financeiro') }}">Cancelar</a><button type="submit" class="btn btn-primary">{{ 'Salvar alterações' if editando else 'Salvar venda' }}</button></div>
+        </form>
+      </div>
+    </section>
+    <aside class="sale-card sale-summary" aria-label="Resumo da venda">
+      <div class="summary-amount"><span class="summary-label">Total da venda</span><strong class="summary-total" id="sale-total">R$ 0,00</strong></div>
+      <div class="summary-lines"><div class="summary-line"><span>Tipo</span><strong id="summary-type">Receita</strong></div><div class="summary-line"><span>Status</span><strong id="summary-status">Pendente</strong></div><div class="summary-line"><span>Parcelas</span><strong id="summary-installments">1x</strong></div><div class="sale-tip"><svg class="ui-icon" aria-hidden="true"><use href="#i-help"></use></svg><span>Vendas pendentes continuam disponíveis para acompanhar o recebimento no financeiro.</span></div></div>
+    </aside>
   </div>
-</div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ csp_nonce }}">
+  (() => {
+    const value = document.getElementById('sale-value');
+    const total = document.getElementById('sale-total');
+    const type = document.getElementById('sale-type');
+    const status = document.getElementById('sale-status');
+    const installments = document.getElementById('sale-installments');
+    const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const refresh = () => {
+      const amount = Number.parseFloat(value?.value || '0');
+      if (total) total.textContent = money.format(Number.isFinite(amount) ? amount : 0);
+      const typeSummary = document.getElementById('summary-type');
+      const statusSummary = document.getElementById('summary-status');
+      const installmentsSummary = document.getElementById('summary-installments');
+      if (typeSummary) typeSummary.textContent = type?.selectedOptions[0]?.text || 'Receita';
+      if (statusSummary) statusSummary.textContent = status?.selectedOptions[0]?.text || 'Pendente';
+      if (installmentsSummary) installmentsSummary.textContent = `${installments?.value || 1}x`;
+    };
+    [value, type, status, installments].forEach((field) => field?.addEventListener('input', refresh));
+    refresh();
+  })();
+</script>
 {% endblock %}

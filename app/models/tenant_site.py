@@ -22,6 +22,13 @@ class TenantSite(db.Model):
         index=True,
     )
     site_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    # Publicacao de arquivos estaticos enviados pela empresa.
+    site_mode = db.Column(db.String(20), nullable=False, default="builder")
+    site_bundle_version = db.Column(db.String(64), nullable=True)
+    site_bundle_entrypoint = db.Column(db.String(255), nullable=False, default="index.html")
+    site_bundle_uploaded_at = db.Column(db.DateTime, nullable=True)
+    site_bundle_file_count = db.Column(db.Integer, nullable=True)
+    site_bundle_size_bytes = db.Column(db.BigInteger, nullable=True)
     # Identidade visual / hero
     site_title = db.Column(db.String(200), nullable=True)
     site_subtitle = db.Column(db.String(300), nullable=True)

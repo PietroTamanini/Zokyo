@@ -4,7 +4,7 @@ import json
 
 from app import create_app
 from app.extensions import db
-from app.models import BillingEvent, EventoLog, Organization, OrganizationSubscription, Plan, Usuario
+from app.models import BillingEvent, EventoLog, Organization, OrganizationSubscription, Plan, PlatformSetting, Usuario
 from app.services.billing import assert_limit, assert_write_allowed, ensure_trial_subscription, process_asaas_event
 from app.services.tenant_provisioning import provision_tenant
 
@@ -84,6 +84,29 @@ def test_painel_global_usa_allowlist_de_email(monkeypatch):
     assert client.get("/platform").status_code == 403
     monkeypatch.setenv("PLATFORM_ADMIN_EMAILS", "global@example.com")
     assert client.get("/platform").status_code == 200
+
+
+def test_admin_global_atualiza_dominio_base_pelo_endpoint_de_configuracao():
+    app, admin_id = make_app()
+    with app.app_context():
+        admin = db.session.get(Usuario, admin_id)
+        admin.organization_id = None
+        admin.is_platform_admin = True
+        db.session.commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["usuario_id"] = admin_id
+        session["nivel"] = "admin"
+        session["security_version"] = 0
+        session["_csrf_token"] = "csrf"
+    response = client.post(
+        "/platform/settings/domain/",
+        data={"_csrf_token": "csrf", "base_domain": "zokyo.localhost"},
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/platform?view=domains")
+    with app.app_context():
+        assert PlatformSetting.get_value("tenant_base_domain") == "zokyo.localhost"
 
 
 def test_painel_global_aceita_platform_admin_sem_allowlist(monkeypatch):

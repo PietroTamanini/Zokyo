@@ -14,10 +14,10 @@ from app.utils.auth import nivel_required, page_nivel_required
 logs_bp = Blueprint("logs", __name__)
 
 
-def _build_query(data_ini, data_fim, usuario_id, tipo, modulo):
+def _build_query(data_ini, data_fim, usuario_id, tipo, modulo, organization_id="", include_all_tenants=False):
     """Constrói query de logs com os filtros informados."""
     from datetime import datetime
-    q = EventoLog.query
+    q = EventoLog.query.execution_options(include_all_tenants=True) if include_all_tenants else EventoLog.query
     if data_ini:
         try:
             q = q.filter(EventoLog.criado_em >= datetime.fromisoformat(data_ini))
@@ -38,6 +38,11 @@ def _build_query(data_ini, data_fim, usuario_id, tipo, modulo):
         q = q.filter_by(tipo=tipo)
     if modulo:
         q = q.filter_by(modulo=modulo)
+    if organization_id:
+        try:
+            q = q.filter_by(organization_id=int(organization_id))
+        except (ValueError, TypeError):
+            pass
     return q
 
 

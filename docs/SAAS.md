@@ -39,6 +39,22 @@ python -m flask --app wsgi:app create-organization \
   --admin-email admin@example.com
 ```
 
+O `--slug` define o subdomínio gerenciado pelo Zokyo. Um domínio próprio pode
+ser informado adicionalmente:
+
+```bash
+python -m flask --app wsgi:app create-organization \
+  --name "Empresa Exemplo" \
+  --slug empresa-exemplo \
+  --custom-domain painel.empresa.com.br \
+  --admin-name "Administrador" \
+  --admin-email admin@example.com
+```
+
+Os dois endereços continuam válidos: `empresa-exemplo.<TENANT_BASE_DOMAIN>` e
+`painel.empresa.com.br`. O DNS do domínio próprio é configurado pelo cliente;
+o subdomínio da plataforma usa o DNS configurado em `TENANT_DNS_MODE`.
+
 Depois das migracoes, mantenha os planos globais atualizados:
 
 ```bash

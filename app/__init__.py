@@ -100,6 +100,7 @@ def create_app(config_name="default"):
 
         from app.admin.security import can_manage_platform
         from app.models import Configuracao, Usuario
+        from app.utils.permissions import has_permission, permissions_for
         usuario = None
         if "usuario_id" in _s:
             try:
@@ -120,6 +121,11 @@ def create_app(config_name="default"):
             cfg = None
         nivel = _s.get("nivel", "")
         ep    = request.endpoint or ""
+        user_permissions = permissions_for(usuario)
+
+        def can(permission):
+            return has_permission(usuario, permission)
+
         return dict(
             current_user=usuario,
             active=ep,
@@ -128,10 +134,13 @@ def create_app(config_name="default"):
             is_admin=(nivel == "admin"),
             is_financeiro=(nivel in ("admin", "financeiro")),
             can_manage_platform=can_manage_platform(usuario),
+            can_permission=can,
+            user_permissions=user_permissions,
             platform_workspace=ep in {
                 "platform.index", "platform.create_organization", "platform.update_organization",
                 "platform.create_plan", "platform.create_tenant_admin", "platform.sync_dns",
                 "platform.reset_tenant_admin_password", "platform.assign_subscription",
+                "platform.dashboard", "platform.companies", "platform.subscriptions", "platform.audit",
             } or bool(usuario and usuario.is_platform_admin and not usuario.organization_id),
         )
 
@@ -296,7 +305,7 @@ def create_app(config_name="default"):
         # Pula para rotas que não precisam de usuário carregado
         ep = request.endpoint or ""
         if ep.startswith("static") or ep in (
-            "auth.login_page", "auth.login_post",
+            "auth.login_page", "auth.login_post", "auth.platform_login_page", "auth.platform_login_post",
             "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
             "auth.logout",
         ):
@@ -398,8 +407,8 @@ def create_app(config_name="default"):
         skip = (
             (request.endpoint or "").startswith("static")
             or request.endpoint in (
-                "auth.primeiro_acesso_page", "auth.primeiro_acesso_post",
-                "auth.login_page", "auth.login_post",
+                "auth.primeiro_acesso_page", "auth.primeiro_acesso_post", "auth.register_page",
+                "auth.login_page", "auth.login_post", "auth.platform_login_page", "auth.platform_login_post",
                 "auth.recuperar_senha", "auth.redefinir_senha",
                 "usuarios.aceitar_convite", "portal.publico", "laudos.verificar",
                 "client_api.consulta_os_publica",
@@ -429,6 +438,8 @@ def create_app(config_name="default"):
         if endpoint.startswith(("static", "platform.")) or endpoint in {
             "auth.login_page",
             "auth.login_post",
+            "auth.platform_login_page",
+            "auth.platform_login_post",
             "auth.logout",
             "auth.two_factor_challenge",
             "auth.two_factor_setup",

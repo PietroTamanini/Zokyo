@@ -99,12 +99,12 @@ def mensagem_os_pronta(os) -> str:
         cfg = None
 
     return (
-        f"Olá, *{cliente_nome}*! 👋\n\n"
-        f"Seu aparelho está *pronto* para retirada! ✅\n\n"
-        f"📋 OS *#{codigo_os}*\n"
-        f"📱 {aparelho}\n"
-        f"🔧 {solucao}\n"
-        f"💰 Total: *R$ {total:.2f}*\n\n"
+        f"Olá, *{cliente_nome}*!\n\n"
+        f"Seu aparelho está *pronto* para retirada.\n\n"
+        f"OS *#{codigo_os}*\n"
+        f"Aparelho: {aparelho}\n"
+        f"Serviço: {solucao}\n"
+        f"Total: *R$ {total:.2f}*\n\n"
         f"*{cfg.nome_empresa if cfg else 'Zokyo Platform'} — Joinville SC*\n"
         f"Seg–Sex 9h–18h | Sáb 9h–13h"
     )

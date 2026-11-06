@@ -8,7 +8,7 @@
     <div>
       <div class="admin-eyebrow">Admin global</div>
       <h1 class="page-title">{{ org.nome if admin_view == 'company' else titles[admin_view] }}</h1>
-      <p class="page-sub">{% if admin_view == 'overview' %}{{ summary.organizations }} empresas &middot; {{ summary.active_subscriptions }} assinaturas em dia{% elif admin_view == 'organizations' %}{{ result_count }} empresas{% elif admin_view == 'domains' %}{{ base_domain }}{% elif admin_view == 'plans' %}{{ plans|length }} planos cadastrados{% elif admin_view == 'company' %}{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}{% endif %}</p>
+      <p class="page-sub">{% if admin_view == 'overview' %}{{ summary.organizations }} empresas &middot; {{ summary.active_subscriptions }} assinaturas em dia{% elif admin_view == 'organizations' %}{{ result_count }} empresas{% elif admin_view == 'domains' %}{{ base_domain }}{% elif admin_view == 'plans' %}{{ plans|length }} planos cadastrados &middot; {{ plans|selectattr('ativo')|list|length }} ativos{% elif admin_view == 'company' %}{{ org.custom_domain or (org.slug ~ '.' ~ base_domain) }}{% endif %}</p>
     </div>
     <div class="admin-header-actions">
       {% if admin_view in ['company', 'new-company'] %}

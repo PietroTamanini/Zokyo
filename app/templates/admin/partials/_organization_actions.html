@@ -5,6 +5,11 @@
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="form-group"><label for="edit-company-name">Nome da empresa</label><input id="edit-company-name" name="name" value="{{ org.nome }}" required maxlength="200"></div>
       <div class="form-group">
+        <label for="edit-organization-domain">Domínio de acesso da empresa</label>
+        <input id="edit-organization-domain" name="organization_domain" value="{{ org.custom_domain if org.custom_domain and not org.custom_domain.endswith('.' ~ base_domain) else '' }}" maxlength="255" placeholder="painel.minhaempresa.com.br">
+        <div class="input-hint">Vazio mantém {{ org.subdomain }}.{{ base_domain }}. O domínio próprio precisa apontar para este servidor e usar HTTPS.</div>
+      </div>
+      <div class="form-group">
         <label for="edit-custom-domain">Domínio próprio da landing page</label>
         <input id="edit-custom-domain" name="custom_domain" value="{{ sites_by_org.get(org.id).custom_domain if sites_by_org.get(org.id) else '' }}" maxlength="255" placeholder="www.minhaempresa.com.br">
         <div class="input-hint">Aponte esse domínio para o servidor. Vazio usa {{ org.subdomain }}.{{ base_domain }}.</div>
@@ -44,11 +49,11 @@
     </div>
     <details class="admin-disclosure">
       <summary>Adicionar administrador</summary>
-      <form method="POST" action="{{ url_for('platform.create_tenant_admin', organization_id=org.id) }}" class="admin-form" autocomplete="off">
+      <form method="POST" action="{{ url_for('platform.create_tenant_admin', organization_id=org.id) }}" class="admin-form" autocomplete="off" data-validate>
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-group"><label for="new-owner-name">Nome completo</label><input id="new-owner-name" name="owner_name" required minlength="2" maxlength="120"></div>
         <div class="form-group"><label for="new-owner-email">E-mail</label><input id="new-owner-email" type="email" name="owner_email" required autocomplete="off"></div>
-        <div class="form-group"><label for="new-owner-password">Senha inicial</label><input id="new-owner-password" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"></div>
+        <div class="form-group"><label for="new-owner-password">Senha inicial</label><input id="new-owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar automaticamente.</small>{% include 'partials/_password_requirements.html' %}</div>
         <button class="btn btn-outline" type="submit">Adicionar administrador</button>
       </form>
     </details>
@@ -62,5 +67,17 @@
       <form method="POST" action="{{ url_for('platform.verify_site_domain', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit">Verificar domínio da landing</button></form>
       <form method="POST" action="{{ url_for('platform.sync_dns', organization_id=org.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Sincronizar DNS</button></form>
     </div>
+    <div class="admin-section-heading admin-domain-heading"><h2>Arquivos do site</h2><span class="muted-xs">{{ sites_by_org.get(org.id).site_bundle_file_count if sites_by_org.get(org.id) and sites_by_org.get(org.id).site_mode == 'upload' else 0 }} arquivos publicados</span></div>
+    <p class="input-hint">O super admin pode publicar ou retirar o site desta empresa. O ZIP deve conter <code>index.html</code> na raiz.</p>
+    <form method="POST" action="{{ url_for('platform.upload_site', organization_id=org.id) }}" enctype="multipart/form-data" class="admin-form" style="margin-top: 12px">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label for="platform-site-bundle">ZIP do site</label><input id="platform-site-bundle" type="file" name="site_bundle" accept=".zip,application/zip" required></div>
+      <button class="btn btn-primary" type="submit"><svg class="ui-icon" aria-hidden="true"><use href="#i-upload"></use></svg> Publicar site</button>
+    </form>
+    {% if sites_by_org.get(org.id) and sites_by_org.get(org.id).site_mode == 'upload' %}
+    <form method="POST" action="{{ url_for('platform.unpublish_site', organization_id=org.id) }}" style="margin-top: 10px" data-confirm="Despublicar o site desta empresa? O domínio passará a responder 404.">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit">Despublicar site</button>
+    </form>
+    {% endif %}
   </section>
 </div>

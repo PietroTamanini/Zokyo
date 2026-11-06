@@ -1,12 +1,57 @@
 ﻿{% extends "base.html" %}
-{% block title %}ConfiguraÃ§Ãµes â€” Zokyo{% endblock %}
-{% block breadcrumb %}ConfiguraÃ§Ãµes{% endblock %}
+{% block title %}Configurações — Zokyo{% endblock %}
+{% block breadcrumb %}Configurações{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ csp_nonce }}">
+  .settings-page { max-width: 1320px; }
+  .settings-hero { align-items: flex-end; margin-bottom: 20px; }
+  .settings-hero .page-title { letter-spacing: -0.4px; }
+  .settings-hero .page-sub { max-width: 680px; font-size: 14px; }
+  .settings-quick-links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .settings-quick-link { display: flex; align-items: center; gap: 11px; min-height: 68px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); text-decoration: none; transition: border-color .16s, background-color .16s; }
+  .settings-quick-link:hover { border-color: var(--blue); background: var(--blue-glow); }
+  .settings-quick-link .ui-icon { width: 18px; height: 18px; color: var(--blue); }
+  .settings-quick-link strong { display: block; font-size: 13px; font-weight: 600; }
+  .settings-quick-link span { display: block; margin-top: 2px; color: var(--text-3); font-size: 12px; }
+  .settings-tabs { display: flex; gap: 4px; padding: 5px; margin-bottom: 20px; overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); }
+  .settings-tabs .tab-btn { flex: 1 0 auto; min-height: 38px; padding: 8px 16px; border-radius: 6px; color: var(--text-2); font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .settings-tabs .tab-btn.active { color: var(--text); background: var(--surface); box-shadow: 0 1px 2px rgba(15,23,42,.08); }
+  .settings-card { overflow: visible; }
+  .settings-card .card-header { align-items: flex-start; padding: 20px 24px; }
+  .settings-card .card-title { font-size: 16px; }
+  .settings-card .card-header p { max-width: 680px; margin: 5px 0 0; color: var(--text-3); font-size: 13px; }
+  .settings-card .card-body { padding: 24px; }
+  .settings-group { padding-top: 20px; margin-top: 24px; border-top: 1px solid var(--border); }
+  .settings-group:first-child { padding-top: 0; margin-top: 0; border-top: 0; }
+  .settings-group-title { margin-bottom: 14px; color: var(--text); font-size: 14px; font-weight: 600; }
+  .settings-group-help { margin: -7px 0 16px; color: var(--text-3); font-size: 13px; }
+  .settings-save { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 20px; margin-top: 24px; border-top: 1px solid var(--border); }
+  .settings-save span { color: var(--text-3); font-size: 12px; }
+  .settings-option-column { min-width: 0; }
+  .settings-option-column > .form-group { height: 100%; }
+  .settings-wpp-intro { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; }
+  .settings-wpp-intro strong { color: var(--text); font-weight: 600; }
+  .settings-wpp-intro p { margin: 5px 0 0; color: var(--text-2); font-size: 13px; line-height: 1.55; }
+  .settings-wpp-card { margin-top: 20px; }
+  @media (max-width: 900px) { .settings-quick-links { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) { .settings-hero { align-items: flex-start; } .settings-hero .btn { width: 100%; justify-content: center; } .settings-quick-links { grid-template-columns: 1fr; } .settings-card .card-header, .settings-card .card-body { padding: 18px 16px; } .settings-wpp-intro { grid-template-columns: 1fr; } .settings-save { align-items: flex-start; flex-direction: column; } }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div><div class="page-title">ConfiguraÃ§Ãµes</div><div class="page-sub">Empresa, indicadores e comunicaÃ§Ã£o</div></div>
-  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">SeguranÃ§a da conta</a>
+<div class="settings-page">
+<div class="page-header settings-hero">
+  <div><div class="page-title">Configurações</div><div class="page-sub">Centralize a identidade da empresa, o fluxo de OS, os indicadores e os canais de comunicação.</div></div>
+  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Segurança da conta</a>
 </div>
+
+<nav class="settings-quick-links" aria-label="Configurações relacionadas">
+  <a class="settings-quick-link" href="{{ url_for('site_config.index') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg><span><strong>Meu site</strong><span>Domínio e publicação</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('usuarios.usuarios_page') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg><span><strong>Equipe e acessos</strong><span>Usuários e permissões</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('configuracoes.notificacoes') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-mail"></use></svg><span><strong>Mensagens</strong><span>Fila e notificações</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('privacy.retention') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-database"></use></svg><span><strong>Privacidade</strong><span>Retenção e LGPD</span></span></a>
+</nav>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
   {% for cat, msg in msgs %}
@@ -15,20 +60,22 @@
 {% endwith %}
 
 <!-- Tabs -->
-<div class="tabs">
-  <button type="button" class="tab-btn active" data-action="cfg-tab" data-tab="geral">Empresa</button>
-  <button type="button" class="tab-btn" data-action="cfg-tab" data-tab="os">OS</button>
-  <button type="button" class="tab-btn" data-action="cfg-tab" data-tab="dashboard">Dashboard e alertas</button>
-  <button type="button" class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">WhatsApp</button>
-</div>
+<nav class="tabs settings-tabs" role="tablist" aria-label="Seções de configuração">
+  <button id="tab-button-geral" type="button" class="tab-btn active" data-action="cfg-tab" data-tab="geral">Empresa</button>
+  <button id="tab-button-os" type="button" class="tab-btn" data-action="cfg-tab" data-tab="os">OS</button>
+  <button id="tab-button-dashboard" type="button" class="tab-btn" data-action="cfg-tab" data-tab="dashboard">Dashboard e alertas</button>
+  <button id="tab-button-whatsapp" type="button" class="tab-btn" data-action="cfg-tab" data-tab="whatsapp">WhatsApp</button>
+</nav>
 
 <!-- TAB: GERAL -->
-<div id="tab-geral" class="tab-content">
-  <div class="card">
-    <div class="card-header"><span class="card-title">Dados da Empresa</span></div>
+<div id="tab-geral" class="tab-content" role="tabpanel" aria-labelledby="tab-button-geral">
+  <div class="card settings-card">
+    <div class="card-header"><div><span class="card-title">Dados da empresa</span><p>Informações que aparecem no sistema, nos documentos e nos canais públicos.</p></div></div>
     <div class="card-body">
       <form method="POST" action="{{ url_for('configuracoes.salvar') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <div class="settings-group">
+        <div class="settings-group-title">Identidade e contato</div>
         <div class="form-row fr2">
           <div class="form-group"><label>Nome da Empresa <span class="req">*</span></label>
             <input type="text" name="nome_empresa" value="{{ cfg.nome_empresa or '' }}" required></div>
@@ -37,7 +84,7 @@
         </div>
         <div class="form-row fr2">
           <div class="form-group"><label>Texto abaixo do nome</label>
-            <input type="text" name="subtitulo_empresa" value="{{ cfg.subtitulo_empresa or '' }}" placeholder="AssistÃªncia tÃ©cnica e manutenÃ§Ã£o"></div>
+            <input type="text" name="subtitulo_empresa" value="{{ cfg.subtitulo_empresa or '' }}" placeholder="Assistência técnica e manutenção"></div>
           <div class="form-group"><label>Logo</label>
             <input type="url" name="logo_url" value="{{ cfg.logo_url or '' }}" placeholder="https://site.com/logo.png ou /static/img/logo.png"></div>
         </div>
@@ -48,15 +95,18 @@
             <input type="email" name="email" value="{{ cfg.email or '' }}"></div>
         </div>
         <div class="form-row fr3">
-          <div class="form-group"><label>WhatsApp pÃºblico</label>
+          <div class="form-group"><label>WhatsApp público</label>
             <input type="text" name="whatsapp_publico" value="{{ cfg.whatsapp_publico or '' }}" class="mask-phone"></div>
           <div class="form-group"><label>Site</label>
             <input type="url" name="site_url" value="{{ cfg.site_url or '' }}" placeholder="https://suaempresa.com.br"></div>
           <div class="form-group"><label>Instagram</label>
             <input type="url" name="instagram_url" value="{{ cfg.instagram_url or '' }}" placeholder="https://instagram.com/suaempresa"></div>
         </div>
+        </div>
+        <div class="settings-group">
+        <div class="settings-group-title">Endereço e recebimentos</div>
         <div class="form-row fr3">
-          <div class="form-group form-span-2"><label>EndereÃ§o</label>
+          <div class="form-group form-span-2"><label>Endereço</label>
             <input type="text" name="endereco" value="{{ cfg.endereco or '' }}"></div>
           <div class="form-group"><label>Cidade</label>
             <input type="text" name="cidade" value="{{ cfg.cidade or '' }}"></div>
@@ -64,36 +114,38 @@
         <div class="form-row fr3">
           <div class="form-group"><label>UF</label>
             <input type="text" name="uf" value="{{ cfg.uf or '' }}" maxlength="2"></div>
-          <div class="form-group"><label>Dias de Vencimento PadrÃ£o</label>
+          <div class="form-group"><label>Dias de Vencimento Padrão</label>
             <input type="number" name="dias_vencimento" value="{{ cfg.dias_vencimento or 30 }}" min="1"></div>
           <div class="form-group"><label>Chave PIX</label>
             <input type="text" name="pix_chave" value="{{ cfg.pix_chave or '' }}"></div>
         </div>
-        <div class="form-group"><label>Dados de Pagamento / ObservaÃ§Ãµes</label>
+        <div class="form-group"><label>Dados de pagamento / observações</label>
           <textarea name="dados_pagamento" rows="3">{{ cfg.dados_pagamento or '' }}</textarea></div>
-        <div class="form-row fr2"><div class="form-group"><label>Cor principal</label><input type="color" name="primary_color" value="{{ cfg.primary_color or '#2563eb' }}"></div><div class="form-group"><label>Cor de destaque</label><input type="color" name="accent_color" value="{{ cfg.accent_color or '#6366f1' }}"></div></div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar alteraÃ§Ãµes</button>
         </div>
+        <div class="settings-group">
+        <div class="settings-group-title">Identidade visual</div>
+        <div class="form-row fr2"><div class="form-group"><label>Cor principal</label><input type="color" name="primary_color" value="{{ cfg.primary_color or '#2563eb' }}"></div><div class="form-group"><label>Cor de destaque</label><input type="color" name="accent_color" value="{{ cfg.accent_color or '#6366f1' }}"></div></div>
+        </div>
+        <div class="settings-save"><span>As alterações são aplicadas à empresa atual.</span><button type="submit" class="btn btn-primary">Salvar alterações</button></div>
       </form>
     </div>
   </div>
 </div>
 
 <!-- TAB: OS -->
-<div id="tab-os" class="tab-content hidden">
-  <div class="card">
-    <div class="card-header"><span class="card-title">OpÃ§Ãµes das ordens de serviÃ§o</span></div>
+<div id="tab-os" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-button-os">
+  <div class="card settings-card">
+    <div class="card-header"><div><span class="card-title">Opções das ordens de serviço</span><p>Defina os nomes e as etapas que sua equipe usa no atendimento.</p></div></div>
     <div class="card-body">
       <form method="POST" action="{{ url_for('configuracoes.salvar_os_opcoes') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-row fr3">
-          <div class="form-group">
+          <div class="form-group settings-option-column">
             <label>Status</label>
             <div class="option-list" data-options-list="status">
               {% for item in cfg.get_os_status_options() %}
               <div class="option-row">
-                <input type="text" name="status_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="status_key[]" value="{{ item.key }}" placeholder="código">
                 <input type="text" name="status_label[]" value="{{ item.label }}" placeholder="Nome exibido">
                 <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
               </div>
@@ -101,12 +153,12 @@
             </div>
             <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="status">Adicionar status</button>
           </div>
-          <div class="form-group">
+          <div class="form-group settings-option-column">
             <label>Prioridades</label>
             <div class="option-list" data-options-list="priority">
               {% for item in cfg.get_os_priority_options() %}
               <div class="option-row">
-                <input type="text" name="priority_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="priority_key[]" value="{{ item.key }}" placeholder="código">
                 <input type="text" name="priority_label[]" value="{{ item.label }}" placeholder="Nome exibido">
                 <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
               </div>
@@ -114,12 +166,12 @@
             </div>
             <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="priority">Adicionar prioridade</button>
           </div>
-          <div class="form-group">
+          <div class="form-group settings-option-column">
             <label>Tipo de atendimento</label>
             <div class="option-list" data-options-list="attendance">
               {% for item in cfg.get_attendance_type_options() %}
               <div class="option-row">
-                <input type="text" name="attendance_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="attendance_key[]" value="{{ item.key }}" placeholder="código">
                 <input type="text" name="attendance_label[]" value="{{ item.label }}" placeholder="Nome exibido">
                 <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
               </div>
@@ -127,12 +179,12 @@
             </div>
             <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="attendance">Adicionar tipo</button>
           </div>
-          <div class="form-group">
+          <div class="form-group settings-option-column">
             <label>Checklist de entrada</label>
             <div class="option-list" data-options-list="entry_checklist">
               {% for item in cfg.get_entry_checklist_options() %}
               <div class="option-row">
-                <input type="text" name="entry_checklist_key[]" value="{{ item.key }}" placeholder="codigo">
+                <input type="text" name="entry_checklist_key[]" value="{{ item.key }}" placeholder="código">
                 <input type="text" name="entry_checklist_label[]" value="{{ item.label }}" placeholder="Nome exibido">
                 <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
               </div>
@@ -141,18 +193,16 @@
             <button type="button" class="btn btn-outline btn-sm mt8" data-action="cfg-option-add" data-target="entry_checklist">Adicionar item</button>
           </div>
         </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar opÃ§Ãµes</button>
-        </div>
+        <div class="settings-save"><span>Use nomes curtos para facilitar a leitura nas telas de atendimento.</span><button type="submit" class="btn btn-primary">Salvar opções</button></div>
       </form>
     </div>
   </div>
 </div>
 
 <!-- TAB: DASHBOARD -->
-<div id="tab-dashboard" class="tab-content hidden">
-  <div class="card">
-    <div class="card-header"><span class="card-title">Metas e Alertas Inteligentes</span></div>
+<div id="tab-dashboard" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-button-dashboard">
+  <div class="card settings-card">
+    <div class="card-header"><div><span class="card-title">Metas e alertas</span><p>Escolha os limites que merecem atenção no dashboard da empresa.</p></div></div>
     <div class="card-body">
       <form method="POST" action="{{ url_for('configuracoes.salvar_dashboard') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -160,37 +210,35 @@
           <div class="form-group"><label>Meta de Receita Mensal (R$)</label>
             <input type="number" name="meta_receita_mensal" step="0.01" value="{{ cfg.meta_receita_mensal or 0 }}">
             <div class="input-hint">Exibe barra de progresso no dashboard</div></div>
-          <div class="form-group"><label>Alerta: Caixa MÃ­nimo (R$)</label>
+          <div class="form-group"><label>Alerta: Caixa Mínimo (R$)</label>
             <input type="number" name="alerta_caixa_minimo" step="0.01" value="{{ cfg.alerta_caixa_minimo or 0 }}">
             <div class="input-hint">Alerta quando caixa ficar abaixo deste valor</div></div>
         </div>
         <div class="form-row fr2">
-          <div class="form-group"><label>Alerta: Estoque MÃ­nimo (unidades)</label>
+          <div class="form-group"><label>Alerta: Estoque Mínimo (unidades)</label>
             <input type="number" name="alerta_estoque_minimo" value="{{ cfg.alerta_estoque_minimo or 5 }}">
-            <div class="input-hint">Destaca peÃ§as com estoque abaixo deste nÃ­vel</div></div>
+            <div class="input-hint">Destaca peças com estoque abaixo deste nível</div></div>
           <div class="form-group"><label>Alerta: Vencimentos (dias)</label>
             <input type="number" name="alerta_vencimento_dias" value="{{ cfg.alerta_vencimento_dias or 5 }}">
-            <div class="input-hint">Avisa com X dias de antecedÃªncia</div></div>
+            <div class="input-hint">Avisa com X dias de antecedência</div></div>
         </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-primary">Salvar alteraÃ§Ãµes</button>
-        </div>
+        <div class="settings-save"><span>Use zero para desativar uma meta ou alerta.</span><button type="submit" class="btn btn-primary">Salvar alterações</button></div>
       </form>
     </div>
   </div>
 </div>
 
 <!-- TAB: WHATSAPP -->
-<div id="tab-whatsapp" class="tab-content hidden">
+<div id="tab-whatsapp" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-button-whatsapp">
 
-  <div class="alert a-blue mb20">
-    <div><strong>Envio protegido.</strong><br>O envio automatico usa somente a Meta WhatsApp Cloud API configurada no ambiente. Sem credenciais oficiais, o sistema abre uma conversa no WhatsApp com a mensagem pronta.</div>
+  <div class="alert a-blue mb20 settings-wpp-intro">
+    <div><strong>Envio protegido</strong><p>O envio automático usa somente a Meta WhatsApp Cloud API configurada no ambiente. Sem credenciais oficiais, o sistema abre uma conversa no WhatsApp com a mensagem pronta.</p></div>
   </div>
 
   <div class="mb20">
-    <div class="card">
+    <div class="card settings-card settings-wpp-card">
       <div class="card-header">
-        <span class="card-title">Status da conexao</span>
+        <div><span class="card-title">Status da conexão</span><p>Confira se o canal automático está disponível para a equipe.</p></div>
         <div id="wpp-badge" class="badge b-gray"><span class="dot"></span> Verificando...</div>
       </div>
       <div class="card-body txt-c wpp-panel">
@@ -206,10 +254,18 @@
 
 <script nonce="{{ csp_nonce }}">
 function showTab(id, btn) {
+  const target = document.getElementById('tab-' + id);
+  if (!target || !btn) return;
   document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  target.classList.remove('hidden');
   btn.classList.add('active');
+  btn.setAttribute('aria-selected', 'true');
+  sessionStorage.setItem('zokyo-config-tab', id);
+  history.replaceState(null, '', '#'+id);
 }
 
 function addOptionRow(target) {
@@ -218,7 +274,7 @@ function addOptionRow(target) {
   const row = document.createElement('div');
   row.className = 'option-row';
   row.innerHTML = `
-    <input type="text" name="${target}_key[]" value="" placeholder="codigo">
+    <input type="text" name="${target}_key[]" value="" placeholder="código">
     <input type="text" name="${target}_label[]" value="" placeholder="Nome exibido">
     <button type="button" class="btn btn-ghost btn-xs" data-action="cfg-option-remove">Remover</button>
   `;
@@ -237,7 +293,7 @@ async function verificarWpp() {
     if (d.status === 'configurado') {
       badge.className = 'badge b-green';
       badge.innerHTML = '<span class="dot"></span> Conectado';
-      msg.textContent = 'Meta WhatsApp Cloud API configurada. Mensagens automaticas ativas.';
+      msg.textContent = 'Meta WhatsApp Cloud API configurada. Mensagens automáticas ativas.';
     } else if (d.status === 'desconectado') {
       badge.className = 'badge b-gray';
       badge.innerHTML = '<span class="dot"></span> Manual';
@@ -249,12 +305,20 @@ async function verificarWpp() {
   } catch {
     badge.className = 'badge b-gray';
     badge.innerHTML = '<span class="dot"></span> Offline';
-    msg.textContent = 'Nao foi possivel consultar o status.';
+    msg.textContent = 'Não foi possível consultar o status.';
   }
 }
 
+const initialTab = window.location.hash.slice(1) || sessionStorage.getItem('zokyo-config-tab') || 'geral';
+const initialButton = document.querySelector(`.tab-btn[data-tab="${initialTab}"]`) || document.querySelector('.tab-btn[data-tab="geral"]');
+document.querySelectorAll('.tab-btn').forEach(button => {
+  button.setAttribute('role', 'tab');
+  button.setAttribute('aria-selected', 'false');
+  button.setAttribute('aria-controls', 'tab-' + button.dataset.tab);
+});
+showTab(initialButton.dataset.tab, initialButton);
 verificarWpp();
-setInterval(verificarWpp, 5000);
+setInterval(verificarWpp, 15000);
 
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
@@ -272,4 +336,5 @@ document.addEventListener('click', (e) => {
   if (action === 'wpp-status') return verificarWpp();
 });
 </script>
+ </div>
 {% endblock %}

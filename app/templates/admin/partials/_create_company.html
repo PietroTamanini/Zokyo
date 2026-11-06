@@ -1,4 +1,4 @@
-<form method="POST" action="{{ url_for('platform.create_organization') }}" class="admin-form admin-company-form" autocomplete="off" data-company-form data-base-domain="{{ base_domain }}">
+<form method="POST" action="{{ url_for('platform.create_organization') }}" class="admin-form admin-company-form" autocomplete="off" data-company-form data-validate data-base-domain="{{ base_domain }}">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
   <fieldset class="admin-fieldset">
     <legend>Dados da empresa</legend>
@@ -10,6 +10,11 @@
         <div class="input-hint"><strong data-domain-preview>nome-da-empresa.{{ base_domain }}</strong></div>
       </div>
     </div>
+    <div class="form-group">
+      <label for="company-custom-domain">Domínio próprio (opcional)</label>
+      <input id="company-custom-domain" name="custom_domain" maxlength="255" placeholder="painel.minhaempresa.com.br">
+      <div class="input-hint">A empresa continuará com o subdomínio <strong data-domain-preview>nome-da-empresa.{{ base_domain }}</strong>. O domínio próprio precisa ser apontado para o servidor e usar HTTPS.</div>
+    </div>
   </fieldset>
   <fieldset class="admin-fieldset">
     <legend>Responsável</legend>
@@ -17,7 +22,7 @@
       <div class="form-group"><label for="owner-name">Nome completo</label><input id="owner-name" name="owner_name" required minlength="2" maxlength="120" placeholder="Nome do responsável"></div>
       <div class="form-group"><label for="owner-email">E-mail</label><input id="owner-email" type="email" name="owner_email" required placeholder="responsavel@empresa.com" autocomplete="off"></div>
     </div>
-    <div class="form-group admin-short-field"><label for="owner-password">Senha inicial</label><input id="owner-password" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"></div>
+    <div class="form-group admin-short-field"><label for="owner-password">Senha inicial</label><input id="owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar automaticamente.</small>{% include 'partials/_password_requirements.html' %}</div>
   </fieldset>
   <fieldset class="admin-fieldset">
     <legend>Assinatura e acesso</legend>

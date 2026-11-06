@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Configuracoes do site agora aceitam publicacao de ZIP estatico por empresa, com `index.html`, CSS, JavaScript e assets servidos no dominio do tenant.
+- A tela de site foi simplificada para operar somente como publicacao de arquivos; a landing padrao nao e mais exibida quando a empresa ainda nao enviou um ZIP.
+- O super admin ganhou publicacao/despublicacao de sites por empresa e auditoria global filtravel por empresa, com eventos de dominio, visibilidade e upload sem registrar conteudo do site ou dados pessoais desnecessarios.
+- Adicionada central operacional do super admin em `/platform/operations`, com gargalos de fila, alertas abertos, heartbeats de jobs, eventos das ultimas 24 horas e estado de publicacao dos sites.
+
+- Login global separado em `/platform/login`; `/login` agora aceita somente usuários de empresas.
+- Adicionados aliases do painel em `/platform/dashboard`, `/platform/companies`, `/platform/subscriptions` e `/platform/audit`.
+- Criação de empresas aceita domínio próprio opcional, mantendo o subdomínio gerenciado pelo Zokyo como fallback.
+- `.env.example` e a documentação de DNS usam `zokyo.com.br` como exemplo de domínio base.
+
 ### Estado verificado em 2026-11-02
 
 - Suíte Python estabilizada com **334 testes aprovados**.

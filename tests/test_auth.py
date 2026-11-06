@@ -54,7 +54,7 @@ def test_primeiro_acesso_cria_admin_da_plataforma():
         assert admin.is_platform_admin is True
         assert admin.organization_id is None
         assert Organization.query.count() == 0
-    response = client.post("/login", data={
+    response = client.post("/platform/login", data={
         "_csrf_token": csrf(client),
         "email": "platform@example.com",
         "senha": "Senha!123",

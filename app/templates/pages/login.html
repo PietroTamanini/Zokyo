@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta name="theme-color" content="#0b1220">
-  <title>{{ APP_NAME }} - Acesso</title>
+  <title>{{ APP_NAME }} - {{ 'Administração global' if login_area == 'platform' else 'Acesso' }}</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/zokyo-favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/zokyo.css') }}">
 </head>
@@ -17,7 +17,7 @@
       <div class="login-brand-copy">
         <p class="login-eyebrow">Área de trabalho</p>
         <h2>{{ APP_NAME }}</h2>
-        <p>{{ APP_LOGIN_SUBTITLE or 'Ambiente seguro para sua equipe.' }}</p>
+        <p>{{ 'Gerencie empresas, assinaturas e a operação do Zokyo.' if login_area == 'platform' else (APP_LOGIN_SUBTITLE or 'Ambiente seguro para sua equipe.') }}</p>
       </div>
       <div class="login-feature-list" aria-label="Recursos principais">
         <div>
@@ -39,11 +39,11 @@
       <div class="auth-head">
         <div class="auth-brand-lockup login-mobile-brand"><img src="{{ url_for('static', filename='img/icons/zokyo-icon.svg') }}" alt=""><span>Zokyo</span></div>
         <p class="login-eyebrow">Bem-vindo de volta</p>
-        <h1 id="login-title">Entre na sua conta</h1>
-        <p class="auth-subtitle-lg">Use suas credenciais para continuar.</p>
+        <h1 id="login-title">{{ 'Entrar no painel global' if login_area == 'platform' else 'Entre na sua conta' }}</h1>
+        <p class="auth-subtitle-lg">{{ 'Use a conta de administrador da plataforma.' if login_area == 'platform' else 'Use suas credenciais para continuar.' }}</p>
       </div>
       {% include 'partials/_flash.html' %}
-      <form id="login-form" method="POST" action="{{ url_for('auth.login_post') }}">
+      <form id="login-form" method="POST" action="{{ url_for('auth.platform_login_post' if login_area == 'platform' else 'auth.login_post') }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label for="email">E-mail</label>
@@ -57,7 +57,7 @@
         </div>
         <button id="login-submit" type="submit" class="btn btn-primary btn-block btn-lg">Entrar</button>
       </form>
-      <div class="login-form-meta"><a href="{{ url_for('auth.recuperar_senha') }}">Esqueci minha senha</a><span>{{ APP_DOMAIN }}</span></div>
+      <div class="login-form-meta"><a href="{{ url_for('auth.recuperar_senha') }}">Esqueci minha senha</a><span>{{ '/platform' if login_area == 'platform' else APP_DOMAIN }}</span></div>
     </section>
   </main>
   <script nonce="{{ csp_nonce }}" src="{{ url_for('static', filename='js/pages/login.js') }}"></script>

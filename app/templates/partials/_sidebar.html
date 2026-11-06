@@ -25,174 +25,182 @@
       <input type="search" name="termo" placeholder="Buscar cliente, OS ou produto" autocomplete="off">
     </form>
 
+    {% if can_permission('dashboard.view') or can_permission('clientes.view') or can_permission('coletas.view') or can_permission('os.view') or can_permission('agenda.view') or can_permission('garantias.view') %}
     <section class="nav-module" data-nav-module="atendimento">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-atendimento">
         <span>Atendimento</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-atendimento">
-        <a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path in ['/', '/zokyo', '/home'] }}" href="{{ url_for('pages.dashboard') }}">
+        {% if can_permission('dashboard.view') %}<a class="nav-item {{ 'active' if nav_active in ['dashboard', 'pages.dashboard'] or nav_endpoint == 'pages.dashboard' or nav_path in ['/', '/zokyo', '/home'] }}" href="{{ url_for('pages.dashboard') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-home"></use></svg></span>
           Início
-        </a>
-        <a class="nav-item {{ 'active' if (nav_active and 'clientes' in nav_active) or nav_path.startswith('/clientes') }}" href="{{ url_for('pages.clientes') }}">
+        </a>{% endif %}
+        {% if can_permission('clientes.view') %}<a class="nav-item {{ 'active' if (nav_active and 'clientes' in nav_active) or nav_path.startswith('/clientes') }}" href="{{ url_for('pages.clientes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
           Clientes
-        </a>
-        <a class="nav-item {{ 'active' if nav_path == '/coleta' or (nav_path.startswith('/coletas/') and not nav_path.startswith('/coletas/rota')) }}" href="{{ url_for('pages.coleta') }}">
+        </a>{% endif %}
+        {% if can_permission('coletas.view') %}<a class="nav-item {{ 'active' if nav_path == '/coleta' or (nav_path.startswith('/coletas/') and not nav_path.startswith('/coletas/rota')) }}" href="{{ url_for('pages.coleta') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
           Coletas
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.coleta_rota' or nav_path.startswith('/coletas/rota') }}" href="{{ url_for('pages.coleta_rota') }}">
+        </a>{% endif %}
+        {% if can_permission('coletas.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.coleta_rota' or nav_path.startswith('/coletas/rota') }}" href="{{ url_for('pages.coleta_rota') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Rota de coleta
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint != 'pages.os_baixadas' and (nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or (nav_path.startswith('/os') and not nav_path.startswith('/os/baixadas'))) }}" href="{{ url_for('pages.os_lista') }}">
+        </a>{% endif %}
+        {% if can_permission('os.view') %}<a class="nav-item {{ 'active' if nav_endpoint != 'pages.os_baixadas' and (nav_active in ['os', 'os_lista', 'pages.os_lista', 'pages.os_nova', 'pages.os_detalhe', 'pages.os_editar'] or nav_endpoint.startswith('pages.os') or (nav_path.startswith('/os') and not nav_path.startswith('/os/baixadas'))) }}" href="{{ url_for('pages.os_lista') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Ordens de Serviço
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_kanban' }}" href="{{ url_for('pages.os_kanban') }}">
+        </a>{% endif %}
+        {% if can_permission('os.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_kanban' }}" href="{{ url_for('pages.os_kanban') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
           Kanban de OS
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.agenda_tecnica' }}" href="{{ url_for('pages.agenda_tecnica') }}">
+        </a>{% endif %}
+        {% if can_permission('agenda.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.agenda_tecnica' }}" href="{{ url_for('pages.agenda_tecnica') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Agenda técnica
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_baixadas' or nav_path.startswith('/os/baixadas') }}" href="{{ url_for('pages.os_baixadas') }}">
+        </a>{% endif %}
+        {% if can_permission('os.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.os_baixadas' or nav_path.startswith('/os/baixadas') }}" href="{{ url_for('pages.os_baixadas') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-archive"></use></svg></span>
           OS baixadas
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'garantias' or nav_path.startswith('/garantias') }}" href="{{ url_for('pages.garantias') }}">
+        </a>{% endif %}
+        {% if can_permission('garantias.view') %}<a class="nav-item {{ 'active' if nav_active == 'garantias' or nav_path.startswith('/garantias') }}" href="{{ url_for('pages.garantias') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>
           Garantias
-        </a>
+        </a>{% endif %}
       </div>
     </section>
+    {% endif %}
 
+    {% if can_permission('estoque.view') or can_permission('servicos.view') or can_permission('bancada.view') or can_permission('checklists.view') %}
     <section class="nav-module" data-nav-module="oficina">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-oficina">
         <span>Oficina</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-oficina">
-        <a class="nav-item {{ 'active' if (nav_active and 'estoque' in nav_active) or nav_path.startswith('/produtos') }}" href="{{ url_for('pages.estoque') }}">
+        {% if can_permission('estoque.view') %}<a class="nav-item {{ 'active' if (nav_active and 'estoque' in nav_active) or nav_path.startswith('/produtos') }}" href="{{ url_for('pages.estoque') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-box"></use></svg></span>
           Produtos
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'servicos' or nav_path.startswith('/servicos') }}" href="{{ url_for('pages.servicos') }}">
+        </a>{% endif %}
+        {% if can_permission('servicos.view') %}<a class="nav-item {{ 'active' if nav_active == 'servicos' or nav_path.startswith('/servicos') }}" href="{{ url_for('pages.servicos') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
           Serviços
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.bancada' }}" href="{{ url_for('pages.bancada') }}">
+        </a>{% endif %}
+        {% if can_permission('bancada.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.bancada' }}" href="{{ url_for('pages.bancada') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-wrench"></use></svg></span>
           Bancada
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.checklists_tecnicos' }}" href="{{ url_for('pages.checklists_tecnicos') }}">
+        </a>{% endif %}
+        {% if can_permission('checklists.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.checklists_tecnicos' }}" href="{{ url_for('pages.checklists_tecnicos') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Checklists
-        </a>
+        </a>{% endif %}
       </div>
     </section>
+    {% endif %}
 
+    {% if can_permission('vendas.view') or can_permission('fornecedores.view') or can_permission('compras_pecas.view') %}
     <section class="nav-module" data-nav-module="comercial">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-comercial">
         <span>Comercial</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-comercial">
-        <a class="nav-item {{ 'active' if nav_active == 'vendas' or nav_path.startswith('/vendas') }}" href="{{ url_for('pages.vendas') }}">
+        {% if can_permission('vendas.view') %}<a class="nav-item {{ 'active' if nav_active == 'vendas' or nav_path.startswith('/vendas') }}" href="{{ url_for('pages.vendas') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
           Vendas
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'fornecedores' or nav_path.startswith('/fornecedores') }}" href="{{ url_for('pages.fornecedores') }}">
+        </a>{% endif %}
+        {% if can_permission('fornecedores.view') %}<a class="nav-item {{ 'active' if nav_active == 'fornecedores' or nav_path.startswith('/fornecedores') }}" href="{{ url_for('pages.fornecedores') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-users"></use></svg></span>
           Fornecedores
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.compras_pecas' }}" href="{{ url_for('pages.compras_pecas') }}">
+        </a>{% endif %}
+        {% if can_permission('compras_pecas.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.compras_pecas' }}" href="{{ url_for('pages.compras_pecas') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-cart"></use></svg></span>
           Compras de peças
-        </a>
+        </a>{% endif %}
       </div>
     </section>
+    {% endif %}
 
-    {% if is_financeiro %}
+    {% if can_permission('financeiro.view') or can_permission('cobrancas.view') %}
     <section class="nav-module" data-nav-module="financeiro">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-financeiro">
         <span>Financeiro</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-financeiro">
-        <a class="nav-item {{ 'active' if (nav_active and 'financeiro' in nav_active) or nav_path.startswith('/financeiro') or nav_path.startswith('/lancamentos') }}" href="{{ url_for('pages.financeiro') }}">
+        {% if can_permission('financeiro.view') %}<a class="nav-item {{ 'active' if (nav_active and 'financeiro' in nav_active) or nav_path.startswith('/financeiro') or nav_path.startswith('/lancamentos') }}" href="{{ url_for('pages.financeiro') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
           Financeiro
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'cobrancas' or nav_path.startswith('/cobrancas') }}" href="{{ url_for('pages.cobrancas') }}">
+        </a>{% endif %}
+        {% if can_permission('cobrancas.view') %}<a class="nav-item {{ 'active' if nav_active == 'cobrancas' or nav_path.startswith('/cobrancas') }}" href="{{ url_for('pages.cobrancas') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-dollar"></use></svg></span>
           Cobranças
-        </a>
+        </a>{% endif %}
       </div>
     </section>
     {% endif %}
 
+    {% if can_permission('laudos.view') or can_permission('arquivos.view') or can_permission('relatorios.view') or can_permission('produtividade.view') %}
     <section class="nav-module" data-nav-module="documentos">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-documentos">
         <span>Documentos</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-documentos">
-        <a class="nav-item {{ 'active' if nav_active == 'laudos' or nav_path.startswith('/laudos') }}" href="{{ url_for('laudos.index') }}">
+        {% if can_permission('laudos.view') %}<a class="nav-item {{ 'active' if nav_active == 'laudos' or nav_path.startswith('/laudos') }}" href="{{ url_for('laudos.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Laudos
-        </a>
-        <a class="nav-item {{ 'active' if nav_active == 'arquivos' or nav_path.startswith('/arquivos') }}" href="{{ url_for('pages.arquivos') }}">
+        </a>{% endif %}
+        {% if can_permission('arquivos.view') %}<a class="nav-item {{ 'active' if nav_active == 'arquivos' or nav_path.startswith('/arquivos') }}" href="{{ url_for('pages.arquivos') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-folder"></use></svg></span>
           Arquivos
-        </a>
-        <a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
+        </a>{% endif %}
+        {% if can_permission('relatorios.view') %}<a class="nav-item {{ 'active' if active == 'relatorios' }}" href="{{ url_for('relatorios.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
           Relatórios
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'pages.produtividade' }}" href="{{ url_for('pages.produtividade') }}">
+        </a>{% endif %}
+        {% if can_permission('produtividade.view') %}<a class="nav-item {{ 'active' if nav_endpoint == 'pages.produtividade' }}" href="{{ url_for('pages.produtividade') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>
           Produtividade
-        </a>
+        </a>{% endif %}
       </div>
     </section>
+    {% endif %}
 
-    {% if is_admin %}
+    {% if can_permission('usuarios.manage') or can_permission('configuracoes.manage') or can_permission('mensagens.manage') or can_permission('logs.view') or can_permission('privacidade.manage') or can_permission('importacao.manage') %}
     <section class="nav-module" data-nav-module="administracao">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-administracao">
         <span>Administração</span><span class="nav-chevron" aria-hidden="true">v</span>
       </button>
       <div class="nav-module-links" id="nav-administracao">
-        <a class="nav-item {{ 'active' if active and 'usuarios' in active }}" href="{{ url_for('usuarios.usuarios_page') }}">
+        {% if can_permission('usuarios.manage') %}<a class="nav-item {{ 'active' if active and 'usuarios' in active }}" href="{{ url_for('usuarios.usuarios_page') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-user"></use></svg></span>
           Usuários
-        </a>
-        <a class="nav-item {{ 'active' if active == 'permissoes' or nav_path.startswith('/permissoes') }}" href="{{ url_for('pages.zokyo_permissoes') }}">
+        </a>{% endif %}
+        {% if can_permission('usuarios.manage') %}<a class="nav-item {{ 'active' if active == 'permissoes' or nav_path.startswith('/permissoes') }}" href="{{ url_for('pages.zokyo_permissoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-lock"></use></svg></span>
           Permissões
-        </a>
-        <a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
+        </a>{% endif %}
+        {% if can_permission('configuracoes.manage') %}<a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-settings"></use></svg></span>
           Dados da empresa
-        </a>
-        <a class="nav-item {{ 'active' if nav_endpoint == 'site_config.index' or nav_endpoint == 'site_config.salvar' or nav_endpoint == 'site_config.toggle' or nav_endpoint == 'site_config.subdomain' or nav_endpoint == 'site_config.preview' }}" href="{{ url_for('site_config.index') }}">
+        </a>{% endif %}
+        {% if can_permission('configuracoes.manage') %}<a class="nav-item {{ 'active' if nav_endpoint == 'site_config.index' or nav_endpoint == 'site_config.salvar' or nav_endpoint == 'site_config.toggle' or nav_endpoint == 'site_config.subdomain' or nav_endpoint == 'site_config.preview' }}" href="{{ url_for('site_config.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-globe"></use></svg></span>
           Meu Site
-        </a>
-        <a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
+        </a>{% endif %}
+        {% if can_permission('mensagens.manage') %}<a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-mail"></use></svg></span>
           Mensagens
-        </a>
-        <a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
+        </a>{% endif %}
+        {% if can_permission('logs.view') %}<a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Auditoria
-        </a>
-        <a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
+        </a>{% endif %}
+        {% if can_permission('privacidade.manage') %}<a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-database"></use></svg></span>
           Privacidade
-        </a>
-        <a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.bancos_page') }}">
+        </a>{% endif %}
+        {% if can_permission('importacao.manage') %}<a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.bancos_page') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-upload"></use></svg></span>
           Importar dados
-        </a>
+        </a>{% endif %}
       </div>
     </section>
     {% endif %}

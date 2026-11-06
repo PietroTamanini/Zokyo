@@ -3,7 +3,7 @@
     <div id="flash-container" class="flash-container" aria-live="polite" aria-atomic="true">
       {% for category, message in messages %}
         <div class="alert flash-message a-{{ 'green' if category == 'success' else 'red' if category == 'error' else 'blue' }}" role="{{ 'alert' if category == 'error' else 'status' }}">
-          <span aria-hidden="true">{{ '✓' if category == 'success' else '!' if category == 'error' else 'i' }}</span>
+          <span aria-hidden="true"><svg class="ui-icon"><use href="#{{ 'i-check' if category == 'success' else 'i-alert' if category == 'error' else 'i-info' }}"></use></svg></span>
           <div>{{ message }}</div>
         </div>
       {% endfor %}

@@ -22,6 +22,6 @@
   <input type="email" name="owner_email" value="{{ current_step_data.owner_email or '' }}" required>
   
   <label>Senha do Dono <span class="required">*</span></label>
-  <input type="password" name="owner_password" required>
-  <small>Mínimo 8 caracteres</small>
+  <input type="password" name="owner_password" class="validate-password" data-password-input data-min="8" minlength="8" autocomplete="new-password" required>
+  {% include 'partials/_password_requirements.html' %}
 </fieldset>

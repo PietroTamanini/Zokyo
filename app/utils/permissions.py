@@ -126,8 +126,11 @@ KNOWN_PERMISSIONS = frozenset(BASE_PERMISSIONS)
 PUBLIC_ENDPOINTS = {
     "auth.login_page",
     "auth.login_post",
+    "auth.platform_login_page",
+    "auth.platform_login_post",
     "auth.primeiro_acesso_page",
     "auth.primeiro_acesso_post",
+    "auth.register_page",
     "auth.recuperar_senha",
     "auth.redefinir_senha",
     "auth.api_v1_login",
@@ -252,6 +255,15 @@ GLOBAL_PLATFORM_ENDPOINTS = {
     "platform.create_tenant_admin",
     "platform.reset_tenant_admin_password",
     "platform.sync_dns",
+    "platform.update_base_domain",
+    "platform.verify_site_domain",
+    "platform.upload_site",
+    "platform.unpublish_site",
+    "platform.dashboard",
+    "platform.companies",
+    "platform.subscriptions",
+    "platform.audit",
+    "platform.operations",
     "platform.create_plan",
     "platform.assign_subscription",
 }
@@ -435,7 +447,9 @@ def _deny(status_code: int, message: str, permission: str | None = None):
             payload["permissao"] = permission
         return jsonify(payload), status_code
     if status_code == 401:
-        return redirect(url_for("auth.login_page"))
+        endpoint = request.endpoint or ""
+        login_endpoint = "auth.platform_login_page" if endpoint.startswith("platform.") else "auth.login_page"
+        return redirect(url_for(login_endpoint))
     abort(status_code)
 
 
@@ -492,7 +506,8 @@ def permission_required(permission: str, api: bool = True):
             if not user:
                 if api:
                     return jsonify({"erro": "Autenticacao necessaria"}), 401
-                return redirect(url_for("auth.login_page"))
+                login_endpoint = "auth.platform_login_page" if request.path.startswith("/platform") else "auth.login_page"
+                return redirect(url_for(login_endpoint))
             if not has_permission(user, permission):
                 if api or request.path.startswith("/api/"):
                     return jsonify({"erro": "Acesso negado", "permissao": permission}), 403

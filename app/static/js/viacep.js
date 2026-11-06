@@ -21,13 +21,13 @@
  * campos pelo name: endereco, logradouro, bairro, cidade, uf.
  *
  * Funcionalidades:
- *   ✅ Busca automática ao completar 8 dígitos
- *   ✅ Indicador de carregamento no campo
- *   ✅ Feedback visual de sucesso/erro
- *   ✅ Não sobrescreve campos já preenchidos pelo usuário
- *   ✅ Funciona com formulários dinâmicos (modais)
- *   ✅ Debounce para evitar chamadas duplicadas
- *   ✅ Tratamento de CEP inexistente
+ *   - Busca automática ao completar 8 dígitos
+ *   - Indicador de carregamento no campo
+ *   - Feedback visual de sucesso/erro
+ *   - Não sobrescreve campos já preenchidos pelo usuário
+ *   - Funciona com formulários dinâmicos (modais)
+ *   - Debounce para evitar chamadas duplicadas
+ *   - Tratamento de CEP inexistente
  */
 
 const ViaCEP = (() => {
@@ -90,7 +90,7 @@ const ViaCEP = (() => {
       wrapper.appendChild(icon);
     }
     if (loading) {
-      icon.textContent = '⏳';
+      icon.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-clock"></use></svg>';
       icon.title = 'Buscando CEP...';
       el.classList.add('cep-input-loading');
     } else {
@@ -102,7 +102,7 @@ const ViaCEP = (() => {
 
   function setSuccess(el, cidade) {
     const icon = setLoading(el, false);
-    icon.textContent = '✅';
+    icon.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-check"></use></svg>';
     icon.title = `Endereço encontrado: ${cidade}`;
     el.classList.add('cep-input-loading');
     // Remove ícone após 3 s
@@ -114,7 +114,7 @@ const ViaCEP = (() => {
 
   function setError(el, msg) {
     const icon = setLoading(el, false);
-    icon.textContent = '❌';
+    icon.innerHTML = '<svg class="ui-icon" aria-hidden="true"><use href="#i-x"></use></svg>';
     icon.title = msg;
     el.classList.add('cep-input-loading');
     // Mostra toast se disponível

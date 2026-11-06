@@ -40,7 +40,7 @@
     </div>
     </div>
 
-    <form id="onboarding-form" method="POST" action="{{ url_for('onboarding.step', step_name=step_name) }}">
+    <form id="onboarding-form" method="POST" action="{{ url_for('onboarding.step', step_name=step_name) }}" data-validate>
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <!-- Dados específicos de cada etapa -->

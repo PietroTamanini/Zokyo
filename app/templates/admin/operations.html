@@ -1,0 +1,27 @@
+{% extends 'admin/base.html' %}
+{% block title %}Operação e gargalos | Admin - {{ APP_SHORT_NAME }}{% endblock %}
+{% block breadcrumb %}Admin / Operação e gargalos{% endblock %}
+{% block content %}
+<div class="admin-workspace">
+  <header class="page-header admin-page-header"><div><div class="admin-eyebrow">Visão operacional</div><h1 class="page-title">Operação e gargalos</h1><p class="page-sub">Sinais agregados do sistema, sem payloads nem dados pessoais desnecessários.</p></div><div class="admin-header-actions"><a class="btn btn-outline" href="{{ url_for('platform.audit') }}">Abrir auditoria global</a><a class="btn btn-ghost" href="{{ url_for('health.metrics') }}">Métricas Prometheus</a></div></header>
+  <section class="admin-kpis" aria-label="Resumo operacional">
+    <div class="stat-card c-blue"><div class="stat-label">Eventos / 24h</div><div class="stat-value">{{ operations.events_24h }}</div><div class="stat-meta">Ações registradas</div></div>
+    <div class="stat-card c-red"><div class="stat-label">Alertas abertos</div><div class="stat-value">{{ operations.open_alerts|length }}</div><div class="stat-meta">Exigem acompanhamento</div></div>
+    <div class="stat-card c-amber"><div class="stat-label">Jobs com risco</div><div class="stat-value">{{ operations.stale_jobs|length }}</div><div class="stat-meta">Falha ou heartbeat antigo</div></div>
+    <div class="stat-card c-green"><div class="stat-label">Sites publicados</div><div class="stat-value">{{ operations.sites_published }}</div><div class="stat-meta">{{ operations.sites_without_bundle }} sem ZIP</div></div>
+  </section>
+  <div class="admin-overview-grid">
+    <section class="admin-section"><div class="admin-section-heading"><h2>Fila e gargalos</h2></div>
+      {% for status in ['pending','retry','failed','manual_required','sent'] %}<div class="admin-status-row"><span>Notificações {{ status }}</span><span class="badge {{ 'b-red' if status == 'failed' and operations.queue.get(status, 0) else ('b-amber' if status in ['retry','manual_required'] and operations.queue.get(status, 0) else 'b-gray') }}">{{ operations.queue.get(status, 0) }}</span></div>{% endfor %}
+      <div class="admin-section-heading" style="margin-top: 28px"><h2>Módulos mais ativos / 24h</h2></div>
+      {% for modulo, quantidade in operations.event_counts.items() %}<div class="admin-status-row"><span>{{ modulo or 'sistema' }}</span><span class="badge b-blue">{{ quantidade }}</span></div>{% else %}<p class="muted-xs">Nenhum evento nas últimas 24 horas.</p>{% endfor %}
+    </section>
+    <section class="admin-section"><div class="admin-section-heading"><h2>Alertas abertos</h2></div>
+      {% for alert in operations.open_alerts %}<div class="admin-status-row"><span><strong>{{ alert.source }}</strong><small class="muted-xs" style="display:block">{{ alert.message }}</small></span><span class="badge {{ 'b-red' if alert.severity == 'critical' else 'b-amber' if alert.severity == 'warning' else 'b-blue' }}">{{ alert.occurrences }}</span></div>{% else %}<div class="admin-empty"><svg class="ui-icon" aria-hidden="true"><use href="#i-shield"></use></svg><h3>Nenhum alerta aberto</h3></div>{% endfor %}
+      <div class="admin-section-heading" style="margin-top: 28px"><h2>Tarefas monitoradas</h2></div>
+      {% for job in operations.heartbeats %}<div class="admin-status-row"><span>{{ job.job_name }}</span><span class="badge {{ 'b-red' if job.consecutive_failures else 'b-green' }}">{{ job.consecutive_failures }} falhas</span></div>{% else %}<p class="muted-xs">Nenhum heartbeat registrado.</p>{% endfor %}
+    </section>
+  </div>
+  <section class="admin-section" style="margin-top: 30px"><div class="admin-section-heading"><h2>Eventos recentes</h2><a href="{{ url_for('platform.audit') }}">Ver auditoria completa</a></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Data</th><th>Empresa</th><th>Ação</th><th>Módulo</th><th>Tipo</th></tr></thead><tbody>{% for event in operations.recent_events %}<tr><td>{{ event.criado_em | fmtdata }}</td><td>{{ operations.organizations.get(event.organization_id, 'Sistema') }}</td><td>{{ event.operacao or '-' }}</td><td><span class="chip">{{ event.modulo or '-' }}</span></td><td>{{ event.tipo }}</td></tr>{% else %}<tr><td colspan="5" class="td-empty">Nenhum evento recente.</td></tr>{% endfor %}</tbody></table></div></section>
+</div>
+{% endblock %}

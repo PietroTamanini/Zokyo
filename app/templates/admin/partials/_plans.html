@@ -1,20 +1,61 @@
 <div class="admin-plans-grid">
   <section class="admin-section">
-    <div class="admin-section-heading"><h2>Planos cadastrados</h2></div>
+    <div class="admin-section-heading">
+      <div><h2>Planos cadastrados</h2><p>Edite preços e limites sem perder o histórico das empresas.</p></div>
+    </div>
+    <div class="admin-plans-list">
     {% for plan in plans %}
     <article class="admin-plan-item">
-      <div class="admin-plan-header"><h3>{{ plan.nome }}</h3><span class="badge {{ 'b-green' if plan.ativo else 'b-gray' }}">{{ 'Ativo' if plan.ativo else 'Inativo' }}</span></div>
+      <div class="admin-plan-header">
+        <div><h3>{{ plan.nome }}</h3><code>{{ plan.code }}</code></div>
+        <span class="badge {{ 'b-green' if plan.ativo else 'b-gray' }}">{{ 'Ativo' if plan.ativo else 'Inativo' }}</span>
+      </div>
       <div class="admin-plan-price">R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}<small>/mês</small></div>
+      <div class="admin-plan-usage"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>{{ plan_subscription_counts.get(plan.id, 0) }}  empresa{{ '' if plan_subscription_counts.get(plan.id, 0) == 1 else 's' }} usando este plano</div>
       <dl class="admin-definition-list">
         {% for key, label in [('max_users', 'Usuários'), ('max_clients', 'Clientes'), ('max_open_orders', 'OS abertas'), ('max_storage_mb', 'Armazenamento (MB)')] %}
         <div><dt>{{ label }}</dt><dd>{{ plan.limites.get(key) if plan.limites and plan.limites.get(key) is not none else 'Sem limite' }}</dd></div>
         {% endfor %}
       </dl>
+      <div class="admin-plan-actions">
+        <details class="admin-plan-edit">
+          <summary class="btn btn-outline btn-sm">Editar plano</summary>
+          <form method="POST" action="{{ url_for('platform.update_plan', plan_id=plan.id) }}" class="admin-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="form-row fr2">
+              <div class="form-group"><label for="plan-code-{{ plan.id }}">Código</label><input id="plan-code-{{ plan.id }}" name="code" value="{{ plan.code }}" required></div>
+              <div class="form-group"><label for="plan-name-{{ plan.id }}">Nome</label><input id="plan-name-{{ plan.id }}" name="nome" value="{{ plan.nome }}" required></div>
+            </div>
+            <div class="form-group"><label for="plan-price-{{ plan.id }}">Mensalidade (R$)</label><input id="plan-price-{{ plan.id }}" type="number" min="0" step="0.01" name="preco_mensal" value="{{ '%.2f'|format(plan.preco_mensal or 0) }}" required></div>
+            <fieldset class="admin-fieldset"><legend>Limites por empresa</legend>
+              <div class="form-row fr2">
+                <div class="form-group"><label for="plan-users-{{ plan.id }}">Usuários</label><input id="plan-users-{{ plan.id }}" type="number" min="0" name="max_users" value="{{ plan.limites.get('max_users', '') if plan.limites else '' }}" placeholder="Sem limite"></div>
+                <div class="form-group"><label for="plan-clients-{{ plan.id }}">Clientes</label><input id="plan-clients-{{ plan.id }}" type="number" min="0" name="max_clients" value="{{ plan.limites.get('max_clients', '') if plan.limites else '' }}" placeholder="Sem limite"></div>
+              </div>
+              <div class="form-row fr2">
+                <div class="form-group"><label for="plan-orders-{{ plan.id }}">OS abertas</label><input id="plan-orders-{{ plan.id }}" type="number" min="0" name="max_open_orders" value="{{ plan.limites.get('max_open_orders', '') if plan.limites else '' }}" placeholder="Sem limite"></div>
+                <div class="form-group"><label for="plan-storage-{{ plan.id }}">Armazenamento (MB)</label><input id="plan-storage-{{ plan.id }}" type="number" min="0" name="max_storage_mb" value="{{ plan.limites.get('max_storage_mb', '') if plan.limites else '' }}" placeholder="Sem limite"></div>
+              </div>
+            </fieldset>
+            <label class="admin-plan-active"><input type="checkbox" name="ativo" {% if plan.ativo %}checked{% endif %}> Plano disponível para novas assinaturas</label>
+            <div class="admin-form-footer"><button class="btn btn-primary" type="submit">Salvar plano</button></div>
+          </form>
+        </details>
+        {% if plan_subscription_counts.get(plan.id, 0) %}
+        <span class="admin-plan-delete-note" title="Planos vinculados não podem ser excluídos para preservar o histórico."><svg class="ui-icon" aria-hidden="true"><use href="#i-lock"></use></svg>Desative para impedir novas assinaturas</span>
+        {% else %}
+        <form method="POST" action="{{ url_for('platform.delete_plan', plan_id=plan.id) }}" data-confirm="Excluir este plano? Essa ação não pode ser desfeita.">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm" type="submit">Excluir</button>
+        </form>
+        {% endif %}
+      </div>
     </article>
-    {% else %}<div class="admin-empty"><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg><h3>Nenhum plano cadastrado</h3></div>{% endfor %}
+    {% else %}<div class="admin-empty"><svg class="ui-icon" aria-hidden="true"><use href="#i-dollar"></use></svg><h3>Nenhum plano cadastrado</h3><p>Crie o primeiro plano ao lado.</p></div>{% endfor %}
+    </div>
   </section>
   <section class="admin-section">
-    <div class="admin-section-heading"><h2>Novo plano</h2></div>
+    <div class="admin-section-heading"><div><h2>Novo plano</h2><p>Crie uma oferta para as empresas da plataforma.</p></div></div>
     <form method="POST" action="{{ url_for('platform.create_plan') }}" class="admin-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="form-row fr2">

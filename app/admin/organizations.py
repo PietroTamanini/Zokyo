@@ -8,7 +8,9 @@ from app.extensions import db
 from app.models import Organization, OrganizationSubscription, Plan, Usuario
 from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant, sync_tenant_dns, tenant_hostname
 from app.services.tenant_site_service import set_custom_domain
+from app.services.domain_resolution import validate_unique_domain, DomainResolutionError
 from app.utils.sanitizers import sanitize_text
+from app.utils.auth import validar_senha_forte
 from app.utils.validators import validar_email
 
 
@@ -29,12 +31,16 @@ def create_organization_from_form(form) -> tuple[bool, str]:
             trial_days=form.get("trial_days", 14, type=int) or 14,
             active=form.get("active") == "on",
             provision_dns=bool(form.get("provision_dns")),
+            custom_domain=form.get("custom_domain", ""),
         )
         db.session.commit()
     except TenantProvisioningError as exc:
         db.session.rollback()
         return False, str(exc)
-    message = f"Empresa criada: {organization.custom_domain}."
+    fallback_domain = tenant_hostname(organization.subdomain)
+    message = f"Empresa criada: {fallback_domain}."
+    if form.get("custom_domain", "").strip():
+        message += f" Domínio próprio: {organization.custom_domain}."
     if not provided_password:
         message += f" Senha inicial do dono: {owner_password}"
     return True, message
@@ -45,6 +51,16 @@ def update_organization_from_form(organization_id: int, form) -> None:
     name = sanitize_text(form.get("name", ""), max_length=200)
     if name:
         organization.nome = name
+    if "organization_domain" in form:
+        requested_domain = (form.get("organization_domain") or "").strip()
+        try:
+            organization.custom_domain = (
+                validate_unique_domain(requested_domain, organization_id=organization.id)
+                if requested_domain
+                else tenant_hostname(organization.subdomain)
+            )
+        except DomainResolutionError as exc:
+            raise TenantSiteError(str(exc)) from exc
     if "custom_domain" in form:
         set_custom_domain(organization.id, form.get("custom_domain", ""))
     organization.ativo = form.get("active") == "on"
@@ -66,6 +82,11 @@ def create_tenant_admin_from_form(organization_id: int, form) -> None:
     if Usuario.query.execution_options(include_all_tenants=True).filter_by(email=email).first():
         flash("E-mail ja cadastrado.", "error")
         return
+    if form.get("owner_password"):
+        errors = validar_senha_forte(password)
+        if errors:
+            flash("Senha invalida: " + " ".join(errors), "error")
+            return
     user = Usuario(
         organization_id=organization.id,
         nome=name,
