@@ -94,6 +94,7 @@ class Config:
     RATE_LIMIT_ENDPOINT_WRITE = int(os.environ.get("RATE_LIMIT_ENDPOINT_WRITE", "120"))
     RATE_LIMIT_ENDPOINT_API = int(os.environ.get("RATE_LIMIT_ENDPOINT_API", "240"))
     RATE_LIMIT_WINDOW_SECONDS = int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    PRIVACY_REQUEST_LIMIT_PER_HOUR = max(1, int(os.environ.get("PRIVACY_REQUEST_LIMIT_PER_HOUR", "10")))
     REDIS_URL = os.environ.get("REDIS_URL", "").strip() or None
     TENANT_BASE_DOMAIN = os.environ.get("TENANT_BASE_DOMAIN", "tamanini.dev.br").strip().lower()
     TENANT_DNS_MODE = os.environ.get("TENANT_DNS_MODE", "manual").strip().lower()

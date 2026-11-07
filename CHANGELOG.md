@@ -6,6 +6,15 @@
 - A tela de site foi simplificada para operar somente como publicacao de arquivos; a landing padrao nao e mais exibida quando a empresa ainda nao enviou um ZIP.
 - O super admin ganhou publicacao/despublicacao de sites por empresa e auditoria global filtravel por empresa, com eventos de dominio, visibilidade e upload sem registrar conteudo do site ou dados pessoais desnecessarios.
 - Adicionada central operacional do super admin em `/platform/operations`, com gargalos de fila, alertas abertos, heartbeats de jobs, eventos das ultimas 24 horas e estado de publicacao dos sites.
+- Planos agora permitem configurar percentual de hospedagem opcional; o super admin escolhe por empresa se o site será hospedado no Zokyo e o checkout calcula o valor mensal ajustado.
+- Planos agora permitem editar todos os campos disponíveis: código, nome, preço, ciclo de cobrança, percentual de hospedagem, limites e disponibilidade. O ciclo pode ser mensal, trimestral, semestral ou anual.
+- Criadas páginas profissionais e independentes, sem sidebar, para os erros HTTP 400, 401, 403, 404, 405, 408, 500, 502, 503 e 504, com handlers globais para timeout e gateway.
+- A tela global de nova empresa foi refinada para uma composição única, mais limpa e com largura controlada; o resumo lateral foi removido por excesso visual.
+- Corrigida a sidebar do super admin: Operação e gargalos e Auditoria global agora preservam o workspace correto e exibem o estado ativo da rota.
+- Corrigido o fallback da navegação global que marcava Visão geral como ativa nas páginas de Auditoria global e Operação e gargalos.
+- O super admin agora pode abrir as configurações de uma empresa pelo detalhe em `/platform/companies/<id>/settings`, com edição de dados gerais, opções de OS e alertas. Usuários da assistência não acessam mais essa área nem os aliases antigos de configuração.
+- A criação de administradores pelo super admin, a criação de empresas e o cadastro de funcionários agora enviam as credenciais iniciais para o e-mail informado. Quando a senha fica vazia, ela é gerada automaticamente; senhas nunca aparecem na auditoria. A redefinição de senha de administrador também passou a enviar o acesso por e-mail.
+- Permissões, dados da empresa, site, mensagens administrativas, auditoria, privacidade e importação agora ficam ocultos e bloqueados para usuários de assistência; essas áreas são controladas pelo super admin.
 
 - Login global separado em `/platform/login`; `/login` agora aceita somente usuários de empresas.
 - Adicionados aliases do painel em `/platform/dashboard`, `/platform/companies`, `/platform/subscriptions` e `/platform/audit`.
@@ -106,3 +115,7 @@
 - Adicionados Dockerfile, Compose dev/prod e exemplos de ambiente.
 - Adicionados testes iniciais de laudos, healthchecks, erros, uploads e configuracao de migracao.
 - Adicionado CI inicial, Ruff e separacao de requirements dev/prod.
+## 2026-11-06
+
+- Importação externa ampliada para Firebird, SQLite, MySQL/MariaDB, CSV, XLSX e ZIP com CSVs, com aliases de colunas, perfis por entidade, upload temporário e prévia antes da confirmação.
+- Importação movida para as configurações de cada empresa no painel do super admin, com validação do tenant de destino em todas as etapas.

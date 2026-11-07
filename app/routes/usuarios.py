@@ -14,8 +14,10 @@ from flask import Blueprint, flash, g, jsonify, redirect, render_template, reque
 from app.extensions import db
 from app.models import Organization, Usuario, registrar
 from app.models.usuario import PERFIS
+from app.admin.security import temporary_password
 from app.services.billing import assert_limit, assert_write_allowed
 from app.services.user_invites import create_invite, find_valid_invite
+from app.services.user_credentials import send_initial_credentials
 from app.utils.auth import api_login_required, nivel_required, page_nivel_required, validar_senha_forte
 from app.utils.permissions import KNOWN_PERMISSIONS
 from app.utils.request_data import get_request_data
@@ -90,7 +92,7 @@ def criar():
         return jsonify({"success": False, "erro": str(exc)}), 403
 
     # Campos obrigatórios
-    for c in ("nome", "email", "senha", "nivel"):
+    for c in ("nome", "email", "nivel"):
         if not data.get(c):
             return jsonify({"success": False, "erro": f"{c} é obrigatório"}), 400
 
@@ -113,8 +115,9 @@ def criar():
     if Usuario.query.filter_by(email=email).first():
         return jsonify({"success": False, "erro": "E-mail já cadastrado"}), 409
 
-    # Política de senha forte
-    erros_senha = validar_senha_forte(data["senha"])
+    # Se o responsável não informar senha, gere uma temporária e envie por e-mail.
+    senha = data.get("senha") or temporary_password()
+    erros_senha = validar_senha_forte(senha)
     if erros_senha:
         return jsonify({"success": False, "erro": erros_senha[0], "errors": erros_senha}), 400
 
@@ -124,11 +127,17 @@ def criar():
         u.permissoes_negadas = _permission_list(data.get("permissoes_negadas"))
     except ValueError as exc:
         return jsonify({"success": False, "erro": str(exc)}), 400
-    u.set_senha(data["senha"])
+    u.set_senha(senha)
     db.session.add(u)
     registrar("criacao", "usuarios", f"Usuário criado: {nome}")
     db.session.commit()
-    return jsonify(u.to_dict()), 201
+    organization = db.session.get(Organization, organization_id)
+    delivery = send_initial_credentials(u, organization.nome if organization else "sua assistência", senha)
+    return jsonify({
+        **u.to_dict(),
+        "mensagem": "Usuário criado. As credenciais iniciais foram enviadas por e-mail.",
+        "delivery": delivery,
+    }), 201
 
 
 @usuarios_bp.route("/api/usuarios/convites", methods=["POST"])
@@ -251,7 +260,7 @@ def atualizar(id):
     except ValueError as exc:
         return jsonify({"success": False, "erro": str(exc)}), 400
 
-    registrar("edicao", "usuarios", f"Usuário editado: {u.nome}")
+    registrar("edicao", "usuarios", f"Usuário #{u.id} editado")
     db.session.commit()
     return jsonify(u.to_dict())
 
@@ -263,7 +272,7 @@ def revogar_sessoes(id):
     from app.services.user_sessions import revoke_all
     revoke_all(u.id, "revogacao administrativa")
     u.security_version += 1
-    registrar("seguranca", "usuarios", f"Sessões revogadas: {u.nome}")
+    registrar("seguranca", "usuarios", f"Sessões do usuário #{u.id} revogadas")
     db.session.commit()
     if u.id == session["usuario_id"]:
         session.clear()
@@ -278,7 +287,7 @@ def deletar(id):
     if u.id == session["usuario_id"]:
         return jsonify({"success": False,
                         "erro": "Não é possível remover seu próprio usuário"}), 400
-    registrar("exclusao", "usuarios", f"Usuário removido: {u.nome}")
+    registrar("exclusao", "usuarios", f"Usuário #{u.id} removido")
     db.session.delete(u)
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Usuário removido"})

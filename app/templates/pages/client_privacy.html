@@ -1,23 +1,37 @@
 {% extends 'base.html' %}
 {% block title %}Privacidade do cliente - Zokyo{% endblock %}
-{% block breadcrumb %}Clientes / Privacidade{% endblock %}
-{% block topbar_action %}<a href="{{ url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
+{% block breadcrumb %}{{ 'Empresas / Privacidade' if platform_mode else 'Clientes / Privacidade' }}{% endblock %}
+{% block topbar_action %}<a href="{{ url_for('platform.company_privacy_clients', organization_id=platform_org.id) if platform_mode else url_for('pages.clientes') }}" class="btn btn-ghost btn-sm">Voltar</a>{% endblock %}
 {% block content %}
-<div class="page-header"><div><div class="page-title">Privacidade do titular</div><div class="page-sub">{{ cliente.nome }} - operacoes administrativas auditadas</div></div><a class="btn btn-outline" href="{{ url_for('privacy.export', client_id=cliente.id) }}">Exportar dados</a></div>
+{% set export_url = url_for('platform.company_client_export', organization_id=platform_org.id, client_id=cliente.id) if platform_mode else url_for('privacy.export', client_id=cliente.id) %}
+{% set remove_url = url_for('platform.company_client_remove_registration', organization_id=platform_org.id, client_id=cliente.id) if platform_mode else url_for('privacy.anonymize', client_id=cliente.id) %}
+<div class="page-header"><div><div class="page-title">Privacidade do titular</div><div class="page-sub">{{ cliente.nome }}{% if platform_mode %} · {{ platform_org.nome }}{% endif %} · Operações administrativas auditadas</div></div>{% if not platform_mode %}<a class="btn btn-outline" href="{{ export_url }}">Exportar dados</a>{% endif %}</div>
+{% if platform_mode %}
+<section class="card mb16">
+  <div class="card-header"><div class="card-title">Exportar dados do cliente</div></div>
+  <div class="card-body">
+    <form method="POST" action="{{ export_url }}" class="form-row fr2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label for="export-reason">Motivo do acesso</label><select id="export-reason" name="reason" required><option value="">Selecione</option><option value="subject_request">Atender solicitação do titular</option><option value="support_request">Suporte solicitado pela empresa</option><option value="incident_investigation">Investigar incidente</option></select></div>
+      <div class="form-group"><label for="export-request">Pedido verificado (se atender titular)</label><select id="export-request" name="request_id"><option value="">Selecione o pedido</option>{% for item in export_requests %}<option value="{{ item.id }}">#{{ item.id }} · {{ item.request_type }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="export-incident">Incidente da empresa (se investigar)</label><select id="export-incident" name="incident_id"><option value="">Selecione o incidente</option>{% for item in incidents %}<option value="{{ item.id }}">#{{ item.id }} · {{ item.status }}</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="export-protocol">Protocolo externo (se suporte)</label><input id="export-protocol" name="protocol" maxlength="40" autocomplete="off" placeholder="SUP-1234" pattern="[A-Z0-9][A-Z0-9-]{3,39}" aria-describedby="protocol-help"></div>
+      <div class="form-group"><label>&nbsp;</label><button class="btn btn-outline" type="submit">Baixar exportação</button></div>
+    </form>
+    <p class="td-note" id="protocol-help">Pedidos precisam estar vinculados a este cliente e com identidade validada. Incidentes precisam pertencer à empresa. Para suporte, informe o código de um atendimento externo, sem nome ou e-mail.</p>
+  </div>
+</section>
+{% endif %}
 <div class="g64">
   <section class="card">
-    <div class="card-header"><div class="card-title">Registrar consentimento</div></div>
-    <form method="POST" action="{{ url_for('privacy.consent', client_id=cliente.id) }}" class="card-body parts-body">
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="form-group"><label>Finalidade</label><select name="purpose"><option value="service_updates">Atualizações do serviço</option><option value="marketing">Marketing</option><option value="data_processing">Tratamento adicional</option></select></div>
-      <div class="form-group"><label>Decisão</label><select name="granted"><option value="true">Concedido</option><option value="false">Revogado</option></select></div>
-      <button class="btn btn-primary" type="submit">Registrar</button>
-    </form>
+    <div class="card-header"><div class="card-title">Consentimentos</div></div>
+    <div class="card-body parts-body"><p>Consulte os registros abaixo. Novas concessões exigem um aviso aprovado, escolha direta do titular e referência da evidência; esta tela não cria concessões manuais.</p>{% if platform_mode %}<a class="btn btn-outline" href="{{ url_for('privacy.subject_requests') }}">Ver solicitações de titulares</a>{% endif %}</div>
   </section>
   <section class="card">
-    <div class="card-header"><div class="card-title">Anonimizacao</div></div>
-    <div class="card-body parts-body"><div class="alert a-amber">A operação será recusada se existirem OS ou laudos sujeitos a retenção.</div><form method="POST" action="{{ url_for('privacy.anonymize', client_id=cliente.id) }}" data-confirm="Anonimizar permanentemente os dados deste cliente?"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-danger" type="submit">Anonimizar quando permitido</button></form></div>
+    <div class="card-header"><div class="card-title">Remover dados cadastrais</div></div>
+    <div class="card-body parts-body"><div class="alert a-amber">Esta ação remove os identificadores do cadastro. Histórico, consentimentos, auditoria e backups podem continuar contendo dados pessoais. A operação é recusada se houver OS, laudos ou coletas vinculadas.</div><form method="POST" action="{{ remove_url }}" data-confirm="Remover os dados cadastrais deste cliente? Registros históricos serão preservados."><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">{% if platform_mode %}<div class="form-group"><label for="removal-reason">Motivo da remoção</label><select id="removal-reason" name="reason" required><option value="">Selecione</option><option value="subject_request">Solicitação do titular</option><option value="duplicate_record">Cadastro duplicado</option><option value="data_minimization">Minimização de dados aprovada</option></select></div><div class="form-group"><label for="removal-request">Pedido verificado de eliminação ou anonimização</label><select id="removal-request" name="request_id"><option value="">Selecione se o motivo for solicitação do titular</option>{% for item in removal_requests %}<option value="{{ item.id }}">#{{ item.id }} · {{ item.request_type }}</option>{% endfor %}</select></div><div class="form-group"><label for="removal-protocol">Protocolo externo (se duplicidade ou minimização)</label><input id="removal-protocol" name="protocol" maxlength="40" autocomplete="off" placeholder="APROV-1234" pattern="[A-Z0-9][A-Z0-9-]{3,39}"><div class="td-note">Use um código de atendimento ou aprovação, sem dados pessoais.</div></div>{% endif %}<button class="btn btn-danger" type="submit">Remover dados cadastrais</button></form></div>
   </section>
 </div>
-<div class="card"><div class="card-header"><div class="card-title">Histórico de consentimentos</div></div><div class="table-wrap"><table><thead><tr><th>Finalidade</th><th>Decisão</th><th>Origem</th><th>Data</th></tr></thead><tbody>{% for item in consents %}<tr class="tr-static"><td>{{ item.purpose }}</td><td>{{ 'Concedido' if item.granted else 'Revogado' }}</td><td>{{ item.source }}</td><td>{{ item.registrado_em|fmtdata }}</td></tr>{% else %}<tr><td colspan="4" class="td-empty">Sem registros.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-header"><div class="card-title">Histórico de consentimentos</div></div><div class="table-wrap"><table><thead><tr><th>Finalidade</th><th>Decisão</th><th>Origem e evidência</th><th>Data</th></tr></thead><tbody>{% for item in consents %}<tr class="tr-static"><td>{{ item.purpose }}</td><td>{{ 'Concedido' if item.granted else 'Revogado' }}</td><td>{{ item.source }}<div class="td-note">Aviso: {{ item.policy_version or 'não registrado' }} · referência: {{ item.evidence_reference or 'não registrada' }}</div></td><td>{{ item.registrado_em|fmtdata }}</td></tr>{% else %}<tr><td colspan="4" class="td-empty">Sem registros.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card mt16"><div class="card-header"><div class="card-title">Solicitações vinculadas</div></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Tipo</th><th>Status</th><th>Recebida em</th></tr></thead><tbody>{% for item in requests %}<tr class="tr-static"><td class="td-mono">#{{ item.id }}</td><td>{{ item.request_type }}</td><td>{{ item.status }}</td><td>{{ item.solicitado_em|fmtdata }}</td></tr>{% else %}<tr><td colspan="4" class="td-empty">Sem solicitações vinculadas.</td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}

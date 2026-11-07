@@ -44,6 +44,7 @@ from sqlalchemy import case, func, text
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
+from app.routes.configuracoes import configuration_page_required
 from app.models import (
     LAUDO_STATUS_LABELS,
     LAUDO_TIPOS_LABELS,
@@ -81,7 +82,7 @@ from app.services.financial_analytics import (
     period_financial_summary,
 )
 from app.services.inventory import record_movement
-from app.utils.auth import nivel_required, page_nivel_required
+from app.utils.auth import nivel_required, page_nivel_required, platform_controlled_page_required
 from app.utils.blind_index import blind_index
 from app.utils.permissions import KNOWN_PERMISSIONS, ROLE_PERMISSIONS
 from app.utils.sanitizers import sanitize_cep, sanitize_cpf_cnpj, sanitize_email, sanitize_phone, sanitize_text
@@ -1183,7 +1184,7 @@ def zokyo_mine_resetar_senha():
 @pages_bp.route("/zokyo/emitente")
 @pages_bp.route("/configurar")
 @pages_bp.route("/emitente")
-@page_nivel_required("admin")
+@configuration_page_required
 def zokyo_configurar():
     return render_template(
         "pages/zokyo_configuracao.html",
@@ -1199,7 +1200,7 @@ def zokyo_configurar():
 @pages_bp.route("/cadastrarEmitente", methods=["GET", "POST"])
 @pages_bp.route("/editarEmitente", methods=["GET", "POST"])
 @pages_bp.route("/editarLogo", methods=["GET", "POST"])
-@page_nivel_required("admin")
+@configuration_page_required
 def zokyo_emitente_alias():
     if request.method == "POST":
         return redirect(url_for("configuracoes.salvar"), code=307)
@@ -1318,7 +1319,7 @@ def zokyo_backup():
 
 
 @pages_bp.route("/permissoes")
-@page_nivel_required("admin")
+@platform_controlled_page_required
 def zokyo_permissoes():
     usuarios = Usuario.query.order_by(Usuario.nome).all()
     permissoes = sorted(KNOWN_PERMISSIONS)
@@ -1332,7 +1333,7 @@ def zokyo_permissoes():
 
 
 @pages_bp.route("/permissoes/editar/<int:id>", methods=["POST"])
-@page_nivel_required("admin")
+@platform_controlled_page_required
 def zokyo_permissoes_editar(id):
     usuario = db.get_or_404(Usuario, id)
     organization_id = getattr(g, "organization_id", None)
@@ -1342,14 +1343,14 @@ def zokyo_permissoes_editar(id):
     negadas = sorted(set(request.form.getlist("permissoes_negadas")) & set(KNOWN_PERMISSIONS))
     usuario.permissoes_extra = extras
     usuario.permissoes_negadas = negadas
-    registrar("edicao", "permissoes", f"Permissões atualizadas: {usuario.nome}")
+    registrar("edicao", "permissoes", f"Permissões do usuário #{usuario.id} atualizadas")
     db.session.commit()
     flash("Permissões atualizadas.", "success")
     return redirect(url_for("pages.zokyo_permissoes"))
 
 
 @pages_bp.route("/auditoria")
-@page_nivel_required("admin")
+@platform_controlled_page_required
 def zokyo_auditoria():
     data_ini = request.args.get("data_ini", "")
     data_fim = request.args.get("data_fim", "")
@@ -1400,7 +1401,7 @@ def zokyo_auditoria():
 
 
 @pages_bp.route("/auditoria/clean", methods=["POST"])
-@page_nivel_required("admin")
+@platform_controlled_page_required
 def zokyo_auditoria_clean():
     flash("Limpeza de auditoria não foi executada; histórico preservado por segurança.", "warning")
     return redirect(url_for("pages.zokyo_auditoria"))
@@ -1847,7 +1848,8 @@ def coleta_agendar():
         observacoes=payload.get("observacoes"),
     )
     db.session.add(coleta_obj)
-    registrar("criacao", "coleta", f"Coleta agendada para {cliente.nome}")
+    db.session.flush()
+    registrar("criacao", "coleta", f"Coleta #{coleta_obj.id} agendada")
     db.session.commit()
     flash("Coleta agendada. Agora ela aparece para conclusao pelo celular.", "success")
     return redirect(url_for("pages.coleta"))
@@ -3085,7 +3087,8 @@ def cliente_criar():
 
     c = Cliente(**d)
     db.session.add(c)
-    registrar("criacao", "clientes", f"Cliente criado: {d['nome']}")
+    db.session.flush()
+    registrar("criacao", "clientes", f"Cliente #{c.id} criado")
     db.session.commit()
     flash("Cliente salvo!", "success")
     return redirect(url_for("pages.clientes"))
@@ -3109,7 +3112,7 @@ def cliente_editar(id):
 
     for campo, valor in d.items():
         setattr(c, campo, valor)
-    registrar("edicao", "clientes", f"Cliente editado: {c.nome}")
+    registrar("edicao", "clientes", f"Cliente #{c.id} editado")
     db.session.commit()
     flash("Cliente atualizado!", "success")
     return redirect(url_for("pages.clientes"))
@@ -3121,7 +3124,7 @@ def cliente_editar(id):
 def cliente_deletar(id):
     c = db.get_or_404(Cliente, id)
     c.ativo = False
-    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; histórico preservado.")
+    registrar("arquivamento", "clientes", f"Cliente #{c.id} arquivado; histórico preservado")
     db.session.commit()
     flash("Cliente arquivado. OS, laudos e financeiro foram preservados.", "success")
     return redirect(url_for("pages.clientes"))
@@ -4742,7 +4745,7 @@ def cobrancas_enviar_email_alias():
         "billing_charge",
         f"billing-charge-{g.organization_id}-{t.id}-{int(float(t.valor or 0) * 100)}",
     )
-    registrar("email", "cobrancas", f"Cobrança #{t.id} enfileirada para {cliente.email}", f"Notificação #{notification.id}")
+    registrar("email", "cobrancas", f"Cobrança #{t.id} enfileirada", f"Notificação #{notification.id}")
     db.session.commit()
     if _wants_json():
         return jsonify({"result": True, "message": "Cobrança enfileirada para envio.", "notification_id": notification.id})

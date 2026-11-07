@@ -104,6 +104,7 @@ def provision_tenant(
     active: bool = True,
     provision_dns: bool = True,
     custom_domain: str | None = None,
+    site_hospedado: bool = False,
 ) -> tuple[Organization, Usuario]:
     organization_name = sanitize_text(name, max_length=200)
     normalized_slug = normalize_slug(slug) if str(slug or "").strip() else unique_slug_for_name(organization_name)
@@ -157,6 +158,7 @@ def provision_tenant(
     subscription = ensure_trial_subscription(organization.id, trial_days=trial_days)
     if plan_id:
         subscription.plan_id = plan_id
+        subscription.site_hospedado = site_hospedado
 
     if provision_dns:
         # O DNS automático só pode criar registros na zona administrada pelo

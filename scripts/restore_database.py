@@ -11,12 +11,19 @@ import re
 import shutil
 import subprocess  # nosec B404
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 try:
     from scripts.backup_database import load_env_file, parse_database_url, write_defaults_file
 except ModuleNotFoundError:  # pragma: no cover - direct script bootstrap.
     from backup_database import load_env_file, parse_database_url, write_defaults_file
+
+try:
+    from scripts import backup_crypto
+except ModuleNotFoundError:  # pragma: no cover - direct script bootstrap.
+    import backup_crypto
 
 
 def sha256_file(path: Path) -> str:
@@ -48,6 +55,25 @@ def secrets_compare(left: str, right: str) -> bool:
     return secrets.compare_digest(left, right)
 
 
+@contextmanager
+def prepared_backup(backup: Path, metadata: dict):
+    """Disponibiliza dump em claro apenas em diretório temporário privado."""
+    if not backup.name.endswith(".enc"):
+        if metadata.get("format") == "aes256-gcm":
+            raise ValueError("Metadata criptografado aponta para arquivo sem .enc.")
+        yield backup
+        return
+    if metadata.get("format") != "aes256-gcm" or not metadata.get("plaintext_sha256"):
+        raise ValueError("Metadata do backup criptografado incompleto.")
+    key = backup_crypto.key_from_env()
+    with tempfile.TemporaryDirectory(prefix="zokyo-restore-") as directory:
+        plaintext = Path(directory) / backup.name[:-4]
+        backup_crypto.decrypt_file(backup, plaintext, key)
+        if not secrets_compare(metadata["plaintext_sha256"], sha256_file(plaintext)):
+            raise ValueError("SHA-256 do dump decriptado invalido.")
+        yield plaintext
+
+
 def validate_portable_dump(backup: Path):
     """Impede que o dump selecione ou altere bancos fora do destino configurado."""
     opener = gzip.open if backup.name.endswith(".gz") else open
@@ -75,16 +101,24 @@ def restore(backup: Path, database_url: str, mysql_binary: str = "mysql"):
             )
             if process.stdin is None:
                 raise RuntimeError("Nao foi possivel abrir o pipe de entrada do cliente MariaDB.")
+            pipe_error = None
             try:
                 shutil.copyfileobj(source, process.stdin, length=1024 * 1024)
+            except BrokenPipeError as exc:
+                pipe_error = exc
             finally:
-                process.stdin.close()
+                try:
+                    process.stdin.close()
+                except BrokenPipeError as exc:
+                    pipe_error = pipe_error or exc
             stdout = process.stdout.read() if process.stdout else b""
             stderr = process.stderr.read() if process.stderr else b""
             return_code = process.wait()
         if return_code:
             detail = stderr.decode("utf-8", errors="replace").strip() or stdout.decode("utf-8", errors="replace").strip()
             raise RuntimeError(detail)
+            if pipe_error:
+                raise RuntimeError("Cliente MariaDB encerrou o pipe durante o restore.") from pipe_error
     finally:
         defaults.unlink(missing_ok=True)
 
@@ -96,19 +130,36 @@ def main() -> int:
     parser.add_argument("--env-file", default=".env")
     parser.add_argument("--mysql", default="mysql")
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument(
+        "--confirm-in-place", action="store_true",
+        help="Autoriza explicitamente restaurar no banco principal ou em destino com o mesmo nome.",
+    )
     args = parser.parse_args()
     backup = Path(args.backup).resolve()
     metadata = Path(args.metadata).resolve() if args.metadata else Path(str(backup) + ".json")
     try:
+        env_values = load_env_file(Path(args.env_file))
+        if not os.environ.get("BACKUP_ENCRYPTION_KEY") and env_values.get("BACKUP_ENCRYPTION_KEY"):
+            os.environ["BACKUP_ENCRYPTION_KEY"] = env_values["BACKUP_ENCRYPTION_KEY"]
         payload = verify_backup(backup, metadata)
         if args.verify_only:
-            print(f"Backup valido: {payload['output_file']}")
+            with prepared_backup(backup, payload):
+                print(f"Backup valido: {payload['output_file']}")
             return 0
-        env = {**load_env_file(Path(args.env_file)), **os.environ}
-        database_url = env.get("DATABASE_URL")
+        env = {**env_values, **os.environ}
+        source_url = env.get("DATABASE_URL")
+        target_url = env.get("RESTORE_DATABASE_URL")
+        if not target_url and not args.confirm_in_place:
+            raise ValueError("Defina RESTORE_DATABASE_URL para um banco descartavel ou use --confirm-in-place.")
+        database_url = target_url or source_url
         if not database_url:
-            raise ValueError("DATABASE_URL nao configurada.")
-        restore(backup, database_url, args.mysql)
+            raise ValueError("DATABASE_URL/RESTORE_DATABASE_URL nao configurada.")
+        target = parse_database_url(database_url)
+        original_name = str(payload.get("database") or "").lower()
+        if original_name and target.database.lower() == original_name and not args.confirm_in_place:
+            raise ValueError("Destino tem o mesmo nome do banco de origem; use --confirm-in-place se isso for intencional.")
+        with prepared_backup(backup, payload) as prepared:
+            restore(prepared, database_url, args.mysql)
         print("Restore concluido. Execute healthcheck e verificacoes funcionais antes de liberar o ambiente.")
         return 0
     except Exception as exc:

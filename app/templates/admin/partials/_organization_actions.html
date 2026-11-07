@@ -1,6 +1,6 @@
 <div class="admin-detail-grid">
   <section class="admin-section">
-    <div class="admin-section-heading"><h2>Empresa e assinatura</h2><span class="badge {{ 'b-green' if org.ativo else 'b-gray' }}">{{ 'Ativa' if org.ativo else 'Inativa' }}</span></div>
+    <div class="admin-section-heading"><div><h2>Empresa e assinatura</h2><p class="input-hint">Edite a assinatura, os domínios e as configurações desta assistência.</p></div><div class="admin-header-actions"><a class="btn btn-outline btn-sm" href="{{ url_for('platform.company_settings', organization_id=org.id) }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-settings"></use></svg>Configurações</a><span class="badge {{ 'b-green' if org.ativo else 'b-gray' }}">{{ 'Ativa' if org.ativo else 'Inativa' }}</span></div></div>
     <form method="POST" action="{{ url_for('platform.update_organization', organization_id=org.id) }}" class="admin-form">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="form-group"><label for="edit-company-name">Nome da empresa</label><input id="edit-company-name" name="name" value="{{ org.nome }}" required maxlength="200"></div>
@@ -15,16 +15,20 @@
         <div class="input-hint">Aponte esse domínio para o servidor. Vazio usa {{ org.subdomain }}.{{ base_domain }}.</div>
       </div>
       <div class="form-row fr2">
-        <div class="form-group"><label for="edit-plan">Plano</label><select id="edit-plan" name="plan_id">
+        <div class="form-group"><label for="edit-plan">Plano</label><select id="edit-plan" name="plan_id" data-plan-select>
           {% if not subscription %}<option value="">Sem plano</option>{% endif %}
-          {% for plan in plans if plan.ativo or (subscription and plan.id == subscription.plan_id) %}<option value="{{ plan.id }}" {{ 'selected' if subscription and subscription.plan_id == plan.id }}>{{ plan.nome }}</option>{% endfor %}
+          {% for plan in plans if plan.ativo or (subscription and plan.id == subscription.plan_id) %}<option value="{{ plan.id }}" data-plan-price="{{ plan.preco_mensal or 0 }}" data-hosting-percent="{{ plan.hospedagem_percentual or 0 }}" {{ 'selected' if subscription and subscription.plan_id == plan.id }}>{{ plan.nome }}</option>{% endfor %}
         </select></div>
         <div class="form-group"><label for="edit-status">Situação da assinatura</label><select id="edit-status" name="status">
           {% for item in subscription_statuses %}<option value="{{ item }}" {{ 'selected' if subscription and subscription.status == item }}>{{ subscription_status_labels.get(item, item) }}</option>{% endfor %}
         </select></div>
       </div>
+      <div class="admin-hosting-choice" data-hosting-plan-form>
+        <label class="check-inline"><input class="input-check" type="checkbox" name="site_hospedado" data-hosting-checkbox {{ 'checked' if subscription and subscription.site_hospedado }}> Hospedar o site desta empresa no servidor do Zokyo</label>
+        <p class="input-hint" data-hosting-summary></p>
+      </div>
       <dl class="admin-definition-list">
-        <div><dt>Mensalidade</dt><dd>{{ ('R$ ' ~ ('%.2f'|format(subscription.plan.preco_mensal or 0)|replace('.', ','))) if subscription else 'Sem plano' }}</dd></div>
+        <div><dt>Mensalidade</dt><dd>{{ ('R$ ' ~ ('%.2f'|format(subscription.preco_mensal_cobrado)|replace('.', ','))) if subscription else 'Sem plano' }}{% if subscription and subscription.site_hospedado %}<small class="admin-price-note">com hospedagem</small>{% endif %}</dd></div>
         <div><dt>Fim do período de teste</dt><dd>{{ subscription.trial_fim.strftime('%d/%m/%Y') if subscription and subscription.trial_fim else '-' }}</dd></div>
         <div><dt>Fim do período atual</dt><dd>{{ subscription.periodo_fim.strftime('%d/%m/%Y') if subscription and subscription.periodo_fim else '-' }}</dd></div>
         <div><dt>Contas cadastradas</dt><dd>{{ usage[org.id].users }}</dd></div>
@@ -35,7 +39,7 @@
     </form>
   </section>
   <section class="admin-section">
-    <div class="admin-section-heading"><h2>Responsáveis</h2><span class="muted-xs">{{ owners.get(org.id, [])|length }} administradores</span></div>
+    <div id="responsaveis" class="admin-section-heading"><h2>Responsáveis</h2><span class="muted-xs">{{ owners.get(org.id, [])|length }} administradores</span></div>
     <div class="admin-owner-list">
       {% for owner in owners.get(org.id, []) %}
       <div class="admin-owner-row">
@@ -53,7 +57,7 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-group"><label for="new-owner-name">Nome completo</label><input id="new-owner-name" name="owner_name" required minlength="2" maxlength="120"></div>
         <div class="form-group"><label for="new-owner-email">E-mail</label><input id="new-owner-email" type="email" name="owner_email" required autocomplete="off"></div>
-        <div class="form-group"><label for="new-owner-password">Senha inicial</label><input id="new-owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar automaticamente.</small>{% include 'partials/_password_requirements.html' %}</div>
+        <div class="form-group"><label for="new-owner-password">Senha inicial</label><input id="new-owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha temporária por e-mail" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar uma senha temporária e enviá-la ao e-mail informado.</small>{% include 'partials/_password_requirements.html' %}</div>
         <button class="btn btn-outline" type="submit">Adicionar administrador</button>
       </form>
     </details>

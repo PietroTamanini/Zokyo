@@ -188,7 +188,8 @@ def criar():
 
     c = Cliente(**d)
     db.session.add(c)
-    registrar("criacao", "clientes", f"Cliente criado: {d['nome']}")
+    db.session.flush()
+    registrar("criacao", "clientes", f"Cliente #{c.id} criado")
     db.session.commit()
     return jsonify({"success": True, "cliente": c.to_dict(), **c.to_dict()}), 201
 
@@ -212,7 +213,8 @@ def quick_create():
 
     c = Cliente(**d)
     db.session.add(c)
-    registrar("criacao", "clientes", f"Cliente rápido criado: {d['nome']}")
+    db.session.flush()
+    registrar("criacao", "clientes", f"Cliente #{c.id} criado por cadastro rápido")
     db.session.commit()
     return jsonify({"success": True, "cliente": c.to_dict()}), 201
 
@@ -244,7 +246,7 @@ def atualizar(id):
     for campo, valor in d.items():
         setattr(c, campo, valor)
 
-    registrar("edicao", "clientes", f"Cliente atualizado: {c.nome}")
+    registrar("edicao", "clientes", f"Cliente #{c.id} atualizado")
     db.session.commit()
     return jsonify({"success": True, "cliente": c.to_dict(), **c.to_dict()})
 
@@ -255,6 +257,6 @@ def atualizar(id):
 def deletar(id):
     c = db.get_or_404(Cliente, id)
     c.ativo = False
-    registrar("arquivamento", "clientes", f"Cliente arquivado: {c.nome}; histórico preservado.")
+    registrar("arquivamento", "clientes", f"Cliente #{c.id} arquivado; histórico preservado")
     db.session.commit()
     return jsonify({"success": True, "mensagem": "Cliente arquivado; histórico preservado"})

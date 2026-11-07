@@ -17,7 +17,7 @@ from app.services.tenant_site_service import (
 )
 from app.services.tenant_site_bundle import SiteBundleError, publish_bundle, unpublish_bundle
 from app.services.tenant_provisioning import tenant_hostname
-from app.utils.auth import page_nivel_required
+from app.routes.configuracoes import configuration_page_required
 
 site_config_bp = Blueprint("site_config", __name__, url_prefix="/configuracoes/site")
 
@@ -51,7 +51,7 @@ def _public_site_url(organization, site):
 
 
 @site_config_bp.route("/", methods=["GET"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def index():
     organization, site, content = _site_context()
     return render_template(
@@ -66,7 +66,7 @@ def index():
 
 
 @site_config_bp.route("/", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def salvar():
     organization_id = getattr(g, "organization_id", None)
     if not organization_id:
@@ -92,7 +92,7 @@ def salvar():
 
 
 @site_config_bp.route("/upload", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def upload():
     """Publica um ZIP estatico pertencente exclusivamente ao tenant atual."""
     organization, site, _content = _site_context()
@@ -116,7 +116,7 @@ def upload():
 
 
 @site_config_bp.route("/unpublish", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def unpublish():
     organization, site, _content = _site_context()
     had_bundle = unpublish_bundle(site)
@@ -131,7 +131,7 @@ def unpublish():
 
 
 @site_config_bp.route("/toggle", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def toggle():
     organization_id = getattr(g, "organization_id", None)
     if not organization_id:
@@ -148,7 +148,7 @@ def toggle():
 
 
 @site_config_bp.route("/subdomain", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def subdomain():
     organization_id = getattr(g, "organization_id", None)
     if not organization_id:
@@ -168,7 +168,7 @@ def subdomain():
 
 
 @site_config_bp.route("/verify", methods=["POST"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def verify():
     organization_id = getattr(g, "organization_id", None)
     if not organization_id:
@@ -186,7 +186,7 @@ def verify():
 
 
 @site_config_bp.route("/preview", methods=["GET"], strict_slashes=False)
-@page_nivel_required("admin")
+@configuration_page_required
 def preview():
     organization, site, _content = _site_context()
     if site.site_mode != "upload" or not site.site_bundle_version:

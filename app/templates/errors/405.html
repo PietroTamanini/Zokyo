@@ -1,10 +1,4 @@
-{% extends 'base.html' %}
-{% block title %}405 - Zokyo{% endblock %}
-{% block breadcrumb %}Erro 405{% endblock %}
-{% block content %}
-<div class="empty-state">
-  <div class="page-title">Método não permitido</div>
-  <p>{{ message }}</p>
-  <a class="btn btn-primary" href="{{ url_for('pages.dashboard') }}">Voltar ao dashboard</a>
-</div>
-{% endblock %}
+{% extends 'errors/base.html' %}
+{% set code = 405 %}{% set tone = 'warning' %}{% set title = 'Este método não está disponível aqui' %}{% set message = 'A página existe, mas não aceita este tipo de solicitação.' %}
+{% block title %}405 · Método não permitido | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

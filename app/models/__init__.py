@@ -33,8 +33,8 @@ from .password_reset import PasswordResetToken
 from .peca import Peca
 from .platform_setting import PlatformSetting
 from .portal import PortalToken
-from .privacy import ConsentRecord, DataSubjectRequest
-from .retention import RetentionPolicy
+from .privacy import ConsentRecord, DataSubjectRequest, DataSubjectRequestRevision, PrivacyIncident, PrivacyIncidentRevision
+from .retention import PlatformRetentionPolicy, RetentionPolicy
 from .saved_report import SavedReport
 from .service_checklist import ServiceChecklistTemplate
 from .tenant_site import TenantSite
@@ -57,9 +57,10 @@ __all__ = [
     "PortalToken",
     "PlatformSetting",
     "BillingEvent","OrganizationSubscription","Plan",
-    "ConsentRecord","DataSubjectRequest",
+    "ConsentRecord","DataSubjectRequest","DataSubjectRequestRevision","PrivacyIncident","PrivacyIncidentRevision",
     "Notification",
     "RetentionPolicy",
+    "PlatformRetentionPolicy",
     "UserSession",
     "InventoryLot","InventoryMovement","StockReservation",
     "InventarioSessao","InventarioItem","InventarioAjuste","pecas_inventario",

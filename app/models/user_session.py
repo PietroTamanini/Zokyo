@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
+from app.utils.field_crypto import EncryptedText
 
 
 def _now():
@@ -20,8 +21,8 @@ class UserSession(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False, index=True)
     token_hash = db.Column(db.String(64), nullable=False, unique=True)
     security_version = db.Column(db.Integer, nullable=False)
-    ip_address = db.Column(db.String(45))
-    user_agent = db.Column(db.String(300))
+    ip_address = db.Column(EncryptedText)
+    user_agent = db.Column(EncryptedText)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     last_seen_at = db.Column(db.DateTime, nullable=False, default=_now)
     expires_at = db.Column(db.DateTime, nullable=False)

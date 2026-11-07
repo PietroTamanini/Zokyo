@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 400 %}{% set tone = 'warning' %}{% set title = 'Não conseguimos entender esta solicitação' %}{% set message = 'Alguma informação enviada está incompleta ou em um formato que não reconhecemos.' %}
+{% block title %}400 · Solicitação inválida | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

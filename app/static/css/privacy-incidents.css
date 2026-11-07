@@ -1,0 +1,12 @@
+.incident-history { margin-top: .75rem; border-top: 1px solid var(--border, #d6dde6); padding-top: .65rem; max-width: 34rem; }
+.incident-history summary { cursor: pointer; font-weight: 600; color: var(--blue, #2454aa); }
+.incident-history summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.incident-history-entry { border-left: 2px solid var(--border, #d6dde6); margin: .75rem 0; padding: .15rem .7rem; overflow-wrap: anywhere; line-height: 1.55; }
+.incident-history-entry strong { display: block; margin-bottom: .25rem; }
+.export-hash { margin-top: .35rem; max-width: 12rem; overflow-wrap: anywhere; }
+.export-hash summary { cursor: pointer; color: var(--blue, #2454aa); }
+.export-hash code { font-size: .72rem; }
+.privacy-response-form { display: grid; grid-template-columns: repeat(2, minmax(11rem, 1fr)); gap: .45rem; min-width: 22rem; }
+.privacy-response-form > input[name="response_notes"], .privacy-response-form > button { grid-column: 1 / -1; }
+.privacy-response-form > label { display: flex; align-items: center; gap: .35rem; }
+@media (max-width: 640px) { .privacy-response-form { grid-template-columns: minmax(0, 1fr); min-width: 16rem; } }

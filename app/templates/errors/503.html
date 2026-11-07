@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 503 %}{% set tone = 'warning' %}{% set title = 'O serviço está temporariamente indisponível' %}{% set message = 'O sistema pode estar em manutenção ou sob uma carga acima do normal.' %}
+{% block title %}503 · Serviço indisponível | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

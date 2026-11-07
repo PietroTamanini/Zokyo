@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 502 %}{% set tone = 'danger' %}{% set title = 'A conexão entre serviços falhou' %}{% set message = 'Um serviço intermediário recebeu uma resposta inválida. O acesso deve voltar em breve.' %}
+{% block title %}502 · Gateway inválido | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

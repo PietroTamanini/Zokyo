@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from app.extensions import db
+from app.utils.field_crypto import EncryptedJSON, EncryptedText
 
 
 def _now():
@@ -22,15 +23,16 @@ class Notification(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey("organizations.id"), nullable=False, index=True)
     os_id = db.Column(db.Integer, db.ForeignKey("ordens_servico.id"), nullable=True)
     channel = db.Column(db.String(30), nullable=False, default="whatsapp")
-    recipient = db.Column(db.String(80), nullable=False)
+    recipient = db.Column(EncryptedText, nullable=False)
     event_type = db.Column(db.String(80), nullable=False)
     idempotency_key = db.Column(db.String(160), nullable=False)
-    payload = db.Column(db.JSON, nullable=False)
+    payload = db.Column(EncryptedJSON, nullable=False)
     status = db.Column(db.String(30), nullable=False, default="pending", index=True)
     attempts = db.Column(db.Integer, nullable=False, default=0)
     max_attempts = db.Column(db.Integer, nullable=False, default=3)
     next_attempt_at = db.Column(db.DateTime, nullable=False, default=_now, index=True)
-    last_error = db.Column(db.Text)
+    last_error = db.Column(EncryptedText)
     sent_at = db.Column(db.DateTime)
+    redacted_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)

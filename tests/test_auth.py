@@ -106,7 +106,15 @@ def test_usuario_lista_e_revoga_sessao_secundaria():
     page = first.get("/seguranca/sessoes")
     assert page.status_code == 200
     assert "Sessões e dispositivos".encode("utf-8") in page.data
+    assert b"127.0.0.1" in page.data
     with app.app_context():
+        from app.utils.field_crypto import PREFIX
+        from sqlalchemy import text
+
+        raw_ip = db.session.execute(text(
+            "SELECT ip_address FROM user_sessions ORDER BY id LIMIT 1"
+        )).scalar_one()
+        assert raw_ip.startswith(PREFIX)
         second_record_id = UserSession.query.order_by(UserSession.id.desc()).first().id
     assert first.post(
         f"/seguranca/sessoes/{second_record_id}/revogar",

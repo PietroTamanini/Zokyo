@@ -4,14 +4,15 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import or_
 
 from app.extensions import db
-from app.models import Notification, PasswordResetToken, PortalToken, RetentionPolicy, Usuario
+from app.models import Notification, PasswordResetToken, PlatformRetentionPolicy, PortalToken, RetentionPolicy, UserSession, Usuario, registrar
 
 RESET_TOKEN_CATEGORY = "_".join(("pass", "word", "reset", "tokens"))
 
 CATEGORIES = {
     RESET_TOKEN_CATEGORY: "Tokens de recuperacao de senha",
     "portal_tokens": "Tokens expirados/revogados do portal",
-    "notifications": "Notificacoes em estado terminal",
+    "notifications": "Dados de notificações enviadas",
+    "user_sessions": "Sessões expiradas ou revogadas",
 }
 
 
@@ -35,7 +36,13 @@ def count_candidates(policy, now=None):
         return Notification.query.execution_options(include_all_tenants=True).filter(
             Notification.organization_id == policy.organization_id,
             Notification.created_at < cutoff,
-            Notification.status.in_(("sent", "manual_required", "failed")),
+            Notification.status == "sent",
+            Notification.redacted_at.is_(None),
+        ).count()
+    if policy.category == "user_sessions":
+        return UserSession.query.execution_options(include_all_tenants=True).filter(
+            UserSession.organization_id == policy.organization_id,
+            or_(UserSession.expires_at < cutoff, UserSession.revoked_at < cutoff),
         ).count()
     return 0
 
@@ -54,15 +61,66 @@ def apply_policy(policy, now=None):
             PortalToken.organization_id == policy.organization_id, PortalToken.criado_em < cutoff,
             or_(PortalToken.revogado_em.is_not(None), PortalToken.expira_em < (now or _now())),
         ).delete(synchronize_session=False)
+    elif policy.category == "user_sessions":
+        deleted = UserSession.query.execution_options(include_all_tenants=True).filter(
+            UserSession.organization_id == policy.organization_id,
+            or_(UserSession.expires_at < cutoff, UserSession.revoked_at < cutoff),
+        ).delete(synchronize_session=False)
     else:
         deleted = Notification.query.execution_options(include_all_tenants=True).filter(
             Notification.organization_id == policy.organization_id, Notification.created_at < cutoff,
-            Notification.status.in_(("sent", "manual_required", "failed")),
-        ).delete(synchronize_session=False)
+            Notification.status == "sent", Notification.redacted_at.is_(None),
+        ).update({
+            Notification.recipient: "",
+            Notification.payload: {},
+            Notification.os_id: None,
+            Notification.last_error: None,
+            Notification.redacted_at: now or _now(),
+            Notification.updated_at: now or _now(),
+        }, synchronize_session=False)
+    if deleted:
+        registrar(
+            "retencao", "privacy", "Política de retenção aplicada",
+            f"categoria={policy.category};quantidade={deleted}",
+            organization_id=policy.organization_id,
+        )
+    db.session.commit()
+    return deleted
+
+
+def count_platform_candidates(policy, now=None):
+    if not policy or policy.category != "user_sessions" or policy.retention_days < 7:
+        return 0
+    cutoff = (now or _now()) - timedelta(days=policy.retention_days)
+    return UserSession.query.execution_options(include_all_tenants=True).filter(
+        UserSession.organization_id.is_(None),
+        or_(UserSession.expires_at < cutoff, UserSession.revoked_at < cutoff),
+    ).count()
+
+
+def apply_platform_policy(policy, now=None):
+    if (not policy or policy.category != "user_sessions" or not policy.active
+            or not policy.approved_at or not policy.approved_by_id
+            or not policy.approval_reference or policy.retention_days < 7):
+        return 0
+    cutoff = (now or _now()) - timedelta(days=policy.retention_days)
+    deleted = UserSession.query.execution_options(include_all_tenants=True).filter(
+        UserSession.organization_id.is_(None),
+        or_(UserSession.expires_at < cutoff, UserSession.revoked_at < cutoff),
+    ).delete(synchronize_session=False)
+    if deleted:
+        registrar(
+            "retencao", "privacy", "Política global de retenção aplicada",
+            f"categoria=user_sessions;quantidade={deleted}", organization_id=None,
+        )
     db.session.commit()
     return deleted
 
 
 def apply_active_policies():
     policies = RetentionPolicy.query.execution_options(include_all_tenants=True).filter_by(active=True).all()
-    return sum(apply_policy(policy) for policy in policies)
+    platform_policies = PlatformRetentionPolicy.query.execution_options(
+        include_all_tenants=True
+    ).filter_by(active=True).all()
+    return (sum(apply_policy(policy) for policy in policies)
+            + sum(apply_platform_policy(policy) for policy in platform_policies))

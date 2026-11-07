@@ -7,7 +7,7 @@ import hashlib
 import json
 import tarfile
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 MANIFEST_NAME = "zokyo-storage-manifest.json"
 
@@ -28,6 +28,8 @@ def create_backup(source: Path, destination: Path) -> dict:
     source = source.resolve()
     destination = destination.resolve()
     files = list_files(source)
+    if any(path.relative_to(source).as_posix() == MANIFEST_NAME for path in files):
+        raise ValueError("Uploads contêm nome reservado para o manifesto.")
     manifest = {
         "application": "Zokyo",
         "kind": "private-storage-backup",
@@ -56,10 +58,17 @@ def create_backup(source: Path, destination: Path) -> dict:
 
 def _safe_members(archive: tarfile.TarFile, destination: Path):
     destination = destination.resolve()
+    seen = set()
     for member in archive.getmembers():
+        parts = PurePosixPath(member.name).parts
         target = (destination / member.name).resolve()
-        if not target.is_relative_to(destination) or member.issym() or member.islnk():
+        if (not member.name or member.name in seen or not member.isfile()
+                or member.name.startswith("/") or "\\" in member.name
+                or any(part in {"", ".", ".."} for part in parts)
+                or str(PurePosixPath(member.name)) != member.name
+                or not target.is_relative_to(destination)):
             raise ValueError(f"Entrada insegura no backup: {member.name}")
+        seen.add(member.name)
         yield member
 
 
@@ -75,13 +84,26 @@ def restore_backup(archive_path: Path, destination: Path, verify_only: bool = Fa
             raise ValueError("Manifesto invalido.")
         manifest = json.loads(extracted.read().decode("utf-8"))
         member_map = {item.name: item for item in members}
+        if not isinstance(manifest.get("files"), list):
+            raise ValueError("Lista de arquivos ausente no manifesto.")
+        expected = {entry["path"] for entry in manifest["files"]}
+        if len(expected) != len(manifest["files"]):
+            raise ValueError("Arquivos do backup divergem do manifesto.")
+        missing = expected - set(member_map)
+        if missing:
+            raise ValueError(f"Arquivo ausente no backup: {min(missing)}")
+        if set(member_map) != expected | {MANIFEST_NAME}:
+            raise ValueError("Arquivos do backup divergem do manifesto.")
         for entry in manifest.get("files", []):
             member = member_map.get(entry["path"])
             if not member:
                 raise ValueError(f"Arquivo ausente no backup: {entry['path']}")
             stream = archive.extractfile(member)
-            digest = hashlib.sha256(stream.read()).hexdigest() if stream else ""
-            if digest != entry["sha256"] or member.size != entry["size"]:
+            digest = hashlib.sha256()
+            if stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if not stream or digest.hexdigest() != entry["sha256"] or member.size != entry["size"]:
                 raise ValueError(f"Falha de integridade: {entry['path']}")
         if not verify_only:
             destination.mkdir(parents=True, exist_ok=True)

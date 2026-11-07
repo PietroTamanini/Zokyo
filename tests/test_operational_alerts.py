@@ -1,9 +1,13 @@
 import pytest
 import requests
+from datetime import datetime, timedelta, timezone
 
 from app import create_app
 from app.extensions import db
-from app.models import OperationalAlert, OperationalHeartbeat, Organization
+from app.models import EventoLog, OperationalAlert, OperationalHeartbeat, Organization, registrar
+from app.admin.operations import _job_stale, operations_context
+from app.services.audit_integrity import assert_event_chain, verify_event_chain, verify_saved_anchor
+from scripts.audit_anchor import latest_anchor
 from app.services.operational_alerts import _safe_webhook, emit_alert, run_job
 
 
@@ -33,6 +37,61 @@ def test_job_registra_sucesso_e_falha_deduplicada():
         alert = OperationalAlert.query.one()
         assert alert.occurrences == 2
         assert alert.severity == "warning"
+
+
+def test_daily_audit_records_verified_head_without_personal_data():
+    app = _app()
+    with app.app_context():
+        registrar("sistema", "teste", "Evento de teste", organization_id=1)
+        db.session.commit()
+        original = EventoLog.query.one()
+        result = assert_event_chain(record_success=True)
+        assert result["checked"] == 1
+        assert result["head_hash"] == original.integrity_hash
+        verified = EventoLog.query.filter_by(modulo="audit_integrity").one()
+        assert verified.organization_id is None
+        assert verified.descricao == f"eventos=1;ultimo_id={original.id};hash_ponta={original.integrity_hash}"
+        assert verify_event_chain()["checked"] == 2
+        assert verify_event_chain()["errors"] == []
+
+
+def test_audit_anchor_is_published_only_after_verified_check(tmp_path):
+    app = _app()
+    with app.app_context():
+        registrar("sistema", "teste", "Primeiro", organization_id=1)
+        db.session.commit()
+        original = EventoLog.query.one()
+        result = assert_event_chain(record_success=True, anchor_dir=tmp_path)
+        path, saved = latest_anchor(tmp_path, 1)
+        assert saved["head_hash"] == original.integrity_hash == result["head_hash"]
+        assert saved["last_event_id"] == original.id
+        assert verify_saved_anchor(tmp_path) == path
+        count = EventoLog.query.count()
+        db.session.execute(
+            EventoLog.__table__.update().where(EventoLog.id == original.id).values(integrity_hash="0" * 64)
+        )
+        db.session.commit()
+        with pytest.raises(RuntimeError, match="diverge"):
+            verify_saved_anchor(tmp_path)
+        with pytest.raises(RuntimeError, match="inconsistente"):
+            assert_event_chain(record_success=True, anchor_dir=tmp_path)
+        assert EventoLog.query.count() == count
+
+
+def test_operations_uses_each_job_interval_and_flags_missing_audit():
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    daily = OperationalHeartbeat(job_name="verificar_auditoria", last_success_at=now - timedelta(hours=2))
+    minute = OperationalHeartbeat(job_name="processar_notificacoes", last_success_at=now - timedelta(minutes=2))
+    assert not _job_stale(daily, now)
+    assert not _job_stale(minute, now)
+    daily.last_success_at = now - timedelta(hours=31)
+    minute.last_success_at = now - timedelta(minutes=6)
+    assert _job_stale(daily, now)
+    assert _job_stale(minute, now)
+
+    app = _app()
+    with app.app_context():
+        assert operations_context()["audit_unverified"] is True
 
 
 def test_alerta_deduplica_fingerprint():

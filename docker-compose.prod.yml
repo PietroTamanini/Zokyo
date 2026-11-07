@@ -34,12 +34,11 @@ services:
     environment:
       FLASK_ENV: production
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      DATABASE_URL: mysql+pymysql://${APP_DB_USER:?defina APP_DB_USER}:${APP_DB_PASSWORD:?defina APP_DB_PASSWORD}@db:3306/${MYSQL_DATABASE}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?defina ENCRYPTION_SALT}
       BLIND_INDEX_KEY: ${BLIND_INDEX_KEY:?defina BLIND_INDEX_KEY}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?defina PUBLIC_BASE_URL}
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
       S3_BUCKET: ${S3_BUCKET:-}
@@ -58,6 +57,7 @@ services:
       PROXY_COUNT: 1
       REDIS_URL: redis://redis:6379/0
       REQUIRE_ADMIN_2FA: ${REQUIRE_ADMIN_2FA:-true}
+      PRIVACY_REQUEST_LIMIT_PER_HOUR: ${PRIVACY_REQUEST_LIMIT_PER_HOUR:-10}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
@@ -82,7 +82,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      migrate:
+      db-access:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
@@ -99,12 +99,11 @@ services:
     environment:
       FLASK_ENV: production
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      DATABASE_URL: mysql+pymysql://${APP_DB_USER:?defina APP_DB_USER}:${APP_DB_PASSWORD:?defina APP_DB_PASSWORD}@db:3306/${MYSQL_DATABASE}
       ENCRYPTION_SALT: ${ENCRYPTION_SALT:?defina ENCRYPTION_SALT}
       BLIND_INDEX_KEY: ${BLIND_INDEX_KEY:?defina BLIND_INDEX_KEY}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?defina PUBLIC_BASE_URL}
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
       DISABLE_CREATE_ALL: "true"
@@ -114,6 +113,7 @@ services:
       ALERT_EMAIL: ${ALERT_EMAIL:-}
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       ALERT_WEBHOOK_ALLOWED_HOSTS: ${ALERT_WEBHOOK_ALLOWED_HOSTS:-}
+      AUDIT_ANCHOR_DIR: /app/backups
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
@@ -121,12 +121,13 @@ services:
       SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
       MAIL_FROM: ${MAIL_FROM:-}
     depends_on:
-      migrate:
+      db-access:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
     volumes:
       - uploads_data:/app/instance/uploads
+      - backups_data:/app/backups
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1"]
       interval: 30s
@@ -147,7 +148,6 @@ services:
       BLIND_INDEX_KEY: ${BLIND_INDEX_KEY:?defina BLIND_INDEX_KEY}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?defina PUBLIC_BASE_URL}
       METRICS_TOKEN: ${METRICS_TOKEN:?defina METRICS_TOKEN}
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
       REPORTS_UPLOAD_FOLDER: /app/instance/uploads/reports
       REPORTS_PUBLIC_VERIFICATION: ${REPORTS_PUBLIC_VERIFICATION:-true}
       DISABLE_CREATE_ALL: "true"
@@ -158,6 +158,49 @@ services:
         condition: service_healthy
     volumes:
       - uploads_data:/app/instance/uploads
+
+  db-access:
+    image: ${APP_IMAGE:-zokyo:local}
+    build: .
+    restart: "no"
+    command: ["python", "scripts/provision_runtime_db.py"]
+    environment:
+      MYSQL_HOST: db
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?defina MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER:?defina MYSQL_USER}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD}
+      APP_DB_USER: ${APP_DB_USER:?defina APP_DB_USER}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?defina APP_DB_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  backup:
+    profiles: ["maintenance"]
+    image: ${APP_IMAGE:-zokyo:local}
+    build: .
+    restart: "no"
+    command: ["python", "scripts/backup_secure.py", "--output-dir", "/app/backups"]
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backups_data:/app/backups
+
+  backup-storage:
+    profiles: ["maintenance"]
+    image: ${APP_IMAGE:-zokyo:local}
+    build: .
+    restart: "no"
+    command: ["python", "scripts/secure_storage.py", "create", "--source", "/app/instance/uploads", "--output-dir", "/app/backups"]
+    environment:
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?defina BACKUP_ENCRYPTION_KEY}
+    volumes:
+      - uploads_data:/app/instance/uploads:ro
+      - backups_data:/app/backups
 
   nginx:
     image: nginx:1.27-alpine
@@ -179,3 +222,4 @@ volumes:
   db_data:
   uploads_data:
   redis_data:
+  backups_data:

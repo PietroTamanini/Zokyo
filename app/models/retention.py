@@ -23,3 +23,19 @@ class RetentionPolicy(db.Model):
     approved_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
+
+
+class PlatformRetentionPolicy(db.Model):
+    """Regra global separada das políticas pertencentes às assistências."""
+
+    __tablename__ = "platform_retention_policies"
+
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(60), nullable=False, unique=True)
+    retention_days = db.Column(db.Integer, nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=False)
+    approval_reference = db.Column(db.String(40))
+    approved_by_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    approved_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, nullable=False, default=_now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)

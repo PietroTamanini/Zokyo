@@ -22,7 +22,7 @@ def platform_admin_emails() -> set[str]:
 
 def can_manage_platform(user) -> bool:
     return bool(
-        user and user.ativo and user.nivel == "admin"
+        user and user.ativo and user.nivel == "admin" and user.organization_id is None
         and (user.is_platform_admin or user.email.lower() in platform_admin_emails())
     )
 

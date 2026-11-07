@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Solicitações de titulares{% endblock %}
+{% block breadcrumb %}Privacidade / Solicitações{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/privacy-incidents.css') }}">{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="page-title">Solicitações de titulares</div><div class="page-sub">Triagem, validação de identidade e prazo de atendimento.</div></div></div>
+<section class="card">
+  <div class="card-header"><div class="card-title">Pedidos recebidos</div>
+    <form method="get" action="{{ url_for('privacy.subject_requests') }}"><select name="status" aria-label="Filtrar por status"><option value="">Todos os status</option>{% for value, label in [('overdue','Vencidas'),('open','Abertas'),('in_progress','Em andamento'),('completed','Concluídas'),('rejected','Recusadas')] %}<option value="{{ value }}" {{ 'selected' if selected_status == value }}>{{ label }}</option>{% endfor %}</select><button class="btn btn-ghost btn-xs" type="submit">Filtrar</button></form>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th>Recebido</th><th>Titular</th><th>Tipo</th><th>Prazo</th><th>Status</th><th>Tratamento</th></tr></thead><tbody>
+    {% for item in requests %}<tr class="tr-static">
+      <td>{{ item.solicitado_em|fmtdata }}</td>
+      <td>{{ item.requester_name or 'Conta interna' }}<div class="td-note">{{ item.requester_email or '—' }}</div></td>
+      <td>{{ item.request_type }}</td><td>{{ item.due_at|fmtdata if item.due_at else 'Definir' }}{% if item.status in ('open', 'in_progress') and item.due_at and item.due_at < now_utc %}<div class="td-note">Prazo vencido</div>{% endif %}</td><td>{{ item.status }}{% if item.prepared_export_sha256 %}<div class="td-note">ZIP preparado em {{ item.prepared_export_at|fmtdata }}</div><details class="export-hash"><summary>SHA-256 do ZIP</summary><code>{{ item.prepared_export_sha256 }}</code></details>{% endif %}</td>
+      <td><form method="post" action="{{ url_for('privacy.subject_request_update', request_id=item.id) }}" class="privacy-response-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <select name="status" aria-label="Status da solicitação {{ item.id }}"><option value="open" {{ 'selected' if item.status == 'open' }}>Aberta</option><option value="in_progress" {{ 'selected' if item.status == 'in_progress' }}>Em andamento</option><option value="completed" {{ 'selected' if item.status == 'completed' }}>Concluída</option><option value="rejected" {{ 'selected' if item.status == 'rejected' }}>Recusada</option></select>
+        <label><input type="checkbox" name="identity_verified" value="1" {{ 'checked' if item.identity_verified }}> Identidade validada</label>
+        <select name="identity_method" aria-label="Método de verificação da identidade {{ item.id }}"><option value="">Como foi verificada?</option>{% for value, label in [('email_reply','Resposta no e-mail confirmado'),('portal_authenticated','Portal autenticado'),('in_person','Conferência presencial'),('other','Outro método documentado')] %}<option value="{{ value }}" {{ 'selected' if item.identity_method == value }}>{{ label }}</option>{% endfor %}</select>
+        <input name="identity_reference" maxlength="200" placeholder="Protocolo da verificação, sem documento pessoal" aria-label="Referência da verificação da identidade {{ item.id }}" value="{{ item.identity_reference or '' }}">
+        <input name="organization_id" inputmode="numeric" pattern="[0-9]+" placeholder="ID da empresa verificada" aria-label="ID da empresa vinculada ao pedido {{ item.id }}" value="{{ item.organization_id or '' }}">
+        <input name="cliente_id" inputmode="numeric" pattern="[0-9]+" placeholder="ID do cliente verificado" aria-label="ID do cliente vinculado ao pedido {{ item.id }}" value="{{ item.cliente_id or '' }}">
+        <input name="response_notes" maxlength="5000" placeholder="Resposta ou motivo da recusa" aria-label="Resposta da solicitação {{ item.id }}" value="{{ item.response_notes or '' }}">
+        <select name="response_channel" aria-label="Canal de entrega da resposta {{ item.id }}"><option value="">Canal de entrega</option>{% for value, label in [('email','E-mail'),('portal','Portal'),('in_person','Presencial'),('other','Outro')] %}<option value="{{ value }}" {{ 'selected' if item.response_channel == value }}>{{ label }}</option>{% endfor %}</select>
+        <input name="delivered_at" placeholder="Entrega: 2026-11-06T14:30:00-03:00" aria-label="Horário de entrega da resposta {{ item.id }} com fuso horário" value="{{ item.delivered_at.replace(tzinfo=None).isoformat() ~ '+00:00' if item.delivered_at else '' }}">
+        <input name="delivery_reference" maxlength="200" placeholder="Protocolo ou referência de entrega" aria-label="Referência da entrega da resposta {{ item.id }}" value="{{ item.delivery_reference or '' }}">
+        <button class="btn btn-ghost btn-xs" type="submit">Salvar</button>
+      </form>
+      <details class="incident-history"><summary>Histórico ({{ revisions.get(item.id, [])|length }})</summary>
+        {% for revision in revisions.get(item.id, []) %}{% set snapshot = revision.details %}
+        <div class="incident-history-entry"><strong>{{ revision.recorded_at|fmtdata }} · {{ 'Estado anterior à migração' if revision.action == 'baseline' else 'Registro inicial' if revision.action == 'created' else 'Atualização' }} · usuário #{{ revision.actor_id or 'canal público' }}</strong>
+          <div>Estado: {{ snapshot.status }} · identidade validada: {{ 'sim' if snapshot.identity_verified else 'não' }}</div>
+          {% if snapshot.identity_method %}<div>Método: {{ snapshot.identity_method }} · protocolo: {{ snapshot.identity_reference or 'não informado' }}</div>{% endif %}
+          {% if snapshot.cliente_id %}<div>Empresa #{{ snapshot.organization_id }} · cliente #{{ snapshot.cliente_id }}</div>{% endif %}
+          {% if snapshot.response_notes %}<div>Resposta: {{ snapshot.response_notes }}</div>{% endif %}
+          {% if snapshot.response_channel %}<div>Canal: {{ snapshot.response_channel }}</div>{% endif %}
+          {% if snapshot.delivered_at %}<div>Entrega: {{ snapshot.delivered_at }}</div>{% endif %}
+          {% if snapshot.delivery_reference %}<div>Referência: {{ snapshot.delivery_reference }}</div>{% endif %}
+          {% if snapshot.prepared_export_sha256 %}<div>ZIP preparado em {{ snapshot.prepared_export_at }} · SHA-256: <code>{{ snapshot.prepared_export_sha256 }}</code></div>{% endif %}
+        </div>{% endfor %}
+      </details></td>
+    </tr>{% else %}<tr><td colspan="6" class="td-empty">Nenhuma solicitação recebida.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

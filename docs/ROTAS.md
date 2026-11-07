@@ -25,6 +25,12 @@ Estado revisado em 2026-11-02. As páginas principais foram auditadas com Playwr
 - `/onboarding` - onboarding guiado da empresa.
 - `/configuracoes/notificacoes` - historico e retentativas de notificacoes (administrador).
 - `/privacidade/retencao` - prazos e ativacao aprovada da retencao operacional (administrador).
+- `/privacidade/solicitacao` - canal público de direitos do titular.
+- `/privacidade/solicitacao/<slug>` - canal de direitos vinculado a uma assistência.
+- `/privacidade/solicitacoes` - triagem global de solicitações pelo super admin.
+- `/privacidade/incidentes` - registro global de incidentes de privacidade pelo super admin.
+- `/privacidade/configuracao` - governança institucional e encarregado pelo super admin.
+- `/privacidade/politica` - redireciona para a URL HTTPS de documento aprovado após configuração institucional e confirmação de revisão; responde 503 enquanto não publicado.
 - `/logs` - auditoria.
 - `/laudos` - listagem de laudos.
 - `/laudos/novo?os_id=<id>` - novo laudo vinculado a OS.
@@ -58,3 +64,12 @@ Estado revisado em 2026-11-02. As páginas principais foram auditadas com Playwr
 - `/healthz`, `/readyz`, `/metrics`
 
 Requisicoes mutantes exigem CSRF.
+
+## Privacidade por empresa no painel global
+
+- `GET /platform/companies/<organization_id>/settings/privacy/clients` — lista e busca de clientes da empresa selecionada para o super admin.
+- `GET /platform/companies/<organization_id>/settings/privacy/clients/<client_id>` — ficha de privacidade e histórico vinculado.
+- `POST /platform/companies/<organization_id>/settings/privacy/clients/<client_id>/export` — exportação administrativa com CSRF, motivo e SHA-256 do ZIP no evento auditado e em `X-Export-SHA256`; não conclui automaticamente solicitação de titular.
+- `POST /platform/companies/<organization_id>/settings/privacy/clients/<client_id>/remove-registration` — exige CSRF e motivo categorizado; remove identificadores cadastrais quando não há OS, laudo ou coleta vinculada, sem declarar anonimização integral.
+
+Essas rotas exigem super admin sem vínculo com empresa. O `organization_id` da URL é validado junto ao `client_id` em todas as operações.

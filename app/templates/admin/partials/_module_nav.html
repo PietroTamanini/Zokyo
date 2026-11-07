@@ -1,16 +1,35 @@
 <section class="nav-module" data-nav-module="plataforma">
-  <button class="nav-group-toggle" type="button" aria-expanded="true" aria-controls="nav-plataforma">
+  <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-plataforma">
     <span>Admin global</span><span class="nav-chevron" aria-hidden="true">v</span>
   </button>
   <div class="nav-module-links" id="nav-plataforma">
+    {% set current_platform_view = admin_view|default('', true) %}
     {% for view, label, icon in [('overview', 'Visão geral', 'home'), ('organizations', 'Empresas', 'users'), ('plans', 'Planos', 'dollar'), ('domains', 'Domínios', 'settings')] %}
-      {% set selected = platform_workspace and (admin_view|default('overview') == view or (view == 'organizations' and admin_view|default('') in ['company', 'new-company'])) %}
+      {% set selected = platform_workspace and (current_platform_view == view or (view == 'organizations' and current_platform_view in ['company', 'new-company'])) %}
       <a class="nav-item {{ 'active' if selected }}" href="{{ url_for('platform.index', view=view) }}" {% if selected %}aria-current="page"{% endif %}>
         <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-{{ icon }}"></use></svg></span>
         {{ label }}
       </a>
     {% endfor %}
-    <a class="nav-item" href="{{ url_for('platform.operations') }}"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>Operação e gargalos</a>
-    <a class="nav-item" href="{{ url_for('platform.audit') }}"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>Auditoria global</a>
+    {% set operations_selected = platform_workspace and nav_endpoint|default(request.endpoint, true) == 'platform.operations' %}
+    <a class="nav-item {{ 'active' if operations_selected }}" href="{{ url_for('platform.operations') }}" {% if operations_selected %}aria-current="page"{% endif %}>
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-chart"></use></svg></span>Operação e gargalos
+    </a>
+    {% set audit_selected = platform_workspace and nav_endpoint|default(request.endpoint, true) == 'platform.audit' %}
+    <a class="nav-item {{ 'active' if audit_selected }}" href="{{ url_for('platform.audit') }}" {% if audit_selected %}aria-current="page"{% endif %}>
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>Auditoria global
+    </a>
+    {% set privacy_requests_selected = request.endpoint in ['privacy.subject_requests', 'privacy.subject_request_update'] %}
+    <a class="nav-item {{ 'active' if privacy_requests_selected }}" href="{{ url_for('privacy.subject_requests') }}" {% if privacy_requests_selected %}aria-current="page"{% endif %}>
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-shield"></use></svg></span>Solicitações LGPD
+    </a>
+    {% set incidents_selected = request.endpoint in ['privacy.incidents'] %}
+    <a class="nav-item {{ 'active' if incidents_selected }}" href="{{ url_for('privacy.incidents') }}" {% if incidents_selected %}aria-current="page"{% endif %}>
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-alert"></use></svg></span>Incidentes de privacidade
+    </a>
+    {% set privacy_settings_selected = request.endpoint == 'privacy.privacy_settings' %}
+    <a class="nav-item {{ 'active' if privacy_settings_selected }}" href="{{ url_for('privacy.privacy_settings') }}" {% if privacy_settings_selected %}aria-current="page"{% endif %}>
+      <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-settings"></use></svg></span>Governança de privacidade
+    </a>
   </div>
 </section>

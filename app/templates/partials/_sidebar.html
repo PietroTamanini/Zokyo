@@ -163,7 +163,7 @@
     </section>
     {% endif %}
 
-    {% if can_permission('usuarios.manage') or can_permission('configuracoes.manage') or can_permission('mensagens.manage') or can_permission('logs.view') or can_permission('privacidade.manage') or can_permission('importacao.manage') %}
+    {% if can_permission('usuarios.manage') or (can_permission('configuracoes.manage') and not (current_user and current_user.organization_id)) or (can_permission('mensagens.manage') and not (current_user and current_user.organization_id)) or (can_permission('logs.view') and not (current_user and current_user.organization_id)) or (can_permission('privacidade.manage') and not (current_user and current_user.organization_id)) or (can_permission('importacao.manage') and not (current_user and current_user.organization_id)) %}
     <section class="nav-module" data-nav-module="administracao">
       <button class="nav-group-toggle" type="button" data-action="toggle-nav-module" aria-expanded="true" aria-controls="nav-administracao">
         <span>Administração</span><span class="nav-chevron" aria-hidden="true">v</span>
@@ -173,31 +173,31 @@
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-user"></use></svg></span>
           Usuários
         </a>{% endif %}
-        {% if can_permission('usuarios.manage') %}<a class="nav-item {{ 'active' if active == 'permissoes' or nav_path.startswith('/permissoes') }}" href="{{ url_for('pages.zokyo_permissoes') }}">
+        {% if can_permission('usuarios.manage') and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active == 'permissoes' or nav_path.startswith('/permissoes') }}" href="{{ url_for('pages.zokyo_permissoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-lock"></use></svg></span>
           Permissões
         </a>{% endif %}
-        {% if can_permission('configuracoes.manage') %}<a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
+        {% if can_permission('configuracoes.manage') and not platform_workspace and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active and 'configuracoes' in active }}" href="{{ url_for('configuracoes.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-settings"></use></svg></span>
           Dados da empresa
         </a>{% endif %}
-        {% if can_permission('configuracoes.manage') %}<a class="nav-item {{ 'active' if nav_endpoint == 'site_config.index' or nav_endpoint == 'site_config.salvar' or nav_endpoint == 'site_config.toggle' or nav_endpoint == 'site_config.subdomain' or nav_endpoint == 'site_config.preview' }}" href="{{ url_for('site_config.index') }}">
+        {% if can_permission('configuracoes.manage') and not platform_workspace and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if nav_endpoint == 'site_config.index' or nav_endpoint == 'site_config.salvar' or nav_endpoint == 'site_config.toggle' or nav_endpoint == 'site_config.subdomain' or nav_endpoint == 'site_config.preview' }}" href="{{ url_for('site_config.index') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-globe"></use></svg></span>
           Meu Site
         </a>{% endif %}
-        {% if can_permission('mensagens.manage') %}<a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
+        {% if can_permission('mensagens.manage') and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active == 'notificacoes' }}" href="{{ url_for('configuracoes.notificacoes') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-mail"></use></svg></span>
           Mensagens
         </a>{% endif %}
-        {% if can_permission('logs.view') %}<a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
+        {% if can_permission('logs.view') and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active == 'auditoria' or nav_path.startswith('/auditoria') or active and 'logs' in active }}" href="{{ url_for('pages.zokyo_auditoria') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-clipboard"></use></svg></span>
           Auditoria
         </a>{% endif %}
-        {% if can_permission('privacidade.manage') %}<a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
+        {% if can_permission('privacidade.manage') and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active == 'retencao' }}" href="{{ url_for('privacy.retention') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-database"></use></svg></span>
           Privacidade
         </a>{% endif %}
-        {% if can_permission('importacao.manage') %}<a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.bancos_page') }}">
+        {% if can_permission('importacao.manage') and not (current_user and current_user.organization_id) %}<a class="nav-item {{ 'active' if active and 'importacao' in active }}" href="{{ url_for('importacao.bancos_page') }}">
           <span class="nav-icon" aria-hidden="true"><svg class="ui-icon"><use href="#i-upload"></use></svg></span>
           Importar dados
         </a>{% endif %}

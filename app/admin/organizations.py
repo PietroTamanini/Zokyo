@@ -8,6 +8,7 @@ from app.extensions import db
 from app.models import Organization, OrganizationSubscription, Plan, Usuario
 from app.services.tenant_provisioning import TenantProvisioningError, provision_tenant, sync_tenant_dns, tenant_hostname
 from app.services.tenant_site_service import set_custom_domain
+from app.services.user_credentials import send_initial_credentials
 from app.services.domain_resolution import validate_unique_domain, DomainResolutionError
 from app.utils.sanitizers import sanitize_text
 from app.utils.auth import validar_senha_forte
@@ -32,6 +33,7 @@ def create_organization_from_form(form) -> tuple[bool, str]:
             active=form.get("active") == "on",
             provision_dns=bool(form.get("provision_dns")),
             custom_domain=form.get("custom_domain", ""),
+            site_hospedado=form.get("site_hospedado") == "on",
         )
         db.session.commit()
     except TenantProvisioningError as exc:
@@ -41,8 +43,11 @@ def create_organization_from_form(form) -> tuple[bool, str]:
     message = f"Empresa criada: {fallback_domain}."
     if form.get("custom_domain", "").strip():
         message += f" Domínio próprio: {organization.custom_domain}."
-    if not provided_password:
-        message += f" Senha inicial do dono: {owner_password}"
+    delivery = send_initial_credentials(_owner, organization.nome, owner_password)
+    if delivery.get("sucesso"):
+        message += " As credenciais iniciais foram enviadas para o e-mail do responsável."
+    else:
+        message += " Não foi possível enviar o e-mail de credenciais; configure o SMTP e reenvie a senha manualmente."
     return True, message
 
 
@@ -98,7 +103,11 @@ def create_tenant_admin_from_form(organization_id: int, form) -> None:
     user.set_senha(password)
     db.session.add(user)
     db.session.commit()
-    flash(f"Admin criado para {organization.nome}. Senha temporaria: {password}", "success")
+    delivery = send_initial_credentials(user, organization.nome, password)
+    if delivery.get("sucesso"):
+        flash(f"Admin criado para {organization.nome}. As credenciais foram enviadas para {email}.", "success")
+    else:
+        flash("Admin criado, mas o e-mail não foi enviado. Configure o SMTP para entregar a senha temporária.", "warning")
 
 
 def reset_tenant_admin_password(user_id: int) -> Usuario:
@@ -116,7 +125,11 @@ def reset_tenant_admin_password(user_id: int) -> Usuario:
 
     revoke_all(user.id, "reset pelo admin global")
     db.session.commit()
-    flash(f"Senha temporaria de {user.nome}: {password}", "success")
+    delivery = send_initial_credentials(user, user.organization.nome, password)
+    if delivery.get("sucesso"):
+        flash(f"Senha temporária redefinida e enviada para {user.email}.", "success")
+    else:
+        flash("Senha temporária redefinida, mas o e-mail não foi enviado. Configure o SMTP.", "warning")
     return user
 
 
@@ -155,6 +168,7 @@ def _apply_subscription(organization: Organization, form) -> None:
     if subscription:
         subscription.plan_id = plan.id
         subscription.status = status
+        subscription.site_hospedado = form.get("site_hospedado") == "on"
         subscription.provider = subscription.provider or "sandbox"
     else:
         db.session.add(OrganizationSubscription(
@@ -162,4 +176,5 @@ def _apply_subscription(organization: Organization, form) -> None:
             plan_id=plan.id,
             provider="sandbox",
             status=status,
+            site_hospedado=form.get("site_hospedado") == "on",
         ))

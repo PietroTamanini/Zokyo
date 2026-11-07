@@ -4,7 +4,7 @@ utils/logging_config.py
 Fix L03: logging estruturado com mascaramento de dados sensíveis.
 
 Configura logging para produção:
-  - Mascara senhas, tokens, CPFs, e-mails parcialmente
+  - Remove senhas, tokens, documentos, e-mails e endereços IPv4 dos logs
   - Formato JSON em produção para ingestão por SIEM
   - Rotação de arquivo de log
 """
@@ -21,24 +21,18 @@ from flask import g, has_request_context
 # Padrões para mascaramento
 _MASK_PATTERNS = [
     # Senhas e tokens em query strings / corpo
-    (re.compile(r"(senha|password|passwd|token|secret|api[_-]?key)=([^&\s\"']{3})[^&\s\"']*",
+    (re.compile(r"(senha|password|passwd|token|secret|api[_-]?key)=([^&\s\"']+)",
                 re.IGNORECASE),
-     r"\1=\2***"),
+     r"\1=[REDACTED]"),
     # Bearer tokens
-    (re.compile(r"(Bearer\s+)(\w{4})\w+", re.IGNORECASE),
-     r"\1\2***"),
-    # CPF: 000.000.000-00 → 0**.***.**0-00
-    (re.compile(r"\b(\d{3})\.\d{3}\.\d{3}-(\d{2})\b"),
-     r"\1.***.***-\2"),
-    # CNPJ: 00.000.000/0000-00 → 0**.000.000/****-00
-    (re.compile(r"\b(\d{2})\.\d{3}\.\d{3}/\d{4}-(\d{2})\b"),
-     r"\1.***.***/****-\2"),
-    # E-mail: user@domain.com → u***@domain.com
-    (re.compile(r"\b([a-zA-Z0-9._%+\-]{1})[a-zA-Z0-9._%+\-]+(@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\b"),
-     r"\1***\2"),
-    # X-Forwarded-For (não logar IPs completos)
-    (re.compile(r"(X-Forwarded-For[:\s]+)(\d+\.\d+)\.\d+\.\d+", re.IGNORECASE),
-     r"\1\2.***.***"),
+    (re.compile(r"(Bearer\s+)[A-Za-z0-9._~+/-]+", re.IGNORECASE),
+     r"\1[REDACTED]"),
+    (re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b"), "[CPF]"),
+    (re.compile(r"\b\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}\b"), "[CNPJ]"),
+    (re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b"), "[EMAIL]"),
+    # IPv4 in exception messages, including X-Forwarded-For values.
+    (re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])"),
+     "[IP]"),
 ]
 
 
@@ -49,10 +43,8 @@ def _mask(text: str) -> str:
 
 
 class MaskingFilter(logging.Filter):
-    """Filter que aplica mascaramento em todas as mensagens de log."""
+    """Attach request ID; formatters redact complete messages and tracebacks."""
     def filter(self, record: logging.LogRecord) -> bool:
-        record.msg     = _mask(str(record.msg))
-        record.args    = tuple(_mask(str(a)) for a in record.args) if record.args else ()
         record.request_id = getattr(g, "request_id", None) if has_request_context() else None
         return True
 
@@ -63,12 +55,19 @@ class JsonFormatter(logging.Formatter):
             "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": _mask(record.getMessage()),
             "request_id": getattr(record, "request_id", None),
         }
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = _mask(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=True)
+
+
+class SafeTextFormatter(logging.Formatter):
+    """Mask the rendered message and traceback in development logs."""
+
+    def format(self, record):
+        return _mask(super().format(record))
 
 
 def configure_logging(app):
@@ -82,9 +81,10 @@ def configure_logging(app):
 
     # Remove handlers padrão do Flask
     app.logger.handlers.clear()
+    app.logger.propagate = False
 
     fmt_simple = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
-    formatter = JsonFormatter() if is_prod else logging.Formatter(fmt_simple, datefmt="%Y-%m-%dT%H:%M:%S")
+    formatter = JsonFormatter() if is_prod else SafeTextFormatter(fmt_simple, datefmt="%Y-%m-%dT%H:%M:%S")
 
     mask_filter = MaskingFilter()
 
@@ -115,14 +115,15 @@ def configure_logging(app):
 
     app.logger.setLevel(log_level)
 
-    # Propaga para loggers dos módulos internos
-    for logger_name in ("app", "sqlalchemy.engine", "werkzeug"):
+    # Modules under app.* inherit the Flask logger's filtered handlers.
+    # Werkzeug/SQLAlchemy are separate trees and must not fall through to root.
+    for logger_name in ("sqlalchemy.engine", "werkzeug"):
         lg = logging.getLogger(logger_name)
         lg.handlers = [handler for handler in lg.handlers if not getattr(handler, "_zokyo_handler", False)]
+        lg.propagate = False
         if logger_name == "sqlalchemy.engine":
             lg.setLevel(logging.INFO if app.config.get("SQLALCHEMY_ECHO", False) else logging.WARNING)
         else:
             lg.setLevel(log_level)
-        if logger_name != "sqlalchemy.engine" or app.config.get("SQLALCHEMY_ECHO", False):
-            lg.addHandler(stderr_handler)
-            lg.addFilter(mask_filter)
+        lg.addHandler(stderr_handler)
+        lg.addFilter(mask_filter)

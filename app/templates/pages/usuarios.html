@@ -61,7 +61,7 @@
       <div class="form-group"><label>E-mail <span class="req">*</span></label><input type="email" id="n-email"></div>
     </div>
     <div class="form-row fr2">
-      <div class="form-group"><label>Senha <span class="req">*</span></label><input type="password" id="n-senha" class="validate-password" data-password-input data-min="8" minlength="8" placeholder="Crie uma senha forte">{% include 'partials/_password_requirements.html' %}</div>
+      <div class="form-group"><label>Senha inicial <span class="txt-faint mono-xs">(opcional)</span></label><input type="password" id="n-senha" class="validate-password" data-password-input data-min="8" minlength="8" placeholder="Gerar senha temporária por e-mail"><small class="input-hint">Deixe vazio para gerar uma senha temporária e enviá-la ao e-mail informado.</small>{% include 'partials/_password_requirements.html' %}</div>
       <div class="form-group"><label>Perfil <span class="req">*</span></label><select id="n-nivel">{% for p in perfis %}<option value="{{ p }}">{{ p }}</option>{% endfor %}</select></div>
     </div>
     <details class="mb16">
@@ -176,16 +176,17 @@ function editarUsuario(u) {
 
 async function criarUsuario() {
   const err = document.getElementById('novo-err');
-  const passwordErrors = window.DJValidators?.passwordErrors?.(document.getElementById('n-senha').value) || [];
+  const password = document.getElementById('n-senha').value;
+  const passwordErrors = password ? (window.DJValidators?.passwordErrors?.(password) || []) : [];
   if (passwordErrors.length) { err.textContent = passwordErrors.join('. ') + '.'; err.classList.remove('hidden'); return; }
   const body = {
     nome: document.getElementById('n-nome').value,
     email: document.getElementById('n-email').value,
-    senha: document.getElementById('n-senha').value,
     nivel: document.getElementById('n-nivel').value,
     permissoes_extra: collectPermissions('[data-new-extra]'),
     permissoes_negadas: collectPermissions('[data-new-denied]'),
   };
+  if (password) body.senha = password;
   const r = await fetch('/api/usuarios', {method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify(body)});
   const d = await r.json();
   if (!r.ok) { err.textContent = d.erro || 'Erro ao criar usuário.'; err.classList.remove('hidden'); return; }

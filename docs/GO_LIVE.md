@@ -25,6 +25,7 @@ Use este checklist em staging e novamente antes de liberar produção. Registre 
 ## Dados e recuperação
 
 - [ ] Migrations executadas e `flask --app wsgi:app db check` sem divergência.
+- [ ] `flask --app wsgi:app privacy-encryption-audit --strict` retornou zero campos em claro e zero ciphertexts ilegíveis no banco migrado; backups antigos foram avaliados separadamente.
 - [ ] Backup de banco e uploads executado, criptografado e enviado para destino externo.
 - [ ] Restore completo realizado em ambiente descartável.
 - [ ] RPO/RTO e responsáveis confirmados conforme [recuperação de desastre](DISASTER_RECOVERY.md).

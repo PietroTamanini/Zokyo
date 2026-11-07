@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Solicitação de privacidade — Zokyo</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#152033;background:#f4f6f9}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}
+    main{width:min(680px,100%);background:#fff;border:1px solid #dce2ea;border-radius:18px;box-shadow:0 20px 55px #15203312;overflow:hidden}
+    header{padding:30px 32px 22px;border-bottom:1px solid #e8ecf1}h1{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}p{color:#5e6b7c;line-height:1.55;margin:0}
+    form{padding:28px 32px 32px}.notice{padding:12px 14px;background:#eef5ff;border-left:3px solid #2563eb;border-radius:8px;margin-bottom:22px;color:#334b6d}.error{background:#fff0f0;border-color:#cf3434;color:#8b2020}
+    label{display:block;font-size:13px;font-weight:650;margin:16px 0 7px}input,select,textarea{width:100%;box-sizing:border-box;border:1px solid #c8d1dc;border-radius:8px;padding:11px 12px;font:inherit;color:inherit;background:#fff}textarea{min-height:110px;resize:vertical}
+    button{margin-top:24px;border:0;border-radius:8px;background:#1f55d8;color:#fff;font-weight:700;padding:12px 18px;cursor:pointer}small{display:block;margin-top:18px;color:#718096;line-height:1.45}
+  </style>
+</head>
+<body>
+<main>
+  <header><h1>Solicitação de privacidade</h1><p>{% if organization %}Para {{ organization.nome }}{% else %}Canal de atendimento da Zokyo{% endif %}</p></header>
+  <form method="post">
+    {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+    <div class="notice">Escolha abaixo o direito que deseja exercer. Podemos solicitar confirmação de identidade antes de fornecer dados pessoais ou executar alterações.</div>
+    <label for="request_type">Solicitação</label>
+    <select id="request_type" name="request_type" required>{% for key,label in request_types.items() %}<option value="{{ key }}" {{ 'selected' if form.get('request_type') == key }}>{{ label }}</option>{% endfor %}</select>
+    <label for="requester_name">Nome completo</label><input id="requester_name" name="requester_name" value="{{ form.get('requester_name','') }}" autocomplete="name" required>
+    <label for="requester_email">E-mail para resposta</label><input id="requester_email" type="email" name="requester_email" value="{{ form.get('requester_email','') }}" autocomplete="email" required>
+    <label for="description">Detalhes da solicitação (opcional)</label><textarea id="description" name="description" maxlength="4000" aria-describedby="description-help">{{ form.get('description','') }}</textarea>
+    <small id="description-help">Descreva somente o necessário. Não inclua senhas, documentos ou dados de outras pessoas.</small>
+    <button type="submit">Enviar solicitação</button>
+    <small>O pedido será registrado no recebimento. A equipe poderá pedir confirmação de identidade para proteger seus dados. Solicitações de confirmação e acesso simplificado devem ser tratadas com prioridade.</small>
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  </form>
+</main>
+</body>
+</html>

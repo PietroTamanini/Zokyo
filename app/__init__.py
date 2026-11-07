@@ -16,7 +16,9 @@ Fixes aplicados:
 import secrets
 import threading
 import time
+import click
 from datetime import timedelta
+from pathlib import Path
 
 from flask import Flask, abort, g, jsonify, redirect, request, session, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -141,6 +143,9 @@ def create_app(config_name="default"):
                 "platform.create_plan", "platform.create_tenant_admin", "platform.sync_dns",
                 "platform.reset_tenant_admin_password", "platform.assign_subscription",
                 "platform.dashboard", "platform.companies", "platform.subscriptions", "platform.audit",
+                "platform.operations", "platform.company_settings", "platform.company_settings_save",
+                "platform.company_settings_dashboard", "platform.company_settings_os_options",
+                "platform.company_settings_importacao",
             } or bool(usuario and usuario.is_platform_admin and not usuario.organization_id),
         )
 
@@ -414,6 +419,7 @@ def create_app(config_name="default"):
                 "client_api.consulta_os_publica",
                 "public_tracking.index",
                 "platform.sandbox_webhook", "platform.asaas_webhook",
+                "privacy.subject_request", "privacy.subject_request_for_organization",
                 "pages.service_worker", "health.healthz", "health.readyz", "health.metrics",
             )
         )
@@ -620,7 +626,7 @@ def create_app(config_name="default"):
         request_id = getattr(g, "request_id", "")
         if _wants_json():
             return _jsonify({"success": False, "erro": message, "code": code, "request_id": request_id}), code
-        template = f"errors/{code}.html" if code in {403, 404, 405, 500} else "errors/error.html"
+        template = f"errors/{code}.html" if code in {400, 401, 403, 404, 405, 408, 500, 502, 503, 504} else "errors/error.html"
         return _render_template(template, code=code, message=message, request_id=request_id), code
 
     @app.errorhandler(AppError)
@@ -651,6 +657,10 @@ def create_app(config_name="default"):
     def method_not_allowed(exc):
         return _error_response(405, "Método não permitido.")
 
+    @app.errorhandler(408)
+    def request_timeout(exc):
+        return _error_response(408, "Tempo de requisição esgotado.")
+
     @app.errorhandler(422)
     def unprocessable(exc):
         return _error_response(422, "Os dados são válidos, mas violam uma regra da operação.")
@@ -663,6 +673,14 @@ def create_app(config_name="default"):
     def unavailable(exc):
         return _error_response(503, "Serviço temporariamente indisponível. Tente novamente em instantes.")
 
+    @app.errorhandler(502)
+    def bad_gateway(exc):
+        return _error_response(502, "Gateway inválido.")
+
+    @app.errorhandler(504)
+    def gateway_timeout(exc):
+        return _error_response(504, "Tempo limite do gateway esgotado.")
+
     @app.errorhandler(500)
     def internal_error(exc):
         app.logger.error("Erro interno: %s", exc, exc_info=True)
@@ -674,9 +692,12 @@ def create_app(config_name="default"):
         from apscheduler.schedulers.background import BackgroundScheduler
 
         from app.services.notifications import process_pending_notifications
+        from app.services.audit_integrity import assert_event_chain
+        from app.services.privacy_deadlines import monitor_privacy_deadlines
         from app.services.retention import apply_active_policies
         from app.services.scheduled_reports import process_scheduled_reports
         from app.utils.rate_limit import limpar_rate_limit_antigos
+        from app.utils.import_files import cleanup_expired_imports
 
         scheduler = BackgroundScheduler(daemon=True)
         scheduler.add_job(
@@ -705,6 +726,34 @@ def create_app(config_name="default"):
             coalesce=True,
         )
         scheduler.add_job(
+            func=lambda: _run_with_context(
+                app, "verificar_auditoria", lambda: assert_event_chain(record_success=True)
+            ),
+            trigger="interval",
+            hours=24,
+            id="verificar_auditoria",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            func=lambda: _run_with_context(app, "monitorar_prazos_privacidade", monitor_privacy_deadlines),
+            trigger="interval",
+            hours=24,
+            id="monitorar_prazos_privacidade",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            func=lambda: _run_with_context(
+                app, "limpar_importacoes_temporarias",
+                lambda: cleanup_expired_imports(Path(app.instance_path) / "import_uploads"),
+            ),
+            trigger="interval", hours=24, id="limpar_importacoes_temporarias",
+            replace_existing=True, max_instances=1, coalesce=True,
+        )
+        scheduler.add_job(
             func=lambda: _run_with_context(app, "processar_relatorios", process_scheduled_reports),
             trigger="interval", hours=1, id="processar_relatorios_agendados",
             replace_existing=True, max_instances=1, coalesce=True,
@@ -730,6 +779,33 @@ def create_app(config_name="default"):
             raise RuntimeError("Defina SCHEDULER_ENABLED=true somente no processo dedicado.")
         while True:
             time.sleep(3600)
+
+    @app.cli.command("audit-verify")
+    @click.option("--anchor-dir", type=click.Path(path_type=Path), default=None,
+                  help="Também compara a cadeia com a última âncora local.")
+    def audit_verify_command(anchor_dir):
+        """Verifica a cadeia de integridade dos eventos de auditoria."""
+        import json
+
+        from app.services.audit_integrity import assert_event_chain, verify_event_chain
+
+        try:
+            result = assert_event_chain(anchor_dir=anchor_dir) if anchor_dir else verify_event_chain()
+        except (RuntimeError, ValueError) as exc:
+            raise click.ClickException(str(exc)) from exc
+        print(json.dumps(result, ensure_ascii=False))
+        if result["errors"] or result["legacy"]:
+            raise click.ClickException("A cadeia de auditoria possui inconsistências ou eventos sem hash.")
+
+    @app.cli.command("audit-backfill")
+    @click.option("--confirm", is_flag=True, help="Confirma a inspeção de eventos históricos.")
+    def audit_backfill_command(confirm):
+        """Inspeciona legados; a migration 0043 realizou o backfill antes do selo."""
+        if not confirm:
+            raise click.ClickException("Use --confirm para executar o backfill de auditoria.")
+        from app.services.audit_integrity import backfill_legacy_events
+
+        print(f"eventos_atualizados={backfill_legacy_events()}")
 
     # Expõe o lock para o blueprint de auth (fix M02)
     app._primeiro_acesso_lock = _primeiro_acesso_lock

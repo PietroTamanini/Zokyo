@@ -52,7 +52,9 @@ limit_request_field_size = 8190
 accesslog   = os.environ.get("GUNICORN_ACCESSLOG", "/var/log/zokyo/gunicorn_access.log")
 errorlog    = os.environ.get("GUNICORN_ERRORLOG",  "/var/log/zokyo/gunicorn_error.log")
 loglevel    = "info"
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+# Request URI, referer, user agent and IP can contain personal data or tokens.
+# Keep only aggregate-friendly operational fields; route-level metrics live in Flask.
+access_log_format = '%(t)s method=%(m)s status=%(s)s bytes=%(b)s duration_us=%(D)s'
 
 # ── Segurança ─────────────────────────────────────────────────────────────
 forwarded_allow_ips = os.environ.get("GUNICORN_FORWARDED_IPS", "127.0.0.1")

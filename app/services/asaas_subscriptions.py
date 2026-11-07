@@ -80,7 +80,8 @@ def ensure_customer(subscription, organization, admin, document: str) -> str:
 def create_subscription(subscription, organization, admin, document: str, billing_type="UNDEFINED", trial_days=7):
     customer_id = ensure_customer(subscription, organization, admin, document)
     plan = subscription.plan
-    if float(plan.preco_mensal or 0) <= 0:
+    monthly_price = subscription.preco_mensal_cobrado
+    if monthly_price <= 0:
         raise AsaasSubscriptionError("O plano não possui preço recorrente configurado.")
     if billing_type not in {"UNDEFINED", "BOLETO", "CREDIT_CARD", "PIX"}:
         raise AsaasSubscriptionError("Forma de pagamento invalida.")
@@ -91,10 +92,10 @@ def create_subscription(subscription, organization, admin, document: str, billin
     result = _request("POST", "/subscriptions", json={
         "customer": customer_id,
         "billingType": billing_type,
-        "value": float(plan.preco_mensal),
+        "value": float(monthly_price),
         "nextDueDate": (date.today() + timedelta(days=trial_days)).isoformat(),
         "cycle": plan.ciclo or "MONTHLY",
-        "description": f"Zokyo - plano {plan.nome}",
+        "description": f"Zokyo - plano {plan.nome}{' + hospedagem do site' if subscription.site_hospedado else ''}",
         "externalReference": f"zokyo-org-{organization.id}",
     })
     subscription.external_id = result.get("id")

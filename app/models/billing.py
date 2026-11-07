@@ -1,4 +1,5 @@
 """Planos e assinaturas sem acoplamento a gateway comercial."""
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 
 from app.extensions import db
@@ -16,10 +17,16 @@ class Plan(db.Model):
     nome = db.Column(db.String(100), nullable=False)
     limites = db.Column(db.JSON, nullable=False, default=dict)
     preco_mensal = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    hospedagem_percentual = db.Column(db.Numeric(5, 2), nullable=False, default=0)
     ciclo = db.Column(db.String(20), nullable=False, default="MONTHLY")
     ativo = db.Column(db.Boolean, nullable=False, default=True)
     criado_em = db.Column(db.DateTime, nullable=False, default=_now)
     atualizado_em = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
+
+    def preco_com_hospedagem(self, site_hospedado: bool = False) -> Decimal:
+        base = Decimal(str(self.preco_mensal or 0))
+        percentual = Decimal(str(self.hospedagem_percentual or 0)) if site_hospedado else Decimal("0")
+        return (base * (Decimal("1") + percentual / Decimal("100"))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 class OrganizationSubscription(db.Model):
@@ -35,6 +42,7 @@ class OrganizationSubscription(db.Model):
     status = db.Column(db.String(30), nullable=False, default="trialing")
     trial_fim = db.Column(db.DateTime)
     cancelar_no_fim = db.Column(db.Boolean, nullable=False, default=False)
+    site_hospedado = db.Column(db.Boolean, nullable=False, default=False)
     periodo_fim = db.Column(db.DateTime)
     cancelado_em = db.Column(db.DateTime)
     criado_em = db.Column(db.DateTime, nullable=False, default=_now)
@@ -42,6 +50,10 @@ class OrganizationSubscription(db.Model):
 
     organization = db.relationship("Organization")
     plan = db.relationship("Plan")
+
+    @property
+    def preco_mensal_cobrado(self) -> Decimal:
+        return self.plan.preco_com_hospedagem(self.site_hospedado) if self.plan else Decimal("0.00")
 
 
 class BillingEvent(db.Model):

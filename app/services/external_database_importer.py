@@ -4,6 +4,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import csv
+import sqlite3
+import unicodedata
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -30,6 +34,13 @@ class FirebirdCredentials:
     user: str = "SYSDBA"
     password: str = ""
     charset: str = "WIN1252"
+    source_type: str = "firebird"
+    host: str = ""
+    port: int | None = None
+    database: str = ""
+    profile: str = "auto"
+    delimiter: str = ","
+    sheet: str = ""
 
 
 def _digits(value: Any, limit: int | None = None) -> str:
@@ -885,4 +896,350 @@ class ExternalFirebirdImporter:
             f"external_import_{org_suffix}"
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")
+
+
+class GenericExternalImporter(ExternalFirebirdImporter):
+    """Adaptador para exportações comuns de sistemas de assistência técnica.
+
+    A maioria dos sistemas não expõe um schema público estável. Por isso o
+    importador trabalha com tabelas/planilhas e aliases de colunas, mantendo a
+    confirmação manual antes de gravar dados no tenant.
+    """
+
+    _CLIENT_ALIASES = {
+        "CODCLI": ("id", "codigo", "codcli", "customer_id", "client_id"),
+        "NOMECLI": ("nome", "name", "cliente", "customer", "nomecli", "razao_social"),
+        "CPF": ("cpf", "documento", "cpf_cnpj"),
+        "CNPJ": ("cnpj",),
+        "TELEFONE": ("telefone", "phone", "celular", "fone"),
+        "EMAIL": ("email", "e_mail", "mail"),
+        "CEP": ("cep", "postal_code", "zipcode"),
+        "ENDERECO": ("endereco", "address", "logradouro", "rua"),
+        "CIDADE": ("cidade", "city"),
+        "ESTADO": ("estado", "uf", "state"),
+    }
+    _PRODUCT_ALIASES = {
+        "CODPROD": ("id", "codigo_id", "codprod", "product_id", "part_id"),
+        "CODIGO": ("codigo", "sku", "ref", "referencia", "part_number"),
+        "NOMEPROD": ("nome", "name", "produto", "product", "descricao", "description"),
+        "CATEGORIA": ("categoria", "category", "grupo", "section"),
+        "QUANTIDADE": ("quantidade", "quantity", "estoque", "stock", "saldo"),
+        "PRECUSTO": ("custo", "cost", "preco_custo", "purchase_price"),
+        "PRECO": ("preco", "price", "preco_venda", "sale_price"),
+        "UNIDADE": ("unidade", "unit"),
+        "OBS": ("observacao", "observacoes", "obs", "notes"),
+    }
+    _OS_ALIASES = {
+        "CODOS": ("id", "codigo", "codos", "os_id", "order_id", "ticket_id"),
+        "NUMOS": ("numero", "numero_os", "numos", "number", "order_number"),
+        "CODCLI": ("cliente_id", "client_id", "customer_id", "codcli"),
+        "EQUIPAMENTO": ("equipamento", "device", "tipo_aparelho", "asset"),
+        "IDENTIFICADOR": ("numero_serie", "serial", "serial_number", "imei"),
+        "MARCAMODELO": ("marca_modelo", "brand_model", "marcamodelo", "modelo"),
+        "OCORRENCIA": ("defeito", "problema", "ocorrencia", "issue", "complaint"),
+        "SOLUCAO": ("solucao", "solution", "resolucao", "resolution"),
+        "OBS": ("observacao", "observacoes", "obs", "notes"),
+        "STATUS_NOME": ("status", "situacao", "state"),
+        "DATA": ("data", "data_entrada", "opened_at", "created_at", "entry_date"),
+        "DATSAI": ("data_saida", "closed_at", "finished_at", "exit_date"),
+        "GARANTIA": ("garantia", "warranty_days"),
+        "TECNICO_NOME": ("tecnico", "technician", "technician_name", "assigned_to"),
+        "VALOR": ("valor", "total", "amount", "price"),
+    }
+    _FIN_ALIASES = {
+        "CODCP": ("id", "codigo", "codcp", "codcr", "transaction_id"),
+        "ORIGEM": ("descricao", "description", "origem", "historico", "history"),
+        "CREDOR": ("credor", "fornecedor", "supplier", "payee"),
+        "DEVEDOR": ("devedor", "cliente", "customer", "payer"),
+        "VALOR": ("valor", "amount", "total", "price"),
+        "VALORPG": ("valor_pago", "paid_amount"),
+        "DATVENC": ("vencimento", "data_vencimento", "due_date"),
+        "DATPAG": ("pagamento", "data_pagamento", "paid_at"),
+        "FLAGPAGO": ("pago", "status", "paid"),
+        "LOCAL": ("forma_pagamento", "payment_method", "local"),
+        "TIPO": ("tipo", "type", "kind"),
+    }
+
+    def __init__(self, credentials: FirebirdCredentials):
+        super().__init__(credentials)
+        self._tables_cache: dict[str, list[dict[str, Any]]] | None = None
+
+    @property
+    def source_type(self):
+        return (self.credentials.source_type or "csv").lower()
+
+    @staticmethod
+    def _key(value):
+        normalized = unicodedata.normalize("NFKD", str(value or ""))
+        normalized = "".join(c for c in normalized if not unicodedata.combining(c))
+        return re.sub(r"[^a-z0-9]+", "_", normalized.lower()).strip("_")
+
+    def _normal_row(self, row):
+        return {self._key(k): v for k, v in row.items() if k is not None}
+
+    def _read_sqlite(self, path):
+        if not Path(path).exists():
+            raise ExternalImportError("Arquivo SQLite não encontrado no servidor.")
+        con = sqlite3.connect(path)
+        con.row_factory = sqlite3.Row
+        try:
+            names = [r[0] for r in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            ).fetchall()]
+            return {name: [dict(row) for row in con.execute(f'"{name.replace(chr(34), chr(34) * 2)}"').fetchall()] for name in names}
+        except sqlite3.Error as exc:
+            raise ExternalImportError(f"Não foi possível ler o SQLite: {exc}") from exc
+        finally:
+            con.close()
+
+    def _read_mysql(self):
+        try:
+            import pymysql
+        except ImportError as exc:
+            raise ExternalImportError("O driver PyMySQL não está instalado para MySQL/MariaDB.") from exc
+        try:
+            con = pymysql.connect(
+                host=self.credentials.host or "127.0.0.1",
+                port=int(self.credentials.port or 3306),
+                user=self.credentials.user,
+                password=self.credentials.password,
+                database=self.credentials.database,
+                charset=self.credentials.charset or "utf8mb4",
+                cursorclass=pymysql.cursors.DictCursor,
+                connect_timeout=10,
+            )
+            with con.cursor() as cur:
+                cur.execute("SHOW TABLES")
+                names = [next(iter(row.values())) for row in cur.fetchall()]
+                tables = {}
+                for name in names:
+                    cur.execute(f"SELECT * FROM `{str(name).replace('`', '``')}` LIMIT 100000")
+                    tables[str(name)] = list(cur.fetchall())
+            return tables
+        except Exception as exc:
+            raise ExternalImportError(f"Não foi possível ler MySQL/MariaDB: {exc}") from exc
+        finally:
+            try:
+                con.close()
+            except UnboundLocalError:
+                pass
+
+    def _read_file(self, path):
+        if not Path(path).exists():
+            raise ExternalImportError("Arquivo de importação não encontrado no servidor.")
+        suffix = Path(path).suffix.lower()
+        if suffix in {".xlsx", ".xlsm"}:
+            try:
+                from openpyxl import load_workbook
+                workbook = load_workbook(path, read_only=True, data_only=True)
+            except ImportError as exc:
+                raise ExternalImportError("O suporte a XLSX exige o pacote openpyxl.") from exc
+            except Exception as exc:
+                raise ExternalImportError(f"Não foi possível ler a planilha: {exc}") from exc
+            tables = {}
+            for sheet in workbook.worksheets:
+                if self.credentials.sheet and sheet.title != self.credentials.sheet:
+                    continue
+                values = sheet.iter_rows(values_only=True)
+                headers = next(values, ())
+                tables[sheet.title] = [dict(zip(headers, row)) for row in values if any(v is not None for v in row)]
+            return tables
+        if suffix == ".zip":
+            tables = {}
+            try:
+                with zipfile.ZipFile(path) as archive:
+                    for name in archive.namelist():
+                        if Path(name).suffix.lower() != ".csv" or name.endswith("/"):
+                            continue
+                        with archive.open(name) as stream:
+                            text_stream = stream.read().decode(self.credentials.charset or "utf-8-sig", errors="replace").splitlines()
+                        reader = csv.DictReader(text_stream, delimiter=self.credentials.delimiter or ",")
+                        tables[Path(name).stem] = list(reader)
+            except (OSError, zipfile.BadZipFile) as exc:
+                raise ExternalImportError(f"Não foi possível ler o ZIP de importação: {exc}") from exc
+            return tables
+        try:
+            with open(path, "r", encoding=self.credentials.charset or "utf-8-sig", newline="") as stream:
+                sample = stream.read(4096)
+                stream.seek(0)
+                delimiter = self.credentials.delimiter or csv.Sniffer().sniff(sample).delimiter
+                return {Path(path).stem: list(csv.DictReader(stream, delimiter=delimiter))}
+        except (OSError, UnicodeError, csv.Error) as exc:
+            raise ExternalImportError(f"Não foi possível ler o CSV: {exc}") from exc
+
+    def _load_tables(self):
+        if self._tables_cache is not None:
+            return self._tables_cache
+        kind = self.source_type
+        if kind == "sqlite":
+            tables = self._read_sqlite(self.credentials.database_path)
+        elif kind in {"mysql", "mariadb"}:
+            tables = self._read_mysql()
+        elif kind in {"csv", "xlsx", "xls", "zip"}:
+            tables = self._read_file(self.credentials.database_path)
+        else:
+            raise ExternalImportError(f"Tipo de origem não suportado: {kind}.")
+        self._tables_cache = {
+            str(name): [self._normal_row(row) for row in rows]
+            for name, rows in tables.items()
+        }
+        if not self._tables_cache:
+            raise ExternalImportError("A origem não possui tabelas ou linhas para importar.")
+        return self._tables_cache
+
+    def _table_role(self, name):
+        key = self._key(name)
+        if key in {"cliente", "clientes", "client", "clients", "customer", "customers"} or "cliente" in key or "customer" in key:
+            return "clientes"
+        if key in {"produto", "produtos", "product", "products", "peca", "pecas", "parts", "inventory", "estoque"} or "produto" in key:
+            return "produtos"
+        if key in {"os", "ordem_servico", "ordens_servico", "order", "orders", "service_order", "service_orders", "tickets", "chamados"} or "ordem" in key or "ticket" in key:
+            return "ordens_servico"
+        if key in {"financeiro", "transacoes", "transacao", "lancamentos", "lancamento", "contas_pagar", "contas_receber", "payments"} or "finance" in key:
+            return "financeiro"
+        return None
+
+    def _tables_for(self, role):
+        tables = self._load_tables()
+        found = [(name, rows) for name, rows in tables.items() if self._table_role(name) == role]
+        if found:
+            return found
+        profile = self.credentials.profile.lower()
+        if len(tables) == 1:
+            if profile == role:
+                return list(tables.items())
+            if profile == "auto":
+                name, rows = next(iter(tables.items()))
+                keys = set(rows[0]) if rows else set()
+                alias_sets = {
+                    "clientes": self._CLIENT_ALIASES,
+                    "produtos": self._PRODUCT_ALIASES,
+                    "ordens_servico": self._OS_ALIASES,
+                    "financeiro": self._FIN_ALIASES,
+                }
+                scores = {candidate: len(keys & set(sum((list(v) for v in aliases.values()), [])))
+                          for candidate, aliases in alias_sets.items()}
+                best = max(scores, key=scores.get) if scores else None
+                if best == role and scores.get(best, 0) >= 1:
+                    return [(name, rows)]
+        return []
+
+    @staticmethod
+    def _pick(row, aliases):
+        for alias in aliases:
+            value = row.get(alias)
+            if value not in (None, ""):
+                return value
+        return None
+
+    def _canonical_rows(self, role, aliases):
+        result = []
+        for _, rows in self._tables_for(role):
+            for row in rows:
+                result.append({key: self._pick(row, values) for key, values in aliases.items()})
+        return result
+
+    def _cliente_rows(self):
+        return self._canonical_rows("clientes", self._CLIENT_ALIASES)
+
+    def _produto_rows(self):
+        return self._canonical_rows("produtos", self._PRODUCT_ALIASES)
+
+    def _os_rows(self):
+        return self._canonical_rows("ordens_servico", self._OS_ALIASES)
+
+    def _contapagar_rows(self):
+        rows = self._canonical_rows("financeiro", self._FIN_ALIASES)
+        result = [row for row in rows if str(row.get("TIPO") or "").lower() in {"despesa", "expense", "pagar", "payable"}]
+        for row in result:
+            row["FLAGPAGO"] = "Y" if str(row.get("FLAGPAGO") or "").lower() in {"y", "yes", "sim", "pago", "paid", "1", "true"} else "N"
+        return result
+
+    def _contareceber_rows(self):
+        rows = self._canonical_rows("financeiro", self._FIN_ALIASES)
+        expenses = self._contapagar_rows()
+        result = [row for row in rows if row not in expenses]
+        for row in result:
+            row["FLAGPAGO"] = "Y" if str(row.get("FLAGPAGO") or "").lower() in {"y", "yes", "sim", "pago", "paid", "1", "true"} else "N"
+        return result
+
+    def _scalar(self, sql, params=()):
+        table = re.search(r"FROM\s+([A-Z0-9_]+)", sql.upper())
+        if not table:
+            return 0
+        mapping = {"CLIENTE": self._cliente_rows, "PRODUTO": self._produto_rows, "OS_ORDEMSERVICO": self._os_rows,
+                   "CONTAPAGAR": self._contapagar_rows, "CONTARECEBER": self._contareceber_rows}
+        return len(mapping.get(table.group(1), lambda: [])())
+
+    def _rows(self, sql, params=()):
+        return []
+
+    def _items_by_os(self):
+        return {}
+
+    def _connect(self):
+        self._load_tables()
+        return None
+
+    def test_connection(self):
+        tables = self._load_tables()
+        return {"success": True, "driver": self.source_type, "table_count": len(tables)}
+
+    def inspect_schema(self):
+        tables = self._load_tables()
+        schema = {"table_count": len(tables), "tables": {}}
+        for name, rows in tables.items():
+            first = rows[0] if rows else {}
+            schema["tables"][name] = {
+                "columns": [{"name": key, "type": type(value).__name__.upper(), "nullable": True} for key, value in first.items()],
+                "primary_key": [], "foreign_keys": [],
+            }
+        for canonical, rows in (("CLIENTE", self._cliente_rows()), ("PRODUTO", self._produto_rows()),
+                                ("OS_ORDEMSERVICO", self._os_rows()), ("CONTAPAGAR", self._contapagar_rows()),
+                                ("CONTARECEBER", self._contareceber_rows())):
+            if rows:
+                schema["tables"][canonical] = {"columns": [{"name": key, "type": "MAPPED", "nullable": True} for key in rows[0]], "primary_key": [], "foreign_keys": []}
+        schema["detected_entities"] = self.detect_entities(schema)
+        return schema
+
+    def detect_entities(self, schema):
+        tables = set(schema.get("tables", {}))
+        return {
+            "clientes": ["CLIENTE"] if "CLIENTE" in tables else [],
+            "clientes_auxiliares": [],
+            "produtos": ["PRODUTO"] if "PRODUTO" in tables else [],
+            "ordens_servico": ["OS_ORDEMSERVICO"] if "OS_ORDEMSERVICO" in tables else [],
+            "financeiro": [t for t in ("CONTARECEBER", "CONTAPAGAR") if t in tables],
+            "compatibilidade": {
+                "sqlite": self.source_type == "sqlite",
+                "mysql_mariadb": self.source_type in {"mysql", "mariadb"},
+                "csv_planilha": self.source_type in {"csv", "xlsx", "xls", "zip"},
+                "perfis_alias": True,
+            },
+        }
+
+    def mapping_report(self):
+        return {
+            "clientes": {", ".join(values): f"Cliente.{key.lower()}" for key, values in self._CLIENT_ALIASES.items()},
+            "produtos": {", ".join(values): f"Peca.{key.lower()}" for key, values in self._PRODUCT_ALIASES.items()},
+            "ordens_servico": {", ".join(values): f"OrdemServico.{key.lower()}" for key, values in self._OS_ALIASES.items()},
+            "financeiro": {", ".join(values): f"Transacao.{key.lower()}" for key, values in self._FIN_ALIASES.items()},
+        }
+
+    def ignored_fields_report(self):
+        return {"geral": ["Colunas sem alias reconhecido são ignoradas.", "Itens de OS/peças exigem exportação separada e ficam para revisão manual."],
+                "perfis": ["Use nomes de tabela clientes, produtos, os e lancamentos para detecção automática."]}
+
+    def _write_log(self, admin_user, created, skipped, errors, preview):
+        if not has_app_context():
+            return
+        folder = Path(current_app.instance_path) / "import_logs"
+        folder.mkdir(parents=True, exist_ok=True)
+        organization_id = getattr(g, "organization_id", None) if has_request_context() else None
+        payload = {"timestamp": datetime.now(timezone.utc).isoformat(), "organization_id": organization_id,
+                   "admin_user": admin_user, "source_type": self.source_type, "created": created,
+                   "skipped": skipped, "errors": errors, "problematic_records": preview.get("invalid_records", {}),
+                   "probable_duplicates": preview.get("probable_duplicates", {})}
+        path = folder / f"external_import_org{organization_id or 'unknown'}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_safe), encoding="utf-8")

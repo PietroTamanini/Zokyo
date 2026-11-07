@@ -7,8 +7,10 @@
   <section class="admin-kpis" aria-label="Resumo operacional">
     <div class="stat-card c-blue"><div class="stat-label">Eventos / 24h</div><div class="stat-value">{{ operations.events_24h }}</div><div class="stat-meta">Ações registradas</div></div>
     <div class="stat-card c-red"><div class="stat-label">Alertas abertos</div><div class="stat-value">{{ operations.open_alerts|length }}</div><div class="stat-meta">Exigem acompanhamento</div></div>
-    <div class="stat-card c-amber"><div class="stat-label">Jobs com risco</div><div class="stat-value">{{ operations.stale_jobs|length }}</div><div class="stat-meta">Falha ou heartbeat antigo</div></div>
+    <div class="stat-card c-amber"><div class="stat-label">Jobs com risco</div><div class="stat-value">{{ operations.stale_jobs|length + (1 if operations.audit_unverified else 0) }}</div><div class="stat-meta">Falha, atraso ou auditoria sem verificação</div></div>
     <div class="stat-card c-green"><div class="stat-label">Sites publicados</div><div class="stat-value">{{ operations.sites_published }}</div><div class="stat-meta">{{ operations.sites_without_bundle }} sem ZIP</div></div>
+    <div class="stat-card {{ 'c-red' if operations.privacy_overdue_requests else 'c-blue' }}"><div class="stat-label">DSAR vencidas</div><div class="stat-value">{{ operations.privacy_overdue_requests }}</div><div class="stat-meta">{{ operations.privacy_open_requests }} em atendimento</div></div>
+    <div class="stat-card {{ 'c-red' if operations.privacy_critical_incidents else 'c-amber' }}"><div class="stat-label">Incidentes abertos</div><div class="stat-value">{{ operations.privacy_open_incidents }}</div><div class="stat-meta">{{ operations.privacy_critical_incidents }} críticos · {{ operations.privacy_undecided_incidents }} sem decisão após 24h</div></div>
   </section>
   <div class="admin-overview-grid">
     <section class="admin-section"><div class="admin-section-heading"><h2>Fila e gargalos</h2></div>
@@ -19,6 +21,7 @@
     <section class="admin-section"><div class="admin-section-heading"><h2>Alertas abertos</h2></div>
       {% for alert in operations.open_alerts %}<div class="admin-status-row"><span><strong>{{ alert.source }}</strong><small class="muted-xs" style="display:block">{{ alert.message }}</small></span><span class="badge {{ 'b-red' if alert.severity == 'critical' else 'b-amber' if alert.severity == 'warning' else 'b-blue' }}">{{ alert.occurrences }}</span></div>{% else %}<div class="admin-empty"><svg class="ui-icon" aria-hidden="true"><use href="#i-shield"></use></svg><h3>Nenhum alerta aberto</h3></div>{% endfor %}
       <div class="admin-section-heading" style="margin-top: 28px"><h2>Tarefas monitoradas</h2></div>
+      <div class="admin-status-row"><span>Verificação da auditoria{% if operations.audit_heartbeat and operations.audit_heartbeat.last_success_at %}<small class="muted-xs" style="display:block">Último sucesso: {{ operations.audit_heartbeat.last_success_at|fmtdata }}</small>{% endif %}</span><span class="badge {{ 'b-red' if operations.audit_unverified or operations.audit_heartbeat in operations.stale_jobs else 'b-green' }}">{{ 'Sem verificação' if operations.audit_unverified else 'Atrasada ou falhou' if operations.audit_heartbeat in operations.stale_jobs else 'Em dia' }}</span></div>
       {% for job in operations.heartbeats %}<div class="admin-status-row"><span>{{ job.job_name }}</span><span class="badge {{ 'b-red' if job.consecutive_failures else 'b-green' }}">{{ job.consecutive_failures }} falhas</span></div>{% else %}<p class="muted-xs">Nenhum heartbeat registrado.</p>{% endfor %}
     </section>
   </div>

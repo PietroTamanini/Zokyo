@@ -25,7 +25,7 @@
         <div class="form-group"><label>Tipo</label>
           <select name="tipo">
             <option value="">Todos</option>
-            {% for t in ['criacao','edicao','exclusao','login','logout','status','pagamento','sistema'] %}
+            {% for t in ['criacao','edicao','exclusao','login','logout','acesso','status','pagamento','sistema'] %}
             <option value="{{ t }}" {% if filtros.tipo == t %}selected{% endif %}>{{ t }}</option>
             {% endfor %}
           </select></div>
@@ -67,7 +67,7 @@
       </tr></thead>
       <tbody>
         {% for ev in eventos %}
-        {% set tipo_cls = {'criacao':'b-green','edicao':'b-blue','exclusao':'b-red','login':'b-sky','logout':'b-gray','status':'b-amber','pagamento':'b-green','sistema':'b-indigo'}[ev.tipo] if ev.tipo in ['criacao','edicao','exclusao','login','logout','status','pagamento','sistema'] else 'b-gray' %}
+        {% set tipo_cls = {'criacao':'b-green','edicao':'b-blue','exclusao':'b-red','login':'b-sky','logout':'b-gray','acesso':'b-sky','status':'b-amber','pagamento':'b-green','sistema':'b-indigo'}[ev.tipo] if ev.tipo in ['criacao','edicao','exclusao','login','logout','acesso','status','pagamento','sistema'] else 'b-gray' %}
         <tr class="tr-static">
           <td class="td-mono">{{ ev.criado_em | fmtdata }}<br><span class="td-note">{{ ev.criado_em.strftime('%H:%M:%S') if ev.criado_em else '' }}</span></td>
           <td class="td-strong">{{ ev.usuario_nome or '—' }}</td>

@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 401 %}{% set tone = 'warning' %}{% set title = 'Sua sessão precisa ser renovada' %}{% set message = 'A autenticação é necessária para acessar este recurso.' %}
+{% block title %}401 · Não autorizado | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

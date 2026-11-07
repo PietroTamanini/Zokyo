@@ -40,17 +40,28 @@
 {% endblock %}
 
 {% block content %}
+{% set settings_general_action = url_for('platform.company_settings_save', organization_id=platform_org.id) if platform_mode else url_for('configuracoes.salvar') %}
+{% set settings_dashboard_action = url_for('platform.company_settings_dashboard', organization_id=platform_org.id) if platform_mode else url_for('configuracoes.salvar_dashboard') %}
+{% set settings_os_action = url_for('platform.company_settings_os_options', organization_id=platform_org.id) if platform_mode else url_for('configuracoes.salvar_os_opcoes') %}
 <div class="settings-page">
+{% if platform_mode %}<div class="alert a-blue mb16"><strong>Configurações de {{ platform_org.nome }}</strong><br>Esta área é exclusiva do super admin. O administrador da assistência não pode acessar nem alterar estas opções.</div>{% endif %}
 <div class="page-header settings-hero">
   <div><div class="page-title">Configurações</div><div class="page-sub">Centralize a identidade da empresa, o fluxo de OS, os indicadores e os canais de comunicação.</div></div>
-  <a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Segurança da conta</a>
+  {% if platform_mode %}<a class="btn btn-outline" href="{{ url_for('platform.index', view='company', organization_id=platform_org.id) }}">Voltar para a empresa</a>{% else %}<a class="btn btn-outline" href="{{ url_for('auth.two_factor_setup') }}">Segurança da conta</a>{% endif %}
 </div>
 
 <nav class="settings-quick-links" aria-label="Configurações relacionadas">
+  {% if platform_mode %}
+  <a class="settings-quick-link" href="{{ url_for('platform.index', view='company', organization_id=platform_org.id) }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg><span><strong>Site e domínio</strong><span>Publicação, DNS e endereço</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('platform.index', view='company', organization_id=platform_org.id) }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg><span><strong>Responsáveis</strong><span>Administradores da empresa</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('platform.company_settings_importacao', organization_id=platform_org.id) }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><strong>Importar dados</strong><span>Trazer dados de outro sistema</span></span></a>
+  <a class="settings-quick-link" href="{{ url_for('platform.company_privacy_clients', organization_id=platform_org.id) }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-database"></use></svg><span><strong>Privacidade dos clientes</strong><span>Consulta e exportação por empresa</span></span></a>
+  {% else %}
   <a class="settings-quick-link" href="{{ url_for('site_config.index') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg><span><strong>Meu site</strong><span>Domínio e publicação</span></span></a>
   <a class="settings-quick-link" href="{{ url_for('usuarios.usuarios_page') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg><span><strong>Equipe e acessos</strong><span>Usuários e permissões</span></span></a>
   <a class="settings-quick-link" href="{{ url_for('configuracoes.notificacoes') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-mail"></use></svg><span><strong>Mensagens</strong><span>Fila e notificações</span></span></a>
   <a class="settings-quick-link" href="{{ url_for('privacy.retention') }}"><svg class="ui-icon" aria-hidden="true"><use href="#i-database"></use></svg><span><strong>Privacidade</strong><span>Retenção e LGPD</span></span></a>
+  {% endif %}
 </nav>
 
 {% with msgs = get_flashed_messages(with_categories=true) %}
@@ -72,7 +83,7 @@
   <div class="card settings-card">
     <div class="card-header"><div><span class="card-title">Dados da empresa</span><p>Informações que aparecem no sistema, nos documentos e nos canais públicos.</p></div></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('configuracoes.salvar') }}">
+      <form method="POST" action="{{ settings_general_action }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="settings-group">
         <div class="settings-group-title">Identidade e contato</div>
@@ -137,7 +148,7 @@
   <div class="card settings-card">
     <div class="card-header"><div><span class="card-title">Opções das ordens de serviço</span><p>Defina os nomes e as etapas que sua equipe usa no atendimento.</p></div></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('configuracoes.salvar_os_opcoes') }}">
+      <form method="POST" action="{{ settings_os_action }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-row fr3">
           <div class="form-group settings-option-column">
@@ -204,7 +215,7 @@
   <div class="card settings-card">
     <div class="card-header"><div><span class="card-title">Metas e alertas</span><p>Escolha os limites que merecem atenção no dashboard da empresa.</p></div></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('configuracoes.salvar_dashboard') }}">
+      <form method="POST" action="{{ settings_dashboard_action }}">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-row fr2">
           <div class="form-group"><label>Meta de Receita Mensal (R$)</label>

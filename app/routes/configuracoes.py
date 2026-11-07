@@ -3,17 +3,46 @@ import re
 import unicodedata
 from urllib.parse import urlparse
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from functools import wraps
+
+from flask import Blueprint, abort, flash, g, jsonify, redirect, render_template, request, session, url_for
 
 from app.extensions import db
 from app.models import Configuracao, MessageTemplate, Notification, registrar
-from app.utils.auth import nivel_required, page_nivel_required
+from app.admin.security import can_manage_platform
+from app.utils.auth import nivel_required, platform_controlled_api_required
 from app.utils.sanitizers import sanitize_cnpj, sanitize_email, sanitize_phone, sanitize_text
 from app.utils.validators import validar_cnpj, validar_email, validar_telefone
 
 cfg_bp = Blueprint("configuracoes", __name__)
 
 PROTECTED_STATUS_KEYS = {"recepcao", "entregue", "cancelado"}
+
+
+def configuration_page_required(function):
+    """Configuração de tenant somente no contexto autorizado pelo super admin."""
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        user = getattr(g, "current_user", None)
+        if not user:
+            return redirect(url_for("auth.login_page"))
+        if can_manage_platform(user):
+            if not getattr(g, "platform_settings_organization_id", None):
+                abort(403)
+        elif user.organization_id:
+            flash("As configurações da assistência são controladas pelo administrador da plataforma.", "error")
+            return redirect(url_for("pages.dashboard"))
+        else:
+            abort(403)
+        return function(*args, **kwargs)
+    return decorated
+
+
+def _settings_redirect(endpoint="configuracoes.index"):
+    organization_id = getattr(g, "platform_settings_organization_id", None)
+    if organization_id:
+        return redirect(url_for("platform.company_settings", organization_id=organization_id))
+    return redirect(url_for(endpoint))
 
 
 def _slug_option(value: str) -> str:
@@ -59,7 +88,7 @@ def _public_url(value: str | None, *, max_length: int = 300, allow_static_path: 
 
 
 @cfg_bp.route("/configuracoes")
-@page_nivel_required("admin")
+@configuration_page_required
 def index():
     cfg = Configuracao.get()
     return render_template("pages/configuracoes.html",
@@ -67,7 +96,7 @@ def index():
 
 
 @cfg_bp.route("/configuracoes/notificacoes")
-@page_nivel_required("admin")
+@configuration_page_required
 def notificacoes():
     status = (request.args.get("status") or "").strip()
     page = max(request.args.get("page", 1, type=int), 1)
@@ -82,7 +111,7 @@ def notificacoes():
 
 
 @cfg_bp.route("/configuracoes/notificacoes/<int:notification_id>/retry", methods=["POST"])
-@page_nivel_required("admin")
+@configuration_page_required
 def notificacao_retry(notification_id):
     from flask import g
 
@@ -98,11 +127,11 @@ def notificacao_retry(notification_id):
         registrar("retry", "notifications", f"Reenvio solicitado para notificacao #{notification_id}.")
         db.session.commit()
         flash("Notificação colocada novamente na fila.", "success")
-    return redirect(url_for("configuracoes.notificacoes"))
+    return _settings_redirect("configuracoes.notificacoes")
 
 
 @cfg_bp.route("/configuracoes/salvar", methods=["POST"])
-@page_nivel_required("admin")
+@configuration_page_required
 def salvar():
     cfg  = Configuracao.get()
     data = request.form
@@ -110,31 +139,31 @@ def salvar():
     nome_emp = sanitize_text(data.get("nome_empresa", ""), max_length=200)
     if not nome_emp:
         flash("Nome da empresa é obrigatório.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
 
     cnpj_raw = sanitize_cnpj(data.get("cnpj", ""))
     if cnpj_raw and not validar_cnpj(cnpj_raw):
         flash("CNPJ da empresa inválido.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
 
     email_emp = sanitize_email(data.get("email", ""))
     if email_emp and not validar_email(email_emp):
         flash("E-mail da empresa inválido.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
 
     tel_emp = sanitize_phone(data.get("telefone", ""))
     if tel_emp and not validar_telefone(tel_emp):
         flash("Telefone da empresa inválido.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
 
     try:
         dias_vencimento = int(data.get("dias_vencimento") or 30)
     except (ValueError, TypeError):
         flash("Dias para vencimento deve ser um numero inteiro.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     if dias_vencimento < 1:
         flash("Dias para vencimento deve ser maior que zero.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
 
     cfg.nome_empresa    = nome_emp
     cfg.cnpj            = cnpj_raw or None
@@ -152,18 +181,18 @@ def salvar():
         )
         if data.get(field) and not value:
             flash("Informe links públicos válidos começando com http:// ou https://.", "error")
-            return redirect(url_for("configuracoes.index"))
+            return _settings_redirect()
         setattr(cfg, field, value)
     whatsapp_publico = sanitize_phone(data.get("whatsapp_publico", ""))
     if whatsapp_publico and not validar_telefone(whatsapp_publico):
         flash("WhatsApp público inválido.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     cfg.whatsapp_publico = whatsapp_publico or None
     for field, default in (("primary_color", "#2563eb"), ("accent_color", "#6366f1")):
         value = (data.get(field) or default).strip().lower()
         if not re.fullmatch(r"#[0-9a-f]{6}", value):
             flash("Cor de identidade visual invalida.", "error")
-            return redirect(url_for("configuracoes.index"))
+            return _settings_redirect()
         setattr(cfg, field, value)
     cfg.dados_pagamento = sanitize_text(data.get("dados_pagamento", ""), max_length=2000) or None
     cfg.pix_chave       = sanitize_text(data.get("pix_chave", ""), max_length=200) or None
@@ -172,11 +201,11 @@ def salvar():
     registrar("edicao", "configuracoes", "Configurações gerais salvas")
     db.session.commit()
     flash("Configurações salvas!", "success")
-    return redirect(url_for("configuracoes.index"))
+    return _settings_redirect()
 
 
 @cfg_bp.route("/configuracoes/dashboard", methods=["POST"])
-@page_nivel_required("admin")
+@configuration_page_required
 def salvar_dashboard():
     cfg  = Configuracao.get()
     data = request.form
@@ -187,10 +216,10 @@ def salvar_dashboard():
         alerta_vencimento_dias = int(data.get("alerta_vencimento_dias") or 5)
     except (ValueError, TypeError):
         flash("Os indicadores do dashboard devem conter apenas numeros validos.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     if min(meta_receita_mensal, alerta_caixa_minimo, alerta_estoque_minimo, alerta_vencimento_dias) < 0:
         flash("Os indicadores do dashboard nao podem ser negativos.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     cfg.meta_receita_mensal = meta_receita_mensal
     cfg.alerta_caixa_minimo = alerta_caixa_minimo
     cfg.alerta_estoque_minimo = alerta_estoque_minimo
@@ -198,11 +227,11 @@ def salvar_dashboard():
     registrar("edicao", "configuracoes", "Configurações de dashboard salvas")
     db.session.commit()
     flash("Configurações de dashboard salvas!", "success")
-    return redirect(url_for("configuracoes.index"))
+    return _settings_redirect()
 
 
 @cfg_bp.route("/configuracoes/os-opcoes", methods=["POST"])
-@page_nivel_required("admin")
+@configuration_page_required
 def salvar_os_opcoes():
     cfg = Configuracao.get()
     status_options = _parse_options("status", protected_keys=PROTECTED_STATUS_KEYS)
@@ -211,16 +240,16 @@ def salvar_os_opcoes():
     checklist_options = _parse_options("entry_checklist")
     if not status_options:
         flash("Informe pelo menos um status de OS.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     if not priority_options:
         flash("Informe pelo menos uma prioridade.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     if not attendance_options:
         flash("Informe pelo menos um tipo de atendimento.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     if not checklist_options:
         flash("Informe pelo menos um item no checklist de entrada.", "error")
-        return redirect(url_for("configuracoes.index"))
+        return _settings_redirect()
     cfg.set_os_status_options(status_options)
     cfg.set_os_priority_options(priority_options)
     cfg.set_attendance_type_options(attendance_options)
@@ -228,11 +257,11 @@ def salvar_os_opcoes():
     registrar("edicao", "configuracoes", "Opções de OS salvas")
     db.session.commit()
     flash("Opções de OS salvas.", "success")
-    return redirect(url_for("configuracoes.index"))
+    return _settings_redirect()
 
 
 @cfg_bp.route("/api/whatsapp/status")
-@nivel_required("admin")
+@platform_controlled_api_required
 def whatsapp_status():
     """Verifica se a Meta Cloud API esta configurada."""
     from app.utils.whatsapp import status_wpp
@@ -264,7 +293,7 @@ def emitente_v1():
 
 
 @cfg_bp.route("/api/whatsapp/teste", methods=["POST"])
-@nivel_required("admin")
+@platform_controlled_api_required
 def whatsapp_teste():
     """Envia mensagem de teste para o número informado."""
     from app.utils.whatsapp import enviar_whatsapp
@@ -277,7 +306,7 @@ def whatsapp_teste():
 
 
 @cfg_bp.route("/api/message-templates", methods=["GET"])
-@nivel_required("admin")
+@platform_controlled_api_required
 def message_templates_list():
     items = MessageTemplate.query.order_by(
         MessageTemplate.event_type, MessageTemplate.channel, MessageTemplate.version.desc(),
@@ -289,7 +318,7 @@ def message_templates_list():
 
 
 @cfg_bp.route("/api/message-templates", methods=["POST"])
-@nivel_required("admin")
+@platform_controlled_api_required
 def message_templates_create():
     data = request.get_json(silent=True) or {}
     event_type = sanitize_text(data.get("event_type", ""), max_length=80)

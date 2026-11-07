@@ -23,8 +23,8 @@
     {% for item in notifications %}
       <tr>
         <td>{{ item.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ item.event_type }}</td><td>{{ item.channel }}</td>
-        <td>{{ item.recipient[-4:].rjust(item.recipient|length, '*') }}</td>
-        <td><span class="badge b-{{ 'green' if item.status == 'sent' else 'red' if item.status == 'failed' else 'yellow' }}">{{ item.status }}</span></td>
+        <td>{{ 'Dados removidos' if item.redacted_at else item.recipient[-4:].rjust(item.recipient|length, '*') }}</td>
+        <td><span class="badge b-{{ 'green' if item.status == 'sent' else 'red' if item.status == 'failed' else 'yellow' }}">{{ item.status }}</span>{% if item.redacted_at %}<div class="td-note">Conteúdo removido em {{ item.redacted_at|fmtdata }}</div>{% endif %}</td>
         <td>{{ item.attempts }}/{{ item.max_attempts }}</td><td>{{ (item.last_error or '-')|truncate(80) }}</td>
         <td>{% if item.status != 'sent' %}<form method="POST" action="{{ url_for('configuracoes.notificacao_retry', notification_id=item.id) }}"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn btn-ghost btn-xs" type="submit">Reenviar</button></form>{% endif %}</td>
       </tr>

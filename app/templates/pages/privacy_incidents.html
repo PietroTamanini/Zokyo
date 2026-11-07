@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Incidentes de privacidade{% endblock %}
+{% block breadcrumb %}Privacidade / Incidentes{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/privacy-incidents.css') }}">{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="page-title">Incidentes de privacidade</div><div class="page-sub">Registro preservado para investigação, decisão de comunicação e resposta.</div></div></div>
+<div class="g64">
+  <section class="card"><div class="card-header"><div class="card-title">Registrar incidente</div></div>
+    <form method="post" action="{{ url_for('privacy.incidents') }}" class="card-body parts-body">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group"><label for="title">Título</label><input id="title" name="title" maxlength="200" required></div>
+      <div class="form-group"><label for="severity">Severidade</label><select id="severity" name="severity"><option value="low">Baixa</option><option value="medium" selected>Média</option><option value="high">Alta</option><option value="critical">Crítica</option></select></div>
+      <div class="form-group"><label for="affected_data">Categorias de dados possivelmente afetadas</label><input id="affected_data" name="affected_data" maxlength="2000"></div>
+      <div class="form-group"><label for="affected_subjects">Quantidade estimada de titulares</label><input id="affected_subjects" type="number" min="0" name="affected_subjects"></div>
+      <div class="form-group"><label for="known_at">Quando soube que dados pessoais foram afetados</label><input id="known_at" name="known_at" placeholder="2026-11-06T14:30:00-03:00" aria-describedby="incident-time-help"><small id="incident-time-help">Informe o fuso horário. Deixe em branco enquanto a afetação não estiver confirmada.</small></div>
+      <div class="form-group"><label for="description">Descrição inicial</label><textarea id="description" name="description" rows="6" maxlength="10000" required></textarea></div>
+      <button class="btn btn-primary" type="submit">Registrar incidente</button>
+    </form>
+  </section>
+  <section class="card"><div class="card-header"><div class="card-title">Histórico recente</div></div>
+    <div class="table-wrap"><table><thead><tr><th>Data</th><th>Título</th><th>Severidade</th><th>Status</th><th>Dados</th><th>Tratamento</th></tr></thead><tbody>
+      {% for item in incidents %}<tr class="tr-static">
+        <td>{{ item.created_at|fmtdata }}<div class="td-note">Conhecimento: {{ item.known_at|fmtdata if item.known_at else 'A confirmar' }}</div></td><td>{{ item.title }}</td><td>{{ item.severity }}</td><td>{{ item.status }}</td><td>{{ item.affected_data or 'Não informado' }}</td>
+        <td><form method="post" action="{{ url_for('privacy.incident_update', incident_id=item.id) }}" class="inline-form">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <select name="status" aria-label="Status do incidente {{ item.id }}"><option value="open" {{ 'selected' if item.status == 'open' }}>Aberto</option><option value="investigating" {{ 'selected' if item.status == 'investigating' }}>Investigando</option><option value="contained" {{ 'selected' if item.status == 'contained' }}>Contido</option><option value="closed" {{ 'selected' if item.status == 'closed' }}>Encerrado</option></select>
+          <select name="severity" aria-label="Severidade do incidente {{ item.id }}"><option value="low" {{ 'selected' if item.severity == 'low' }}>Baixa</option><option value="medium" {{ 'selected' if item.severity == 'medium' }}>Média</option><option value="high" {{ 'selected' if item.severity == 'high' }}>Alta</option><option value="critical" {{ 'selected' if item.severity == 'critical' }}>Crítica</option></select>
+          <input name="notification_decision" maxlength="5000" placeholder="Decisão de comunicação" aria-label="Decisão de comunicação do incidente {{ item.id }}" value="{{ item.notification_decision or '' }}">
+          <input name="corrective_actions" maxlength="5000" placeholder="Ações corretivas" aria-label="Ações corretivas do incidente {{ item.id }}" value="{{ item.corrective_actions or '' }}">
+          <input name="known_at" placeholder="Conhecimento: ISO 8601 com fuso" aria-label="Conhecimento da afetação do incidente {{ item.id }}" value="{{ item.known_at.replace(tzinfo=None).isoformat() ~ '+00:00' if item.known_at else '' }}">
+          <input name="anpd_notified_at" placeholder="ANPD: ISO 8601 com fuso" aria-label="Comunicação à ANPD do incidente {{ item.id }}" value="{{ item.anpd_notified_at.replace(tzinfo=None).isoformat() ~ '+00:00' if item.anpd_notified_at else '' }}">
+          <input name="subjects_notified_at" placeholder="Titulares: ISO 8601 com fuso" aria-label="Comunicação aos titulares do incidente {{ item.id }}" value="{{ item.subjects_notified_at.replace(tzinfo=None).isoformat() ~ '+00:00' if item.subjects_notified_at else '' }}">
+          <input name="notification_reference" maxlength="200" placeholder="Protocolo ou referência" aria-label="Referência da comunicação do incidente {{ item.id }}" value="{{ item.notification_reference or '' }}">
+          <button class="btn btn-ghost btn-xs" type="submit">Salvar</button>
+        </form>
+        <details class="incident-history"><summary>Histórico ({{ revisions.get(item.id, [])|length }})</summary>
+          {% for revision in revisions.get(item.id, []) %}
+          {% set snapshot = revision.details %}
+          <div class="incident-history-entry">
+            <strong>{{ revision.recorded_at|fmtdata }} · {{ 'Registro inicial' if revision.action == 'created' else 'Estado anterior à migração' if revision.action == 'baseline' else 'Atualização' }} · usuário #{{ revision.actor_id or 'não identificado' }}</strong>
+            <div>Estado: {{ snapshot.status }} · severidade: {{ snapshot.severity }}</div>
+            {% if snapshot.known_at %}<div>Conhecimento: {{ snapshot.known_at }}</div>{% endif %}
+            {% if snapshot.anpd_notified_at %}<div>ANPD: {{ snapshot.anpd_notified_at }}</div>{% endif %}
+            {% if snapshot.subjects_notified_at %}<div>Titulares: {{ snapshot.subjects_notified_at }}</div>{% endif %}
+            {% if snapshot.notification_reference %}<div>Protocolo: {{ snapshot.notification_reference }}</div>{% endif %}
+            {% if snapshot.notification_decision %}<div>Decisão: {{ snapshot.notification_decision }}</div>{% endif %}
+            {% if snapshot.corrective_actions %}<div>Ações: {{ snapshot.corrective_actions }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </details></td>
+      </tr>{% else %}<tr><td colspan="6" class="td-empty">Nenhum incidente registrado.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+{% endblock %}

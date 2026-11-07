@@ -22,17 +22,21 @@
       <div class="form-group"><label for="owner-name">Nome completo</label><input id="owner-name" name="owner_name" required minlength="2" maxlength="120" placeholder="Nome do responsável"></div>
       <div class="form-group"><label for="owner-email">E-mail</label><input id="owner-email" type="email" name="owner_email" required placeholder="responsavel@empresa.com" autocomplete="off"></div>
     </div>
-    <div class="form-group admin-short-field"><label for="owner-password">Senha inicial</label><input id="owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha automaticamente" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar automaticamente.</small>{% include 'partials/_password_requirements.html' %}</div>
+    <div class="form-group admin-short-field"><label for="owner-password">Senha inicial</label><input id="owner-password" class="validate-password" data-password-input data-min="8" type="password" name="owner_password" placeholder="Gerar senha temporária por e-mail" autocomplete="new-password"><small class="input-hint">Deixe vazio para gerar uma senha temporária e enviá-la ao e-mail informado.</small>{% include 'partials/_password_requirements.html' %}</div>
   </fieldset>
   <fieldset class="admin-fieldset">
     <legend>Assinatura e acesso</legend>
     <div class="form-row fr2">
-      <div class="form-group"><label for="company-plan">Plano</label><select id="company-plan" name="plan_id"><option value="">Starter padrão</option>{% for plan in plans if plan.ativo %}<option value="{{ plan.id }}">{{ plan.nome }} - R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}/mês</option>{% endfor %}</select></div>
+      <div class="form-group"><label for="company-plan">Plano</label><select id="company-plan" name="plan_id" data-plan-select><option value="">Starter padrão</option>{% for plan in plans if plan.ativo %}<option value="{{ plan.id }}" data-plan-price="{{ plan.preco_mensal or 0 }}" data-hosting-percent="{{ plan.hospedagem_percentual or 0 }}">{{ plan.nome }} - R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}/mês</option>{% endfor %}</select></div>
       <div class="form-group"><label for="trial-days">Período de teste (dias)</label><input id="trial-days" type="number" min="1" max="90" name="trial_days" value="14" required></div>
     </div>
     <div class="admin-toggle-stack">
       <label class="check-inline"><input class="input-check" type="checkbox" name="active" checked> Empresa ativa</label>
       <label class="check-inline"><input class="input-check" type="checkbox" name="provision_dns" {{ 'checked' if dns.ready }}> Ativar subdomínio</label>
+    </div>
+    <div class="admin-hosting-choice" data-hosting-plan-form>
+      <label class="check-inline"><input class="input-check" type="checkbox" name="site_hospedado" data-hosting-checkbox disabled> Hospedar o site desta empresa no servidor do Zokyo</label>
+      <p class="input-hint" data-hosting-summary>Selecione um plano para consultar o acréscimo de hospedagem.</p>
     </div>
     {% if not dns.ready %}<p class="admin-inline-notice">Provisionamento automático de DNS não configurado. <a href="{{ url_for('platform.index', view='domains') }}">Ver domínios</a></p>{% endif %}
   </fieldset>

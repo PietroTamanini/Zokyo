@@ -46,6 +46,9 @@ def blind_index_key() -> bytes:
             raise RuntimeError("BLIND_INDEX_KEY deve decodificar exatamente 32 bytes.")
         return decoded
 
+    if os.environ.get("FLASK_ENV", "").lower() == "production":
+        raise RuntimeError("BLIND_INDEX_KEY explícita é obrigatória em produção.")
+
     secret = str(current_app.config.get("SECRET_KEY") or "").strip()
     if len(secret) < 32 and not (current_app.testing or current_app.debug):
         raise RuntimeError("BLIND_INDEX_KEY ou SECRET_KEY forte e obrigatoria para indice cego.")

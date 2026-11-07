@@ -1,0 +1,91 @@
+:root {
+  --error-bg: #f5f6f8;
+  --error-surface: #ffffff;
+  --error-border: #dce1e8;
+  --error-text: #171a1f;
+  --error-muted: #657080;
+  --error-subtle: #eef2f7;
+  --error-blue: #1d4ed8;
+  --error-blue-soft: #e8efff;
+  --error-danger: #c53333;
+  --error-warning: #a76600;
+}
+
+[data-theme="dark"] {
+  --error-bg: #0b0d10;
+  --error-surface: #15191f;
+  --error-border: #2d3540;
+  --error-text: #f3f5f7;
+  --error-muted: #aab3c0;
+  --error-subtle: #1c232c;
+  --error-blue: #7fa7ff;
+  --error-blue-soft: #1a2b4d;
+  --error-danger: #ff8d8d;
+  --error-warning: #f2bd67;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body.zk-error-page {
+  margin: 0;
+  min-width: 320px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.zk-error-shell {
+  width: min(100% - 48px, 1120px);
+  min-height: 100vh;
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 32px 0 24px;
+}
+
+.zk-error-header, .zk-error-footer { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.zk-error-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--error-text); font-size: 18px; font-weight: 600; text-decoration: none; }
+.zk-error-brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: var(--error-text); color: var(--error-bg); }
+.zk-error-brand-mark svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.zk-error-theme { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--error-border); border-radius: 8px; background: transparent; color: var(--error-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.zk-error-theme:hover, .zk-error-theme:focus-visible { border-color: var(--error-blue); color: var(--error-text); }
+.zk-error-theme:focus-visible, .zk-error-button:focus-visible, .zk-error-brand:focus-visible { outline: 3px solid color-mix(in srgb, var(--error-blue) 30%, transparent); outline-offset: 3px; }
+.zk-error-theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.zk-error-content { align-self: center; display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1fr); align-items: center; gap: clamp(48px, 10vw, 144px); padding: 72px 8vw; border-top: 1px solid var(--error-border); border-bottom: 1px solid var(--error-border); }
+.zk-error-visual { position: relative; display: grid; justify-items: center; gap: 20px; color: var(--error-blue); }
+.zk-error-visual-line { width: 1px; height: 104px; background: currentColor; opacity: .65; }
+.zk-error-visual-code { font-size: clamp(72px, 12vw, 148px); font-weight: 500; line-height: .9; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.zk-error-visual-icon { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.zk-error-content[data-tone="danger"] .zk-error-visual { color: var(--error-danger); }
+.zk-error-content[data-tone="warning"] .zk-error-visual { color: var(--error-warning); }
+.zk-error-copy { max-width: 590px; }
+.zk-error-kicker { margin: 0 0 16px; color: var(--error-muted); font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+.zk-error-copy h1 { max-width: 14ch; margin: 0; font-size: clamp(32px, 4vw, 56px); font-weight: 500; line-height: 1.04; letter-spacing: -.035em; }
+.zk-error-message { max-width: 54ch; margin: 24px 0 0; color: var(--error-muted); font-size: 16px; line-height: 1.65; }
+.zk-error-note { max-width: 54ch; margin: 12px 0 0; color: var(--error-muted); font-size: 13px; line-height: 1.6; }
+.zk-error-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.zk-error-button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 16px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background-color .16s ease, border-color .16s ease, color .16s ease; }
+.zk-error-button-primary { border: 1px solid var(--error-blue); background: var(--error-blue); color: #fff; }
+.zk-error-button-primary:hover { background: color-mix(in srgb, var(--error-blue) 88%, #000); }
+.zk-error-button-secondary { border: 1px solid var(--error-border); background: transparent; color: var(--error-text); }
+.zk-error-button-secondary:hover { border-color: var(--error-blue); color: var(--error-blue); }
+.zk-error-footer { color: var(--error-muted); font-size: 12px; }
+.zk-error-footer code { padding: 3px 6px; border-radius: 4px; background: var(--error-subtle); color: var(--error-text); font-family: "JetBrains Mono", Consolas, monospace; font-size: 11px; }
+
+@media (max-width: 700px) {
+  .zk-error-shell { width: min(100% - 32px, 560px); padding: 20px 0 16px; }
+  .zk-error-theme span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .zk-error-content { grid-template-columns: 1fr; gap: 36px; padding: 56px 0; border-top: 0; }
+  .zk-error-visual { justify-items: start; grid-template-columns: auto auto auto; align-items: center; gap: 16px; }
+  .zk-error-visual-line { width: 48px; height: 1px; }
+  .zk-error-visual-code { font-size: 72px; }
+  .zk-error-copy h1 { max-width: 18ch; font-size: 38px; }
+  .zk-error-message { font-size: 15px; }
+  .zk-error-footer { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zk-error-button { transition: none; }
+}

@@ -159,3 +159,38 @@ def page_nivel_required(*niveis):
             return f(*args, **kwargs)
         return decorated
     return decorator
+
+
+def platform_controlled_page_required(function):
+    """Bloqueia áreas administrativas controladas pelo super admin para tenants."""
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        if "usuario_id" not in session:
+            return redirect(url_for("auth.login_page"))
+        from app.extensions import db
+        from app.models import Usuario
+        user = getattr(g, "current_user", None) or db.session.get(
+            Usuario, session.get("usuario_id"), execution_options={"include_all_tenants": True}
+        )
+        if user and user.organization_id:
+            flash("Esta área é controlada exclusivamente pelo super admin.", "error")
+            return redirect(url_for("pages.dashboard"))
+        return function(*args, **kwargs)
+    return decorated
+
+
+def platform_controlled_api_required(function):
+    """Equivalente JSON do bloqueio de áreas administrativas do super admin."""
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        if not _ensure_api_auth():
+            return jsonify({"erro": "Autenticação necessária"}), 401
+        from app.extensions import db
+        from app.models import Usuario
+        user = getattr(g, "current_user", None) or db.session.get(
+            Usuario, session.get("usuario_id"), execution_options={"include_all_tenants": True}
+        )
+        if user and user.organization_id:
+            return jsonify({"erro": "Área controlada exclusivamente pelo super admin"}), 403
+        return function(*args, **kwargs)
+    return decorated

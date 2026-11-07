@@ -5,10 +5,14 @@
 {% block content %}
 <div class="page-header">
   <div>
+    {% if platform_mode %}<div class="alert a-blue mb16"><strong>Configurações de {{ platform_org.nome }}</strong><br>Importe dados somente para a empresa selecionada. Esta área é exclusiva do super admin.</div>{% endif %}
     <div class="page-title">Importação de outros bancos de dados</div>
     <div class="page-sub">Importe dados de outros sistemas de assistência técnica com prévia, mapeamento e confirmação antes da gravação.</div>
   </div>
+  {% if platform_mode %}<a class="btn btn-outline" href="{{ url_for('platform.company_settings', organization_id=platform_org.id) }}">Voltar para configurações</a>{% endif %}
 </div>
+
+<div id="external-import-context" data-organization-id="{{ platform_org.id if platform_mode else '' }}" hidden></div>
 
 <div class="g64">
   <div class="card">
@@ -18,18 +22,26 @@
         <label>Origem dos dados</label>
         <select id="external-db-type">
           <option value="firebird">Firebird legado</option>
-          <option value="mysql" disabled>MySQL/MariaDB - em preparação</option>
-          <option value="sqlite" disabled>SQLite - em preparação</option>
-          <option value="csv" disabled>CSV/planilha - em preparação</option>
+          <option value="mysql">MySQL</option>
+          <option value="mariadb">MariaDB</option>
+          <option value="sqlite">SQLite</option>
+          <option value="csv">CSV</option>
+          <option value="xlsx">Excel (XLSX)</option>
+          <option value="zip">ZIP com CSVs</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Caminho do arquivo ou dados da conexão</label>
+        <label id="external-path-label">Caminho do arquivo no servidor</label>
         <input type="text" id="external-db-path" value="C:\Origem\Banco.fdb" autocomplete="off">
+      </div>
+      <div class="form-group external-upload-field">
+        <label for="external-db-file">Ou envie o arquivo pelo navegador</label>
+        <input type="file" id="external-db-file" accept=".fdb,.sqlite,.sqlite3,.db,.csv,.xlsx,.xlsm,.zip">
+        <p class="input-hint">O arquivo é salvo temporariamente no servidor para a prévia. A senha da origem nunca é armazenada.</p>
       </div>
       <div class="form-row fr3">
         <div class="form-group">
-          <label>Usuário</label>
+          <label id="external-user-label">Usuário</label>
           <input type="text" id="external-db-user" value="SYSDBA" autocomplete="off">
         </div>
         <div class="form-group">
@@ -37,9 +49,30 @@
           <input type="password" id="external-db-password" autocomplete="new-password">
         </div>
         <div class="form-group">
-          <label>Charset</label>
+          <label>Codificação / charset</label>
           <input type="text" id="external-db-charset" value="WIN1252">
         </div>
+      </div>
+      <div class="form-row fr3 external-connection-fields" hidden>
+        <div class="form-group"><label>Host</label><input type="text" id="external-db-host" value="127.0.0.1"></div>
+        <div class="form-group"><label>Porta</label><input type="number" id="external-db-port" placeholder="3306"></div>
+        <div class="form-group"><label>Banco de dados</label><input type="text" id="external-db-name"></div>
+      </div>
+      <div class="form-row fr3 external-file-fields" hidden>
+        <div class="form-group"><label>Perfil de mapeamento</label>
+          <select id="external-profile">
+            <option value="auto">Detectar automaticamente</option>
+            <option value="clientes">Clientes</option>
+            <option value="produtos">Produtos/peças</option>
+            <option value="ordens_servico">Ordens de serviço</option>
+            <option value="financeiro">Financeiro</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Separador CSV</label><input type="text" id="external-delimiter" value="," maxlength="1"></div>
+        <div class="form-group"><label>Aba XLSX (opcional)</label><input type="text" id="external-sheet" placeholder="Todas as abas"></div>
+      </div>
+      <div class="note-block note-sky external-help" id="external-source-help">
+        Use o caminho visível pelo servidor. CSV/XLSX/ZIP aceitam exports com abas ou arquivos chamados clientes, produtos, os e lancamentos.
       </div>
       <div class="action-wrap">
         <button type="button" class="btn btn-outline" data-action="external-test">Testar conexão</button>

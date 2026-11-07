@@ -53,7 +53,6 @@
           <td class="td-mono txt-blue td-hide-sm">{{ c.os_count }}</td>
           <td data-stop>
             <div class="action-wrap">
-              {% if is_admin %}<a class="btn btn-ghost btn-xs" href="{{ url_for('privacy.client_privacy', client_id=c.id) }}">Privacidade</a>{% endif %}
               <a class="btn btn-nwe btn-xs" href="{{ url_for('pages.clientes_visualizar_alias', id=c.id) }}">Ver</a>
               {% if nivel_usuario in ('admin', 'operacional', 'cadastro') %}<a class="btn btn-nwe3 btn-xs"
                       href="{{ url_for('pages.clientes_editar_alias', id=c.id) }}">Editar</a>

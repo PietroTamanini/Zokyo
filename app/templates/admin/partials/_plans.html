@@ -11,6 +11,8 @@
         <span class="badge {{ 'b-green' if plan.ativo else 'b-gray' }}">{{ 'Ativo' if plan.ativo else 'Inativo' }}</span>
       </div>
       <div class="admin-plan-price">R$ {{ '%.2f'|format(plan.preco_mensal or 0)|replace('.', ',') }}<small>/mês</small></div>
+      <p class="admin-plan-cycle">Cobrança <strong>{{ {'MONTHLY': 'mensal', 'QUARTERLY': 'trimestral', 'SEMIANNUALLY': 'semestral', 'YEARLY': 'anual'}.get(plan.ciclo, plan.ciclo) }}</strong></p>
+      <p class="admin-plan-hosting"><svg class="ui-icon" aria-hidden="true"><use href="#i-globe"></use></svg>Hospedagem opcional: <strong>+{{ '%.2f'|format(plan.hospedagem_percentual or 0)|replace('.', ',') }}%</strong></p>
       <div class="admin-plan-usage"><svg class="ui-icon" aria-hidden="true"><use href="#i-users"></use></svg>{{ plan_subscription_counts.get(plan.id, 0) }}  empresa{{ '' if plan_subscription_counts.get(plan.id, 0) == 1 else 's' }} usando este plano</div>
       <dl class="admin-definition-list">
         {% for key, label in [('max_users', 'Usuários'), ('max_clients', 'Clientes'), ('max_open_orders', 'OS abertas'), ('max_storage_mb', 'Armazenamento (MB)')] %}
@@ -27,6 +29,8 @@
               <div class="form-group"><label for="plan-name-{{ plan.id }}">Nome</label><input id="plan-name-{{ plan.id }}" name="nome" value="{{ plan.nome }}" required></div>
             </div>
             <div class="form-group"><label for="plan-price-{{ plan.id }}">Mensalidade (R$)</label><input id="plan-price-{{ plan.id }}" type="number" min="0" step="0.01" name="preco_mensal" value="{{ '%.2f'|format(plan.preco_mensal or 0) }}" required></div>
+            <div class="form-group"><label for="plan-cycle-{{ plan.id }}">Ciclo de cobrança</label><select id="plan-cycle-{{ plan.id }}" name="ciclo" required>{% for value, label in [('MONTHLY', 'Mensal'), ('QUARTERLY', 'Trimestral'), ('SEMIANNUALLY', 'Semestral'), ('YEARLY', 'Anual')] %}<option value="{{ value }}" {% if plan.ciclo == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label for="plan-hosting-{{ plan.id }}">Acréscimo de hospedagem (%)</label><input id="plan-hosting-{{ plan.id }}" type="number" min="0" max="1000" step="0.01" name="hospedagem_percentual" value="{{ '%.2f'|format(plan.hospedagem_percentual or 0) }}" required><small class="input-hint">Aplicado somente quando a empresa escolher hospedar o site nos servidores do Zokyo.</small></div>
             <fieldset class="admin-fieldset"><legend>Limites por empresa</legend>
               <div class="form-row fr2">
                 <div class="form-group"><label for="plan-users-{{ plan.id }}">Usuários</label><input id="plan-users-{{ plan.id }}" type="number" min="0" name="max_users" value="{{ plan.limites.get('max_users', '') if plan.limites else '' }}" placeholder="Sem limite"></div>
@@ -63,6 +67,8 @@
         <div class="form-group"><label for="plan-name">Nome</label><input id="plan-name" name="nome" required placeholder="Profissional"></div>
       </div>
       <div class="form-group"><label for="plan-price">Mensalidade (R$)</label><input id="plan-price" type="number" min="0" step="0.01" name="preco_mensal" value="0.00" required></div>
+      <div class="form-group"><label for="plan-cycle">Ciclo de cobrança</label><select id="plan-cycle" name="ciclo" required><option value="MONTHLY">Mensal</option><option value="QUARTERLY">Trimestral</option><option value="SEMIANNUALLY">Semestral</option><option value="YEARLY">Anual</option></select></div>
+      <div class="form-group"><label for="plan-hosting">Acréscimo de hospedagem (%)</label><input id="plan-hosting" type="number" min="0" max="1000" step="0.01" name="hospedagem_percentual" value="0.00" required><small class="input-hint">Percentual adicional para empresas que optarem por hospedar o site no Zokyo.</small></div>
       <fieldset class="admin-fieldset"><legend>Limites por empresa</legend>
         <div class="form-row fr2">
           <div class="form-group"><label for="plan-users">Usuários</label><input id="plan-users" type="number" min="0" name="max_users" placeholder="Sem limite"></div>

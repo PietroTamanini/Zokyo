@@ -144,32 +144,57 @@ def test_logging_mask_formatter_e_configuracao(tmp_path, monkeypatch):
         "senha=abcdef token=123456 Bearer abcd1234 user@example.com "
         "123.456.789-00 12.345.678/0001-99 X-Forwarded-For: 10.20.30.40"
     )
-    assert "senha=abc***" in masked
-    assert "token=123***" in masked
-    assert "Bearer abcd***" in masked
-    assert "u***@example.com" in masked
-    assert "123.***.***-00" in masked
-    assert "12.***.***/****-99" in masked
-    assert "X-Forwarded-For: 10.20.***.***" in masked
+    assert "senha=[REDACTED]" in masked
+    assert "token=[REDACTED]" in masked
+    assert "Bearer [REDACTED]" in masked
+    assert "[EMAIL]" in masked
+    assert "[CPF]" in masked
+    assert "[CNPJ]" in masked
+    assert "X-Forwarded-For: [IP]" in masked
 
     record = logging.LogRecord("test", logging.ERROR, __file__, 1, "msg %s", ("token=abcdef",), None)
     assert logging_config.MaskingFilter().filter(record) is True
-    assert record.args == ("token=abc***",)
+    assert record.args == ("token=abcdef",)
     formatted = logging_config.JsonFormatter().format(record)
     assert '"level": "ERROR"' in formatted
-    assert "token=abc***" in formatted
+    assert "token=[REDACTED]" in formatted
+    mapping_record = logging.LogRecord(
+        "test", logging.INFO, __file__, 1, "email=%(email)s count=%(count)d",
+        {"email": "private@example.test", "count": 3}, None,
+    )
+    assert logging_config.MaskingFilter().filter(mapping_record) is True
+    mapping_output = logging_config.JsonFormatter().format(mapping_record)
+    assert "private@example.test" not in mapping_output
+    assert "count=3" in mapping_output
     try:
         raise RuntimeError("falha")
     except RuntimeError:
         exc_record = logging.LogRecord("test", logging.ERROR, __file__, 1, "com excecao", (), sys.exc_info())
     assert "exception" in logging_config.JsonFormatter().format(exc_record)
+    try:
+        raise RuntimeError("falha para private@example.test em 192.0.2.10 token=abcdef")
+    except RuntimeError:
+        sensitive_error = logging.LogRecord("test", logging.ERROR, __file__, 1, "falha", (), sys.exc_info())
+    json_error = logging_config.JsonFormatter().format(sensitive_error)
+    text_error = logging_config.SafeTextFormatter("%(message)s").format(sensitive_error)
+    for rendered in (json_error, text_error):
+        assert "private@example.test" not in rendered
+        assert "192.0.2.10" not in rendered
+        assert "token=abcdef" not in rendered
 
     app = Flask(__name__)
     app.config["DEBUG"] = False
     monkeypatch.setenv("LOG_DIR", str(tmp_path))
     logging_config.configure_logging(app)
     assert app.logger.level == logging.INFO
+    assert app.logger.propagate is False
     assert (tmp_path / "zokyo.log").exists()
+    app.logger.warning("email=private@example.test")
+    for handler in app.logger.handlers:
+        handler.flush()
+    file_log = (tmp_path / "zokyo.log").read_text(encoding="utf-8")
+    assert "private@example.test" not in file_log
+    assert "[EMAIL]" in file_log
 
     dev_app = Flask("dev")
     dev_app.config["DEBUG"] = True
@@ -226,13 +251,15 @@ def test_rate_limit_login_api_e_limpeza():
         assert check_lock("1.2.3.4") == (False, 0)
 
         old = datetime.now(timezone.utc) - timedelta(minutes=10)
-        attempt = db.session.get(LoginAttempt, "1.2.3.4")
+        login_key = rate_limit._login_rate_key("1.2.3.4")
+        assert login_key.startswith("lr:") and len(login_key) <= 45
+        attempt = db.session.get(LoginAttempt, login_key)
         attempt.falhas = 3
         attempt.ultima_falha = old
         attempt.bloqueado_ate = old
         db.session.commit()
         assert check_lock("1.2.3.4", window_minutes=5) == (False, 0)
-        assert db.session.get(LoginAttempt, "1.2.3.4").falhas == 0
+        assert db.session.get(LoginAttempt, login_key).falhas == 0
 
     client = app.test_client()
     with client.session_transaction() as session:
@@ -250,6 +277,8 @@ def test_rate_limit_login_api_e_limpeza():
 
     with app.app_context():
         rec = ApiRateLimit.query.filter_by(endpoint="limited").one()
+        assert rec.ip.startswith("ar:")
+        assert rec.ip != "127.0.0.1"
         rec.janela_inicio = datetime.now(timezone.utc) - timedelta(seconds=120)
         db.session.commit()
     assert client.get("/limited").status_code == 200
@@ -278,12 +307,14 @@ def test_rate_limit_mysql_atomic_branch(monkeypatch):
     monkeypatch.setattr(rate_limit.db.session, "execute", lambda statement, params: executed.append((statement, params)))
     monkeypatch.setattr(rate_limit.db.session, "commit", lambda: commits.append(True))
     monkeypatch.setattr(rate_limit.db.session, "get", lambda _model, _ip: record)
+    monkeypatch.setattr(rate_limit, "blind_index_key", lambda: b"unit-test-login-key".ljust(32, b"x"))
 
     assert rate_limit.register_fail("10.0.0.1", max_fails=5, lock_seconds=30) == 30
     assert record.falhas == 0
     record.falhas = 1
     assert rate_limit.register_fail("10.0.0.1", max_fails=5, lock_seconds=30) == 0
     assert executed
+    assert executed[0][1]["ip"].startswith("lr:")
     assert commits
 
 
@@ -316,6 +347,7 @@ def test_hit_rate_limit_mysql_usa_upsert_atomico(monkeypatch, request):
     record.hits = 3
     assert rate_limit.hit_rate_limit("10.0.0.2", "global", max_hits=2, window_seconds=60) > 0
     assert "ON DUPLICATE KEY UPDATE" in str(executed[0][0])
+    assert executed[0][1]["ip"].startswith("ar:")
     assert len(commits) == 2
 
 

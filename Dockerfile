@@ -18,7 +18,7 @@ RUN pip install --upgrade pip setuptools==84.0.0 wheel==0.48.0 \
 COPY . .
 
 RUN useradd --create-home --shell /usr/sbin/nologin zokyo \
-    && mkdir -p /app/instance/uploads/reports /app/instance/uploads/sites /var/log/zokyo /var/run/zokyo \
+    && mkdir -p /app/instance/uploads/reports /app/instance/uploads/sites /app/backups /var/log/zokyo /var/run/zokyo \
     && chown -R zokyo:zokyo /app /var/log/zokyo /var/run/zokyo
 
 USER zokyo

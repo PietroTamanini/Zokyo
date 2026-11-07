@@ -1,6 +1,6 @@
 # Recuperacao de desastre
 
-Estado revisado em 2026-08-27: o runbook e as ferramentas existem, mas a recuperação externa ainda deve ser simulada e documentada com a infraestrutura escolhida.
+Estado revisado em 2026-11-06: os fluxos cifrados de banco e uploads locais foram testados em ambiente descartável; a recuperação externa e a operação no servidor de produção ainda precisam ser simuladas e documentadas.
 
 ## Objetivos
 
@@ -22,12 +22,13 @@ Os objetivos devem ser revisados pelo proprietario conforme o volume e o impacto
 ## Execucao diaria
 
 ```bash
-python scripts/backup_database.py --output-dir backups --keep-days 14
-python scripts/backup_storage.py create --source instance/uploads --output backups/storage.tar.gz
-python scripts/backup_crypto.py encrypt backups/storage.tar.gz backups/storage.tar.gz.enc
+docker compose -f docker-compose.prod.yml --profile maintenance run --rm backup
+docker compose -f docker-compose.prod.yml --profile maintenance run --rm backup-storage
 ```
 
-Use o mesmo comando de criptografia no dump mais recente. Copie somente arquivos `.enc` e seus metadados para storage externo. Nunca envie a chave junto com o backup.
+Os dois serviços publicam somente arquivos `.enc` e respectivos metadados no volume `backups_data`. Agende ambos fora da aplicação, copie esses pares para storage externo e monitore a idade de cada tipo separadamente. Nunca envie a chave junto com o backup. Se houver S3 para anexos, mantenha uma rotina separada de recuperação e retenção daquele bucket.
+
+Para copiar com `rclone` após os dois jobs, use `backup_offsite.py --require-kind database-backup --require-kind private-storage-backup` conforme [Backup e restore](BACKUP_RESTORE.md). O host precisa ter acesso ao volume de backups e um destino externo configurado; nenhum remoto foi homologado nesta revisão.
 
 ## Restauracao
 
@@ -40,10 +41,12 @@ Use o mesmo comando de criptografia no dump mais recente. Copie somente arquivos
 7. Somente depois repita a restauracao no ambiente definitivo.
 
 ```bash
-python scripts/backup_crypto.py decrypt backup.sql.gz.enc backup.sql.gz
-python scripts/restore_database.py --backup backup.sql.gz --verify-only
-python scripts/backup_storage.py restore --archive storage.tar.gz --destination /tmp/zokyo-restore
+python scripts/restore_database.py --backup backup.sql.gz.enc --verify-only
+python scripts/secure_storage.py restore --archive storage.tar.gz.enc --verify-only
+python scripts/secure_storage.py restore --archive storage.tar.gz.enc --destination /tmp/zokyo-restore
 ```
+
+Para restaurar o banco em destino descartável, defina `RESTORE_DATABASE_URL` e execute `python scripts/restore_database.py --backup backup.sql.gz.enc`. Confira [Backup e restore](BACKUP_RESTORE.md) para as regras de destino ativo e a verificação de triggers/auditoria.
 
 ## Rollback
 

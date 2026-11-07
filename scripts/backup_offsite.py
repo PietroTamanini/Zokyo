@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Copia backups criptografados para storage externo e monitora sua idade."""
 import argparse
+import hashlib
 import ipaddress
 import json
 import os
@@ -13,6 +14,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+
+try:
+    from scripts.audit_anchor import latest_anchor
+except ModuleNotFoundError:  # execução direta a partir de scripts/
+    from audit_anchor import latest_anchor
 
 
 def _safe_webhook(url):
@@ -46,15 +52,60 @@ def check_backup_age(source: Path, max_age_hours: int) -> Path:
     return newest
 
 
+def check_backup_set(source: Path, max_age_hours: int, required_kinds: tuple[str, ...]) -> dict[str, Path]:
+    """Rejeita pares ausentes/corrompidos e exige backup recente de cada tipo."""
+    if max_age_hours <= 0:
+        raise ValueError("Prazo máximo do backup deve ser positivo.")
+    latest = {}
+    archives = sorted(source.glob("*.enc"))
+    if not archives:
+        raise RuntimeError("Nenhum backup criptografado encontrado.")
+    for archive in archives:
+        if not archive.is_file() or archive.is_symlink():
+            raise RuntimeError(f"Arquivo de backup inválido: {archive.name}")
+        sidecar = Path(str(archive) + ".json")
+        if not sidecar.is_file() or sidecar.is_symlink():
+            raise RuntimeError(f"Metadata ausente para {archive.name}.")
+        metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+        if (metadata.get("format") != "aes256-gcm" or metadata.get("output_file") != archive.name
+                or metadata.get("output_size_bytes") != archive.stat().st_size):
+            raise RuntimeError(f"Metadata inválido para {archive.name}.")
+        digest = hashlib.sha256()
+        with archive.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if metadata.get("output_sha256") != digest.hexdigest():
+            raise RuntimeError(f"SHA-256 inválido para {archive.name}.")
+        created = datetime.fromisoformat(metadata["created_at"])
+        if created.tzinfo is None:
+            raise RuntimeError(f"Horário sem fuso para {archive.name}.")
+        if (created - datetime.now(timezone.utc)).total_seconds() > 300:
+            raise RuntimeError(f"Horário futuro inválido para {archive.name}.")
+        kind = metadata.get("kind")
+        if kind not in {"database-backup", "private-storage-backup"}:
+            raise RuntimeError(f"Tipo de backup desconhecido: {archive.name}.")
+        if kind not in latest or created > latest[kind][0]:
+            latest[kind] = (created, archive)
+    now = datetime.now(timezone.utc)
+    for kind in required_kinds:
+        if kind not in latest:
+            raise RuntimeError(f"Backup obrigatório ausente: {kind}.")
+        if (now - latest[kind][0]).total_seconds() > max_age_hours * 3600:
+            raise RuntimeError(f"Backup obrigatório excede {max_age_hours} horas: {kind}.")
+    return {kind: archive for kind, (_, archive) in latest.items()}
+
+
 def build_rclone_command(binary: str, source: Path, remote: str) -> list[str]:
     resolved = shutil.which(binary)
     if not resolved:
         raise FileNotFoundError("rclone nao encontrado.")
-    if not remote or any(character in remote for character in "\r\n\0"):
+    if not remote or remote.startswith("-") or ":" not in remote or any(character in remote for character in "\r\n\0"):
         raise ValueError("Destino rclone invalido.")
     return [
         resolved, "copy", str(source.resolve()), remote,
-        "--include", "*.enc", "--include", "*.json", "--checksum", "--immutable",
+        "--include", "*.enc", "--include", "*.enc.json",
+        "--include", "*.audit-anchor.json", "--exclude", "*",
+        "--checksum", "--immutable",
         "--retries", "3", "--low-level-retries", "5",
     ]
 
@@ -76,10 +127,18 @@ def main():
     parser.add_argument("--source", type=Path, default=Path("backups"))
     parser.add_argument("--remote", required=True, help="Destino configurado no rclone, por exemplo: s3:zokyo/producao")
     parser.add_argument("--max-age-hours", type=int, default=26)
+    parser.add_argument("--require-kind", action="append", choices=("database-backup", "private-storage-backup"), default=[])
+    parser.add_argument("--require-audit-anchor", action="store_true",
+                        help="Exige uma âncora de auditoria íntegra e recente antes da cópia.")
     parser.add_argument("--rclone", default="rclone")
     args = parser.parse_args()
     try:
-        check_backup_age(args.source, args.max_age_hours)
+        if args.require_kind:
+            check_backup_set(args.source, args.max_age_hours, tuple(args.require_kind))
+        else:
+            check_backup_age(args.source, args.max_age_hours)
+        if args.require_audit_anchor and latest_anchor(args.source, args.max_age_hours) is None:
+            raise RuntimeError("Âncora de auditoria ausente.")
         command = build_rclone_command(args.rclone, args.source, args.remote)
         subprocess.run(command, check=True, timeout=3600)  # nosec B603
     except Exception as exc:

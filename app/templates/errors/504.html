@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 504 %}{% set tone = 'danger' %}{% set title = 'O serviço demorou para responder' %}{% set message = 'A resposta não chegou dentro do tempo esperado. Tente novamente em instantes.' %}
+{% block title %}504 · Tempo esgotado | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

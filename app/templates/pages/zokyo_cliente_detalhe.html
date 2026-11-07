@@ -17,7 +17,6 @@
           <div class="muted-sm">{{ cliente.documento or 'Sem documento' }}</div>
         </div>
         <div class="action-row">
-          {% if is_admin %}<a class="btn btn-nwe5 btn-xs" href="{{ url_for('privacy.client_privacy', client_id=cliente.id) }}">Privacidade</a>{% endif %}
           <a class="btn btn-nwe3 btn-xs" href="{{ url_for('pages.clientes_editar_alias', id=cliente.id) }}">Editar</a>
           <a class="btn btn-ghost btn-xs" href="{{ url_for('pages.clientes') }}">Voltar</a>
         </div>

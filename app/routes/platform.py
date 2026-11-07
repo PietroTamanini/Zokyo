@@ -1,14 +1,16 @@
 """Rotas do admin global, webhooks de billing e assinatura do tenant."""
 
 import re
+from datetime import datetime, timezone
 
-from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, send_file, session, url_for
 from sqlalchemy import func
 
 from app.admin.dashboard import admin_dashboard_context
 from app.admin.organizations import (
     create_organization_from_form,
     create_tenant_admin_from_form,
+    get_organization_or_404,
     reset_tenant_admin_password,
     sync_organization_dns,
     update_organization_from_form,
@@ -23,12 +25,48 @@ from app.admin.plans import (
 from app.admin.operations import operations_context
 from app.admin.security import global_admin_required
 from app.extensions import db
-from app.models import EventoLog, Organization, OrganizationSubscription, Plan, PlatformSetting, Usuario, registrar
+from app.models import Cliente, Configuracao, ConsentRecord, DataSubjectRequest, EventoLog, Organization, OrganizationSubscription, Plan, PlatformSetting, PrivacyIncident, Usuario, registrar
 from app.services.billing import process_asaas_event, process_sandbox_event
 from app.services.tenant_site_service import TenantSiteError, verify_custom_domain
 from app.services.tenant_site_bundle import SiteBundleError, publish_bundle, unpublish_bundle
+from app.services.privacy import anonymize_client, export_subject_data
 
 platform_bp = Blueprint("platform", __name__, url_prefix="/platform")
+
+_AUDITED_READS = {
+    "platform.index": "Painel global",
+    "platform.dashboard": "Visão global",
+    "platform.companies": "Lista de empresas",
+    "platform.subscriptions": "Assinaturas",
+    "platform.company_settings": "Configurações da empresa",
+    "platform.company_settings_importacao": "Importação da empresa",
+    "platform.company_privacy_clients": "Lista de clientes para privacidade",
+    "platform.company_client_privacy": "Privacidade de cliente",
+    "platform.audit": "Auditoria global",
+    "platform.operations": "Operações globais",
+}
+
+
+@platform_bp.after_request
+def audit_privileged_read(response):
+    """Registra leituras administrativas concluídas sem persistir query strings ou PII."""
+    label = _AUDITED_READS.get(request.endpoint)
+    user = getattr(g, "current_user", None)
+    if (request.method != "GET" or response.status_code != 200 or not label
+            or not user or not user.is_platform_admin or user.organization_id):
+        return response
+    organization_id = (request.view_args or {}).get("organization_id")
+    if request.endpoint == "platform.index" and request.args.get("view") == "company":
+        organization_id = request.args.get("organization_id", type=int)
+    if request.endpoint == "platform.audit":
+        organization_id = request.args.get("organization_id", type=int)
+    registrar(
+        "acesso", "platform_access", label,
+        f"organization_id={organization_id}" if organization_id else "escopo=global",
+        organization_id=organization_id,
+    )
+    db.session.commit()
+    return response
 
 
 @platform_bp.route("")
@@ -87,6 +125,195 @@ def dashboard():
 def companies():
     g.platform_view = "organizations"
     return index()
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings")
+@global_admin_required
+def company_settings(organization_id):
+    organization = get_organization_or_404(organization_id)
+    g.organization_id = organization.id
+    g.platform_settings_organization_id = organization.id
+    g.cfg = Configuracao.get(organization.id)
+    return render_template(
+        "pages/configuracoes.html",
+        active="configuracoes",
+        cfg=g.cfg,
+        platform_mode=True,
+        platform_org=organization,
+        platform_workspace=True,
+        current_platform_view="organizations",
+    )
+
+
+def _platform_company_settings_action(organization_id, handler_name):
+    organization = get_organization_or_404(organization_id)
+    g.organization_id = organization.id
+    g.platform_settings_organization_id = organization.id
+    g.cfg = Configuracao.get(organization.id)
+    from app.routes import configuracoes as configuracoes_routes
+    return getattr(configuracoes_routes, handler_name)()
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/save", methods=["POST"])
+@global_admin_required
+def company_settings_save(organization_id):
+    return _platform_company_settings_action(organization_id, "salvar")
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/dashboard", methods=["POST"])
+@global_admin_required
+def company_settings_dashboard(organization_id):
+    return _platform_company_settings_action(organization_id, "salvar_dashboard")
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/os-options", methods=["POST"])
+@global_admin_required
+def company_settings_os_options(organization_id):
+    return _platform_company_settings_action(organization_id, "salvar_os_opcoes")
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/importacao")
+@global_admin_required
+def company_settings_importacao(organization_id):
+    organization = get_organization_or_404(organization_id)
+    g.organization_id = organization.id
+    g.platform_settings_organization_id = organization.id
+    g.cfg = Configuracao.get(organization.id)
+    return render_template(
+        "pages/importacao_bancos.html",
+        active="importacao_bancos",
+        platform_mode=True,
+        platform_org=organization,
+        platform_workspace=True,
+        current_platform_view="organizations",
+    )
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/privacy/clients")
+@global_admin_required
+def company_privacy_clients(organization_id):
+    organization = get_organization_or_404(organization_id)
+    g.organization_id = organization.id
+    query = Cliente.query.filter_by(organization_id=organization.id)
+    search = request.args.get("q", "").strip()[:100]
+    if search.isdecimal():
+        query = query.filter(Cliente.id == int(search))
+    elif search:
+        query = query.filter(Cliente.nome.contains(search, autoescape=True))
+    page = max(1, request.args.get("page", 1, type=int))
+    pagination = query.order_by(Cliente.id.desc()).paginate(page=page, per_page=30, error_out=False)
+    return render_template(
+        "admin/company_privacy_clients.html", active="privacidade",
+        platform_mode=True, platform_org=organization, platform_workspace=True,
+        current_platform_view="organizations", clients=pagination.items,
+        pagination=pagination, search=search,
+    )
+
+
+def _company_privacy_client(organization_id, client_id):
+    organization = get_organization_or_404(organization_id)
+    g.organization_id = organization.id
+    client = Cliente.query.filter_by(id=client_id, organization_id=organization.id).first_or_404()
+    return organization, client
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/privacy/clients/<int:client_id>")
+@global_admin_required
+def company_client_privacy(organization_id, client_id):
+    organization, client = _company_privacy_client(organization_id, client_id)
+    linked_requests = DataSubjectRequest.query.filter_by(
+        organization_id=organization.id, cliente_id=client.id,
+    ).order_by(DataSubjectRequest.solicitado_em.desc()).all()
+    return render_template(
+        "pages/client_privacy.html", active="privacidade", cliente=client,
+        consents=ConsentRecord.query.filter_by(organization_id=organization.id, cliente_id=client.id)
+        .order_by(ConsentRecord.registrado_em.desc()).all(),
+        requests=linked_requests,
+        export_requests=[item for item in linked_requests if item.identity_verified and item.status != "rejected"],
+        removal_requests=[item for item in linked_requests if item.identity_verified
+                          and item.status in {"open", "in_progress"}
+                          and item.request_type in {"deletion", "anonymization"}],
+        incidents=PrivacyIncident.query.filter_by(organization_id=organization.id)
+        .order_by(PrivacyIncident.id.desc()).limit(100).all(),
+        platform_mode=True, platform_org=organization, platform_workspace=True,
+        current_platform_view="organizations",
+    )
+
+
+_EXPORT_REASONS = {"subject_request", "support_request", "incident_investigation"}
+_REMOVAL_REASONS = {"subject_request", "duplicate_record", "data_minimization"}
+
+
+def _privacy_action_reference(organization_id, client_id, reason, *, removal=False):
+    if reason == "subject_request":
+        request_id = request.form.get("request_id", type=int)
+        linked = DataSubjectRequest.query.filter_by(
+            id=request_id, organization_id=organization_id, cliente_id=client_id,
+            identity_verified=True,
+        ).first() if request_id else None
+        if (not linked or linked.status == "rejected"
+                or (removal and (linked.status not in {"open", "in_progress"}
+                                 or linked.request_type not in {"deletion", "anonymization"}))):
+            abort(400, description="Selecione uma solicitação verificada e vinculada a este cliente.")
+        return f"solicitacao_id={linked.id}"
+    if reason == "incident_investigation":
+        incident_id = request.form.get("incident_id", type=int)
+        linked = PrivacyIncident.query.filter_by(
+            id=incident_id, organization_id=organization_id,
+        ).first() if incident_id else None
+        if not linked:
+            abort(400, description="Selecione um incidente desta empresa.")
+        return f"incidente_id={linked.id}"
+    protocol = request.form.get("protocol", "").strip()
+    if not re.fullmatch(r"[A-Z0-9][A-Z0-9-]{3,39}", protocol):
+        abort(400, description="Informe o código do protocolo externo, com 4 a 40 letras maiúsculas, números ou hífens.")
+    return f"protocolo={protocol}"
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/privacy/clients/<int:client_id>/export", methods=["POST"])
+@global_admin_required
+def company_client_export(organization_id, client_id):
+    reason = request.form.get("reason", "")
+    if reason not in _EXPORT_REASONS:
+        abort(400, description="Selecione o motivo da exportação.")
+    organization, client = _company_privacy_client(organization_id, client_id)
+    reference = _privacy_action_reference(organization.id, client.id, reason)
+    user = g.current_user
+    archive = export_subject_data(client, user, target_organization_id=organization.id,
+                                  access_reason=reason, access_reference=reference)
+    if reason == "subject_request":
+        record = DataSubjectRequest.query.filter_by(
+            id=request.form.get("request_id", type=int),
+            organization_id=organization.id, cliente_id=client.id,
+        ).one()
+        record.prepared_export_sha256 = archive.export_sha256
+        record.prepared_export_at = datetime.now(timezone.utc)
+        record._revision_actor_id = user.id
+    db.session.commit()
+    response = send_file(archive, mimetype="application/zip", as_attachment=True,
+                         download_name=f"cliente-{client.id}-dados.zip")
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["X-Export-SHA256"] = archive.export_sha256
+    return response
+
+
+@platform_bp.route("/companies/<int:organization_id>/settings/privacy/clients/<int:client_id>/remove-registration", methods=["POST"])
+@global_admin_required
+def company_client_remove_registration(organization_id, client_id):
+    reason = request.form.get("reason", "")
+    if reason not in _REMOVAL_REASONS:
+        abort(400, description="Selecione o motivo da remoção cadastral.")
+    organization, client = _company_privacy_client(organization_id, client_id)
+    reference = _privacy_action_reference(organization.id, client.id, reason, removal=True)
+    try:
+        anonymize_client(client, g.current_user, target_organization_id=organization.id,
+                         access_reason=reason, access_reference=reference)
+        db.session.commit()
+        flash("Dados cadastrais removidos. Históricos e registros de auditoria permanecem sujeitos à retenção.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    return redirect(url_for("platform.company_client_privacy", organization_id=organization.id, client_id=client.id))
 
 
 @platform_bp.route("/subscriptions")
@@ -305,7 +532,8 @@ def assign_subscription():
         "assinatura",
         "platform",
         f"Assinatura da organizacao #{subscription.organization_id} atualizada",
-        f"status={subscription.status}; plan_id={subscription.plan_id}",
+        f"status={subscription.status}; plan_id={subscription.plan_id}"
+        + ("; site_hospedado=true" if subscription.site_hospedado else ""),
         organization_id=subscription.organization_id,
     )
     db.session.commit()
@@ -334,6 +562,8 @@ def tenant_subscription():
     return jsonify({"subscription": {
         "status": subscription.status,
         "provider": subscription.provider,
+        "site_hospedado": subscription.site_hospedado,
+        "preco_mensal": float(subscription.preco_mensal_cobrado),
         "plan": plan_json(subscription.plan),
         "periodo_fim": subscription.periodo_fim.isoformat() if subscription.periodo_fim else None,
         "trial_fim": subscription.trial_fim.isoformat() if subscription.trial_fim else None,

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Privacidade dos clientes — {{ platform_org.nome }}{% endblock %}
+{% block breadcrumb %}Empresas / {{ platform_org.nome }} / Privacidade{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">Privacidade dos clientes</div>
+    <div class="page-sub">{{ platform_org.nome }} · Acesso exclusivo do super admin. Consulte cada cadastro no contexto desta empresa.</div>
+  </div>
+  <a class="btn btn-outline" href="{{ url_for('platform.company_settings', organization_id=platform_org.id) }}">Voltar às configurações</a>
+</div>
+
+<section class="card">
+  <div class="card-header"><div class="card-title">Encontrar cliente</div></div>
+  <div class="card-body">
+    <form method="GET" class="form-row fr2" role="search">
+      <div class="form-group"><label for="privacy-client-search">Nome ou ID do cliente</label><input id="privacy-client-search" name="q" value="{{ search }}" maxlength="100" autocomplete="off" placeholder="Digite o nome ou ID"></div>
+      <div class="form-group"><label>&nbsp;</label><div><button class="btn btn-primary" type="submit">Buscar</button>{% if search %} <a class="btn btn-outline" href="{{ url_for('platform.company_privacy_clients', organization_id=platform_org.id) }}">Limpar</a>{% endif %}</div></div>
+    </form>
+  </div>
+</section>
+
+<section class="card mt16">
+  <div class="card-header"><div class="card-title">Clientes {{ 'encontrados' if search else 'cadastrados' }} ({{ pagination.total }})</div></div>
+  <div class="table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Status</th><th>Ação</th></tr></thead><tbody>
+  {% for client in clients %}
+  <tr><td class="td-mono">#{{ client.id }}</td><td>{{ client.nome }}</td><td>{{ 'Ativo' if client.ativo else 'Inativo' }}</td><td><a class="btn btn-outline btn-xs" href="{{ url_for('platform.company_client_privacy', organization_id=platform_org.id, client_id=client.id) }}">Abrir privacidade</a></td></tr>
+  {% else %}
+  <tr><td colspan="4" class="td-empty">Nenhum cliente encontrado nesta empresa.</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+  {% if pagination.pages > 1 %}<div class="card-body">
+    {% if pagination.has_prev %}<a class="btn btn-outline btn-sm" href="{{ url_for('platform.company_privacy_clients', organization_id=platform_org.id, q=search, page=pagination.prev_num) }}">Anterior</a>{% endif %}
+    <span>Página {{ pagination.page }} de {{ pagination.pages }}</span>
+    {% if pagination.has_next %}<a class="btn btn-outline btn-sm" href="{{ url_for('platform.company_privacy_clients', organization_id=platform_org.id, q=search, page=pagination.next_num) }}">Próxima</a>{% endif %}
+  </div>{% endif %}
+</section>
+{% endblock %}

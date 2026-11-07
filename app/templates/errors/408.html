@@ -1,0 +1,4 @@
+{% extends 'errors/base.html' %}
+{% set code = 408 %}{% set tone = 'warning' %}{% set title = 'A solicitação demorou demais' %}{% set message = 'A conexão não terminou no tempo esperado. Verifique a rede e tente novamente.' %}
+{% block title %}408 · Tempo esgotado | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

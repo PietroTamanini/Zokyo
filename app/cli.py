@@ -23,6 +23,33 @@ from app.services.tenant_provisioning import TenantProvisioningError, provision_
 
 
 def register_cli(app):
+    @app.cli.command("privacy-encryption-audit")
+    @click.option("--strict", is_flag=True, help="Retorna erro se houver campos antigos em claro.")
+    def privacy_encryption_audit(strict):
+        """Conta legados e valida ciphertexts sem imprimir dados pessoais."""
+        from app.services.privacy_encryption_audit import scan_privacy_encryption
+
+        try:
+            scan = scan_privacy_encryption()
+        except Exception as exc:
+            raise click.ClickException(
+                "Não foi possível conferir os campos de privacidade; verifique banco e migrations."
+            ) from exc
+        for name, count in scan["plaintext"].items():
+            if count:
+                click.echo(f"{name}: {count} valor(es) sem prefixo de criptografia")
+        for name, count in scan["unreadable"].items():
+            if count:
+                click.echo(f"{name}: {count} ciphertext(s) ilegível(is)")
+        plaintext_total = sum(scan["plaintext"].values())
+        unreadable_total = sum(scan["unreadable"].values())
+        click.echo(f"Total de valores legados em claro: {plaintext_total}")
+        click.echo(f"Total de ciphertexts ilegíveis: {unreadable_total}")
+        if unreadable_total:
+            raise click.ClickException("A auditoria de criptografia encontrou ciphertexts ilegíveis.")
+        if strict and plaintext_total:
+            raise click.ClickException("A auditoria de criptografia de privacidade encontrou valores legados em claro.")
+
     @app.cli.command("production-check")
     @click.option(
         "--strict-integrations",

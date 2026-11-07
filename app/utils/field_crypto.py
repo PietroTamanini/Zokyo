@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import base64
-import logging
+import json
 import os
 from functools import lru_cache
 
@@ -10,17 +10,22 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from flask import current_app
+from sqlalchemy.dialects import mysql
 from sqlalchemy.types import Text, TypeDecorator
-
-logger = logging.getLogger(__name__)
 
 PREFIX = "zokyo-fernet:v1:"
 LEGACY_SALT = b"zokyo-config-encryption-v1"
 
 
+class FieldDecryptionError(RuntimeError):
+    """Chave, salt ou ciphertext inválido; a leitura não pode ser tratada como vazia."""
+
+
 def _salt() -> bytes:
     raw = os.environ.get("ENCRYPTION_SALT", "").strip()
     if not raw:
+        if os.environ.get("FLASK_ENV", "").lower() == "production":
+            raise RuntimeError("ENCRYPTION_SALT explícito é obrigatório em produção.")
         return LEGACY_SALT
     try:
         decoded = base64.b64decode(raw)
@@ -69,9 +74,10 @@ def decrypt_value(value: str | None) -> str | None:
         token = text[len(PREFIX):]
         try:
             text = get_fernet().decrypt(token.encode("ascii")).decode("utf-8")
-        except InvalidToken:
-            logger.warning("Campo criptografado nao pode ser descriptografado; chave ou salt mudou.")
-            return None
+        except InvalidToken as exc:
+            raise FieldDecryptionError(
+                "Campo criptografado ilegível; confira SECRET_KEY e ENCRYPTION_SALT antes de editar dados."
+            ) from exc
     return text
 
 
@@ -90,3 +96,28 @@ class EncryptedText(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         return decrypt_value(value)
+
+
+class EncryptedJSON(TypeDecorator):
+    """Encrypt JSON objects while returning dictionaries to application code."""
+
+    impl = Text().with_variant(mysql.LONGTEXT(), "mysql")
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise ValueError("O conteúdo cifrado deve ser um objeto JSON.")
+        return encrypt_value(json.dumps(value, ensure_ascii=False, separators=(",", ":")))
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        try:
+            decoded = json.loads(decrypt_value(value))
+        except (TypeError, ValueError) as exc:
+            raise FieldDecryptionError("Conteúdo JSON cifrado inválido ou ilegível.") from exc
+        if not isinstance(decoded, dict):
+            raise FieldDecryptionError("Conteúdo JSON cifrado não é um objeto.")
+        return decoded

@@ -178,7 +178,7 @@ def test_restore_database_verificacao_restore_e_main(monkeypatch, tmp_path, caps
     backup = tmp_path / "zokyo.sql"
     backup.write_bytes(b"CREATE TABLE t (id INT);\n")
     metadata = tmp_path / "zokyo.sql.json"
-    metadata.write_text(json.dumps(_metadata_for(backup)), encoding="utf-8")
+    metadata.write_text(json.dumps({**_metadata_for(backup), "database": "zokyo"}), encoding="utf-8")
     assert restore_database.verify_backup(backup, metadata)["output_file"] == backup.name
 
     with pytest.raises(FileNotFoundError):
@@ -224,10 +224,16 @@ def test_restore_database_verificacao_restore_e_main(monkeypatch, tmp_path, caps
     monkeypatch.setenv("DATABASE_URL", "mysql://user:pass@localhost/zokyo")
     monkeypatch.setattr(restore_database.subprocess, "Popen", lambda *args, **kwargs: FakeProcess(stdout=b"", stderr=b"", return_code=0))
     monkeypatch.setattr("sys.argv", ["restore_database.py", "--backup", str(backup), "--metadata", str(metadata), "--env-file", str(env_file), "--mysql", str(mysql)])
+    monkeypatch.delenv("RESTORE_DATABASE_URL", raising=False)
+    assert restore_database.main() == 1
+    monkeypatch.setenv("RESTORE_DATABASE_URL", "mysql://user:pass@localhost/zokyo")
+    assert restore_database.main() == 1
+    monkeypatch.setenv("RESTORE_DATABASE_URL", "mysql://user:pass@localhost/zokyo_disposable")
     assert restore_database.main() == 0
     assert "Restore concluido" in capsys.readouterr().out
     monkeypatch.setattr("sys.argv", ["restore_database.py", "--backup", str(backup), "--metadata", str(metadata), "--env-file", str(tmp_path / "empty.env"), "--mysql", str(mysql)])
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("RESTORE_DATABASE_URL", raising=False)
     assert restore_database.main() == 1
 
 

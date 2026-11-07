@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Governança de privacidade{% endblock %}
+{% block breadcrumb %}Privacidade / Governança{% endblock %}
+{% block content %}
+<div class="page-header"><div><div class="page-title">Governança de privacidade</div><div class="page-sub">Dados institucionais, encarregado e canal para titulares.</div></div></div>
+<div class="alert a-amber">Preencha somente dados oficiais. Este protótipo não tem uma política aprovada. A publicação exige um documento revisado em uma URL HTTPS; salvar os campos por si só não publica nada.</div>
+<form method="post" class="card"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><div class="card-body parts-body"><div class="form-grid form-grid-2">{% for key, meta in fields.items() %}<div class="form-group"><label for="{{ key }}">{{ meta[0] }}</label><input id="{{ key }}" name="{{ key }}" maxlength="{{ meta[1] }}" value="{{ values[key] }}" {% if key == 'dpo_email' %}type="email"{% elif key in ['controller_site','dpo_channel','privacy_policy_url'] %}type="url"{% endif %}></div>{% endfor %}<div class="form-group"><label for="policy_version">Versão da política</label><input id="policy_version" name="policy_version" maxlength="20" value="{{ values.policy_version }}"></div></div><label class="check-row"><input type="checkbox" name="policy_published" value="1" {{ 'checked' if values.policy_published }}> Disponibilizar documento aprovado em <code>/privacidade/politica</code></label><label class="check-row"><input type="checkbox" name="legal_approval" value="1"> Confirmo que o documento indicado na URL foi revisado juridicamente</label><button class="btn btn-primary" type="submit">Salvar governança</button></div></form>
+{% endblock %}

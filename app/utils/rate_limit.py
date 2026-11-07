@@ -16,6 +16,7 @@ V-02 FIX: register_fail usa INSERT … ON DUPLICATE KEY UPDATE atômico no MySQL
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from hashlib import sha256
+import hmac
 from time import sleep
 
 from flask import abort, current_app, jsonify, request
@@ -23,10 +24,11 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
+from app.utils.blind_index import blind_index_key
 
 
 class LoginAttempt(db.Model):
-    """Controle de tentativas de login por IP."""
+    """Controle de tentativas de login por pseudônimo estável do IP."""
     __tablename__ = "login_attempts"
 
     ip            = db.Column(db.String(45), primary_key=True)
@@ -57,11 +59,22 @@ def _dialect_name():
     return db.engine.dialect.name
 
 
+def _login_rate_key(ip: str) -> str:
+    """Keep login locks stable without persisting the original IP address."""
+    digest = hmac.new(
+        blind_index_key(),
+        b"login-rate-v1:" + (ip or "unknown").encode("utf-8"),
+        sha256,
+    ).hexdigest()
+    return "lr:" + digest[:40]
+
+
 # ── Login rate limit ──────────────────────────────────────────────────────────
 
 def check_lock(ip: str, max_fails: int = 5, window_minutes: int = 5,
                lock_seconds: int = 60):
     """Verifica bloqueio. Retorna (bloqueado, segundos_restantes)."""
+    ip = _login_rate_key(ip)
     rec = db.session.get(LoginAttempt, ip)
     if not rec:
         return False, 0
@@ -101,6 +114,7 @@ def register_fail(ip: str, max_fails: int = 5, window_minutes: int = 5,
 
     Retorna segundos de bloqueio se atingiu o limite, 0 caso contrário.
     """
+    ip = _login_rate_key(ip)
     now = _now()
 
     if db.session.get_bind().dialect.name == "sqlite":
@@ -149,6 +163,7 @@ def register_fail(ip: str, max_fails: int = 5, window_minutes: int = 5,
 
 def clear_fails(ip: str):
     """Limpa falhas após login bem-sucedido."""
+    ip = _login_rate_key(ip)
     rec = db.session.get(LoginAttempt, ip)
     if rec:
         rec.falhas = 0
@@ -165,10 +180,20 @@ def _endpoint_key(raw: str) -> str:
     return f"{raw[:80]}:{digest}"
 
 
+def _api_rate_key(ip: str) -> str:
+    """Purpose-scoped pseudonym within the existing 45-character IP column."""
+    digest = hmac.new(
+        blind_index_key(),
+        b"api-rate-v1:" + (ip or "unknown").encode("utf-8"),
+        sha256,
+    ).hexdigest()
+    return "ar:" + digest[:40]
+
+
 def hit_rate_limit(ip: str, endpoint: str, max_hits: int, window_seconds: int) -> int:
     """Registra um hit. Retorna 0 se permitido ou segundos de espera se bloqueado."""
     endpoint = _endpoint_key(endpoint or "unknown")
-    ip = ip or "unknown"
+    ip = _api_rate_key(ip)
     now = _now()
     window = timedelta(seconds=window_seconds)
 
@@ -278,7 +303,7 @@ def rate_limit_route(max_hits: int = 30, window_seconds: int = 60,
         def wrapped(*args, **kwargs):
             if methods is not None and request.method not in methods:
                 return f(*args, **kwargs)
-            ip       = request.remote_addr or "unknown"
+            ip       = _api_rate_key(request.remote_addr or "unknown")
             endpoint = request.endpoint or "unknown"
             now      = _now()
             window   = timedelta(seconds=window_seconds)

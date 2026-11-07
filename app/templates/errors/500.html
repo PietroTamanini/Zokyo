@@ -1,10 +1,4 @@
-{% extends 'base.html' %}
-{% block title %}500 - Zokyo{% endblock %}
-{% block breadcrumb %}Erro 500{% endblock %}
-{% block content %}
-<div class="empty-state">
-  <div class="page-title">Erro interno</div>
-  <p>{{ message }}</p>
-  <a class="btn btn-primary" href="{{ url_for('pages.dashboard') }}">Voltar ao dashboard</a>
-</div>
-{% endblock %}
+{% extends 'errors/base.html' %}
+{% set code = 500 %}{% set tone = 'danger' %}{% set title = 'O sistema encontrou um problema' %}{% set message = 'Não foi possível concluir esta operação agora. Tente novamente em instantes.' %}
+{% block title %}500 · Erro interno | Zokyo{% endblock %}
+{% block error_content %}{% include 'errors/_content.html' %}{% endblock %}

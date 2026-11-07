@@ -116,6 +116,7 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
         report_indexes = {row[1] for row in connection.execute("PRAGMA index_list(laudos_tecnicos)")}
         notification_indexes = {row[1] for row in connection.execute("PRAGMA index_list(notifications)")}
         notification_columns = {row[1] for row in connection.execute("PRAGMA table_info(notifications)")}
+        notification_column_types = {row[1]: row[2] for row in connection.execute("PRAGMA table_info(notifications)")}
         collection_indexes = {row[1] for row in connection.execute("PRAGMA index_list(coletas_agendadas)")}
         counter_foreign_keys = list(connection.execute("PRAGMA foreign_key_list(laudo_counters)"))
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()[0]
@@ -138,6 +139,9 @@ def test_migrations_criam_schema_completo_em_banco_vazio(tmp_path):
     assert "ix_notifications_org_status_next" in notification_indexes
     assert "ix_notifications_org_os_created" in notification_indexes
     assert "os_id" in notification_columns
+    assert "redacted_at" in notification_columns
+    assert notification_column_types["recipient"] == "TEXT"
+    assert notification_column_types["payload"] == "TEXT"
     assert "ix_coletas_org_status_agendada_criado" in collection_indexes
     assert any(row[2] == "organizations" and row[3] == "organization_id" for row in counter_foreign_keys)
-    assert revision == "20261102_0038"
+    assert revision == "20261107_0056"
